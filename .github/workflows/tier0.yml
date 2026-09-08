@@ -1,0 +1,93 @@
+# Reusable Tier 0 — language-agnostic checks that run on every repo.
+#
+#   jobs:
+#     tier0:
+#       uses: CMaintz/foundry/.github/workflows/tier0.yml@v1
+#
+# Nothing here knows what language the repo is written in.
+name: tier0
+
+on:
+  workflow_call:
+    inputs:
+      ruleset-paths:
+        description: >-
+          Extended regex of paths that constitute "the ruleset". A PR touching
+          both these and production source fails unless labelled ruleset-change.
+        type: string
+        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml)'
+      source-paths:
+        description: Extended regex of production source paths.
+        type: string
+        default: '^(src|app|lib)/'
+      test-paths:
+        description: >-
+          Extended regex of test files, excluded from source-paths. Tests may
+          accompany a ruleset change without tripping the guard.
+        type: string
+        default: '\.(test|spec)\.[jt]sx?$'
+      ruleset-label:
+        description: Label that marks a ruleset change as deliberate.
+        type: string
+        default: "ruleset-change"
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    # gitleaks-action lists the PR's commits, which contents:read cannot do.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # gitleaks scans history, not just the tip
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  ruleset-guard:
+    name: Ruleset guard
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      # A fixer must never be able to weaken the gate in the same change that
+      # "fixes" it. Loosening a threshold, disabling a rule, or growing the
+      # suppression baseline is a deliberate act that gets its own PR — or,
+      # failing that, an explicit human label.
+      - name: Refuse ruleset changes bundled with source changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          RULESET_RE: ${{ inputs.ruleset-paths }}
+          SOURCE_RE: ${{ inputs.source-paths }}
+          TEST_RE: ${{ inputs.test-paths }}
+          LABEL: ${{ inputs.ruleset-label }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only "$BASE" "$HEAD")
+          echo "Changed files:"; echo "$changed" | sed 's/^/  /'
+
+          ruleset=$(echo "$changed" | grep -E "$RULESET_RE" || true)
+          source=$(echo "$changed" | grep -E "$SOURCE_RE" | grep -vE "$TEST_RE" || true)
+
+          if [ -n "$ruleset" ] && [ -n "$source" ]; then
+            if echo "$LABELS" | tr ',' '\n' | grep -qx "$LABEL"; then
+              echo "::notice::Ruleset and source both changed, but the '$LABEL' label is present. Allowing."
+              exit 0
+            fi
+            echo "::error::This PR changes the ruleset AND production source in one go."
+            echo "Ruleset files touched:"; echo "$ruleset" | sed 's/^/  /'
+            echo "Source files touched:";  echo "$source"  | sed 's/^/  /'
+            echo ""
+            echo "Split them into separate PRs, or add the '$LABEL' label to say this is deliberate."
+            exit 1
+          fi
+          echo "OK — no bundled ruleset change."

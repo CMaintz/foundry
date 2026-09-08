@@ -1,0 +1,68 @@
+# Reusable TypeScript / Node gate.
+#
+#   jobs:
+#     gate:
+#       uses: CMaintz/foundry/.github/workflows/ts.yml@v1
+#
+# Runs the same six verbs a developer runs locally. If this and `mise run gate`
+# on a laptop ever disagree, that is a bug in the setup, not in the code.
+name: ts
+
+on:
+  workflow_call:
+    inputs:
+      mise-version:
+        description: >-
+          Pin mise itself, not just the action. Left unpinned, mise-action asks
+          mise.jdx.dev/VERSION for "latest", which can advertise a version whose
+          GitHub release assets are not published yet.
+        type: string
+        default: "2026.9.2"
+      working-directory:
+        description: Directory containing mise.toml and package.json.
+        type: string
+        default: "."
+      habit-hooks:
+        description: Run the structural-smell sensors. Requires a .habit-hooks/ directory.
+        type: boolean
+        default: true
+      habit-hooks-plugin:
+        description: Language plugin package for habit-hooks.
+        type: string
+        default: "habit-hooks-typescript"
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Deterministic gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise-version }}
+      - run: npm ci
+      - run: mise run gate
+
+  habits:
+    name: Structural smells
+    if: inputs.habit-hooks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise-version }}
+      # knip / ts-morph / jscpd come from node_modules; the sensors are Python.
+      # .habit-hooks/snooze.json holds the accepted baseline.
+      - run: npm ci
+      - run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit-hooks-plugin }}
+      - run: habit-hooks
