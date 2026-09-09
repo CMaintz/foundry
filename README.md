@@ -4,6 +4,8 @@ Reusable CI workflows, `mise` task templates and config presets behind a single 
 
 Companion repo: **[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** — the agent half (skills, hooks). The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
 
+> **New here? Read [OVERVIEW.md](./OVERVIEW.md)** — the full narrative tour of how the gates, habit sensors, skills, and the self-improving `learn` loop fit together.
+
 ## The idea
 
 A CI pipeline and a set of agent habits are usually built as two separate things. They shouldn't be. They are **one rule set in three placements**:
