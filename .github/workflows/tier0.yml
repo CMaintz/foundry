@@ -13,7 +13,7 @@ on:
       ruleset-paths:
         description: >-
           Extended regex of paths that constitute "the ruleset". A PR touching
-          both these and production source fails unless labelled ruleset-change.
+          both these and production source is examined for loosening.
         type: string
         default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml)'
       source-paths:
@@ -27,7 +27,7 @@ on:
         type: string
         default: '\.(test|spec)\.[jt]sx?$'
       ruleset-label:
-        description: Label that marks a ruleset change as deliberate.
+        description: Label that marks a deliberate loosening as approved.
         type: string
         default: "ruleset-change"
 
@@ -57,11 +57,13 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-      # A fixer must never be able to weaken the gate in the same change that
-      # "fixes" it. Loosening a threshold, disabling a rule, or growing the
-      # suppression baseline is a deliberate act that gets its own PR — or,
-      # failing that, an explicit human label.
-      - name: Refuse ruleset changes bundled with source changes
+      # The guard exists to stop a fixer WEAKENING the gate in the same change
+      # that "fixes" it — the cheapest fix for a lint error is to disable the
+      # rule. But the risk is asymmetric: *loosening* needs a human; *tightening*
+      # (or a change with no semantic effect) is always safe. So a bundled
+      # ruleset+source PR is allowed without a label as long as every ruleset
+      # file it touches can be PROVEN not to loosen the gate.
+      - name: Refuse loosening the gate alongside source changes
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
@@ -72,22 +74,68 @@ jobs:
           LABEL: ${{ inputs.ruleset-label }}
         run: |
           set -euo pipefail
+
           changed=$(git diff --name-only "$BASE" "$HEAD")
           echo "Changed files:"; echo "$changed" | sed 's/^/  /'
 
           ruleset=$(echo "$changed" | grep -E "$RULESET_RE" || true)
           source=$(echo "$changed" | grep -E "$SOURCE_RE" | grep -vE "$TEST_RE" || true)
 
-          if [ -n "$ruleset" ] && [ -n "$source" ]; then
-            if echo "$LABELS" | tr ',' '\n' | grep -qx "$LABEL"; then
-              echo "::notice::Ruleset and source both changed, but the '$LABEL' label is present. Allowing."
-              exit 0
+          # Only a bundled ruleset+source change is ever in question.
+          if [ -z "$ruleset" ] || [ -z "$source" ]; then
+            echo "OK — no bundled ruleset+source change."
+            exit 0
+          fi
+
+          # An explicit human decision overrides the analysis entirely.
+          if echo "$LABELS" | tr ',' '\n' | grep -qx "$LABEL"; then
+            echo "::notice::'$LABEL' label present — deliberate ruleset change, allowing."
+            exit 0
+          fi
+
+          blob() { git show "$1:$2" 2>/dev/null || true; }
+          # eslint suppressions: sum of accepted violations. Tightening = shrinks.
+          eslint_weight() { jq '[.. | .count? // empty] | add // 0' 2>/dev/null || echo 0; }
+          # habit-hooks snooze: count of accepted findings. Tightening = shrinks.
+          snooze_weight() { jq '[paths(scalars)] | length' 2>/dev/null || echo 0; }
+
+          review=""
+          while IFS= read -r f; do
+            if [ -z "$f" ]; then continue; fi
+            old=$(blob "$BASE" "$f"); new=$(blob "$HEAD" "$f")
+
+            # A change with no semantic content — e.g. a CRLF/LF flip from
+            # core.autocrlf, which `eslint --prune-suppressions` provokes — is safe.
+            if [ "$(printf '%s' "$old" | tr -d '\r')" = "$(printf '%s' "$new" | tr -d '\r')" ]; then
+              echo "  safe (no semantic change): $f"; continue
             fi
-            echo "::error::This PR changes the ruleset AND production source in one go."
-            echo "Ruleset files touched:"; echo "$ruleset" | sed 's/^/  /'
-            echo "Source files touched:";  echo "$source"  | sed 's/^/  /'
+
+            case "$f" in
+              *eslint-suppressions.json)
+                o=$(printf '%s' "$old" | eslint_weight); n=$(printf '%s' "$new" | eslint_weight)
+                if [ "$n" -le "$o" ]; then echo "  safe (suppressions ${o}->${n}): $f"
+                else echo "  REVIEW (suppressions grew ${o}->${n}): $f"; review="$review $f"; fi
+                ;;
+              *snooze.json)
+                o=$(printf '%s' "$old" | snooze_weight); n=$(printf '%s' "$new" | snooze_weight)
+                if [ "$n" -le "$o" ]; then echo "  safe (snoozes ${o}->${n}): $f"
+                else echo "  REVIEW (snoozes grew ${o}->${n}): $f"; review="$review $f"; fi
+                ;;
+              *)
+                # Config / threshold / workflow files: direction can't be proven
+                # generically (is a changed number a raised floor or a lowered
+                # one?), so these still need the label.
+                echo "  REVIEW (config — direction can't be proven): $f"; review="$review $f"
+                ;;
+            esac
+          done <<< "$ruleset"
+
+          if [ -n "$review" ]; then
+            echo "::error::This PR changes source AND makes ruleset changes that may loosen the gate, without the '$LABEL' label:"
+            echo "$review" | tr ' ' '\n' | sed '/^$/d;s/^/  /'
             echo ""
-            echo "Split them into separate PRs, or add the '$LABEL' label to say this is deliberate."
+            echo "Tighten/raise in a separate PR, or add the '$LABEL' label if the loosening is deliberate."
             exit 1
           fi
-          echo "OK — no bundled ruleset change."
+
+          echo "::notice::Ruleset changes are tightening-only or inert — allowed alongside source without a label."
