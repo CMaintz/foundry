@@ -1,0 +1,2 @@
+# Copy to <repo>/.habit-hooks/config.toml
+plugins = ["typescript", "generic"]

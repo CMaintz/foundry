@@ -1,0 +1,29 @@
+# Foundry verb interface — PHP (Composer) template. See CONTRACT.md.
+# Commands assume PHP_CodeSniffer + PHP-CS-Fixer + PHPStan + PHPUnit; adjust to taste.
+
+[tools]
+php = "8.3"
+
+[tasks.fix]
+description = "Auto-format"
+run = "vendor/bin/php-cs-fixer fix"
+
+[tasks.lint]
+description = "Codesniffer + phpmd smells (habit-hooks reads phpmd)"
+run = "vendor/bin/phpcs"
+
+[tasks.typecheck]
+description = "Static analysis (PHP has no compiler; PHPStan is the type check)"
+run = "vendor/bin/phpstan analyse"
+
+[tasks.test]
+description = "Tests with coverage floor"
+run = "vendor/bin/phpunit"
+
+[tasks.audit]
+description = "Dependency vulnerabilities"
+run = "composer audit"
+
+[tasks.gate]
+description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]

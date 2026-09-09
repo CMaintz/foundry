@@ -1,0 +1,3 @@
+# Copy to <repo>/.habit-hooks/config.toml
+# Detector: phpmd (bundled). Provides oversized-file, oversized-function, etc.
+plugins = ["php", "generic"]

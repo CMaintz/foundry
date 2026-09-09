@@ -1,0 +1,29 @@
+# Foundry verb interface — Java (Gradle) template. See CONTRACT.md.
+# Commands assume Gradle + Spotless + PMD; adjust for Maven or your plugins.
+
+[tools]
+java = "21"
+
+[tasks.fix]
+description = "Auto-format"
+run = "./gradlew spotlessApply"
+
+[tasks.lint]
+description = "Style + PMD smells (habit-hooks reads PMD for oversized-file/function)"
+run = "./gradlew spotlessCheck pmdMain"
+
+[tasks.typecheck]
+description = "Compilation is Java's type check"
+run = "./gradlew compileJava"
+
+[tasks.test]
+description = "Tests (wire a coverage floor via jacocoTestCoverageVerification)"
+run = "./gradlew test"
+
+[tasks.audit]
+description = "Dependency vulnerabilities (OWASP dependency-check plugin)"
+run = "./gradlew dependencyCheckAnalyze"
+
+[tasks.gate]
+description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]

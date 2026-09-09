@@ -1,0 +1,3 @@
+# Copy to <repo>/.habit-hooks/config.toml
+# Detector: PMD. Provides oversized-file, oversized-function, high-complexity, etc.
+plugins = ["java", "generic"]

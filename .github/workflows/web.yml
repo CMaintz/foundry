@@ -1,0 +1,53 @@
+# Reusable max-file-length gate for HTML/CSS, which have no habit-hooks plugin.
+#
+#   jobs:
+#     web:
+#       uses: CMaintz/foundry/.github/workflows/web.yml@<sha>
+#       with: { max_lines: 400 }
+#
+# File-length limits apply to markup and styles too — a 2000-line stylesheet is a
+# cohesion problem like any other oversized file.
+name: web
+
+on:
+  workflow_call:
+    inputs:
+      max_lines:
+        description: Fail if any matched file exceeds this many lines.
+        type: number
+        default: 400
+      extensions:
+        description: Space-separated file extensions to size-check (no dots).
+        type: string
+        default: "html css scss"
+
+permissions:
+  contents: read
+
+jobs:
+  max-file:
+    name: Max file length
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Fail on oversized HTML/CSS files
+        env:
+          MAX: ${{ inputs.max_lines }}
+          EXTS: ${{ inputs.extensions }}
+        run: |
+          set -euo pipefail
+          name_expr=()
+          for e in $EXTS; do name_expr+=( -o -name "*.$e" ); done
+
+          fail=0
+          while IFS= read -r -d '' f; do
+            n=$(wc -l < "$f")
+            if [ "$n" -gt "$MAX" ]; then
+              echo "::error file=$f::$f is $n lines (max $MAX)"
+              fail=1
+            fi
+          done < <(find . -type d \( -name node_modules -o -name dist -o -name .git \) -prune \
+                    -o -type f \( "${name_expr[@]:1}" \) -print0)
+
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "All matched files within $MAX lines."
