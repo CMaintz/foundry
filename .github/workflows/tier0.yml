@@ -96,11 +96,10 @@ jobs:
           fi
 
           blob() { git show "$1:$2" 2>/dev/null || true; }
-          # eslint suppressions: sum of accepted violations. Tightening = shrinks.
-          eslint_weight() { jq '[.. | .count? // empty] | add // 0' 2>/dev/null || echo 0; }
-          # habit-hooks snooze: count of accepted findings. Tightening = shrinks.
-          snooze_weight() { jq '[paths(scalars)] | length' 2>/dev/null || echo 0; }
 
+          # scripts/ruleset_guard.py must be committed in the calling repo — a
+          # reusable workflow runs in the caller's checkout. Copy it from
+          # foundry/scripts/ when onboarding.
           review=""
           while IFS= read -r f; do
             if [ -z "$f" ]; then continue; fi
@@ -112,16 +111,19 @@ jobs:
               echo "  safe (no semantic change): $f"; continue
             fi
 
+            # Per-entry loosening check. An aggregate count is gameable by
+            # offsetting (fix one violation, suppress another → net zero); this
+            # flags any single suppression/snooze entry that is added or increased.
             case "$f" in
               *eslint-suppressions.json)
-                o=$(printf '%s' "$old" | eslint_weight); n=$(printf '%s' "$new" | eslint_weight)
-                if [ "$n" -le "$o" ]; then echo "  safe (suppressions ${o}->${n}): $f"
-                else echo "  REVIEW (suppressions grew ${o}->${n}): $f"; review="$review $f"; fi
+                if python3 scripts/ruleset_guard.py eslint "$BASE" "$HEAD" "$f"; then
+                  echo "  safe (no suppression added): $f"
+                else echo "  REVIEW (suppression added/increased): $f"; review="$review $f"; fi
                 ;;
               *snooze.json)
-                o=$(printf '%s' "$old" | snooze_weight); n=$(printf '%s' "$new" | snooze_weight)
-                if [ "$n" -le "$o" ]; then echo "  safe (snoozes ${o}->${n}): $f"
-                else echo "  REVIEW (snoozes grew ${o}->${n}): $f"; review="$review $f"; fi
+                if python3 scripts/ruleset_guard.py snooze "$BASE" "$HEAD" "$f"; then
+                  echo "  safe (no snooze added): $f"
+                else echo "  REVIEW (snooze added): $f"; review="$review $f"; fi
                 ;;
               *)
                 # Config / threshold / workflow files: direction can't be proven
