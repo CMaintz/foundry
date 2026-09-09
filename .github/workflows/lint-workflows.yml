@@ -1,0 +1,32 @@
+# foundry lints its own workflows — the deterministic net that would have caught
+# the kebab-case reusable-workflow input bug (inputs.mise-version parses as
+# `inputs.mise - version`, an undeclared property, and fails at run startup with
+# no API-visible error). actionlint validates expression syntax and declared
+# context properties, so that mistake fails here instead.
+#
+# shellcheck integration is disabled for now to keep this focused on
+# workflow/expression validation; the guard's bash can be shellcheck-clean later.
+name: lint-workflows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Run actionlint
+        env:
+          VERSION: "1.7.12"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -shellcheck= -color
