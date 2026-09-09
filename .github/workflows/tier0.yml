@@ -9,24 +9,26 @@ name: tier0
 
 on:
   workflow_call:
+    # Input names are snake_case, not kebab: `${{ inputs.foo-bar }}` parses as
+    # `inputs.foo - bar` in Actions expressions and fails the run at startup.
     inputs:
-      ruleset-paths:
+      ruleset_paths:
         description: >-
           Extended regex of paths that constitute "the ruleset". A PR touching
           both these and production source is examined for loosening.
         type: string
         default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml)'
-      source-paths:
+      source_paths:
         description: Extended regex of production source paths.
         type: string
         default: '^(src|app|lib)/'
-      test-paths:
+      test_paths:
         description: >-
-          Extended regex of test files, excluded from source-paths. Tests may
+          Extended regex of test files, excluded from source_paths. Tests may
           accompany a ruleset change without tripping the guard.
         type: string
         default: '\.(test|spec)\.[jt]sx?$'
-      ruleset-label:
+      ruleset_label:
         description: Label that marks a deliberate loosening as approved.
         type: string
         default: "ruleset-change"
@@ -68,10 +70,10 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-          RULESET_RE: ${{ inputs.ruleset-paths }}
-          SOURCE_RE: ${{ inputs.source-paths }}
-          TEST_RE: ${{ inputs.test-paths }}
-          LABEL: ${{ inputs.ruleset-label }}
+          RULESET_RE: ${{ inputs.ruleset_paths }}
+          SOURCE_RE: ${{ inputs.source_paths }}
+          TEST_RE: ${{ inputs.test_paths }}
+          LABEL: ${{ inputs.ruleset_label }}
         run: |
           set -euo pipefail
 
