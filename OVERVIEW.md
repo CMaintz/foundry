@@ -262,3 +262,33 @@ same smell names. Nothing already built changes.
 foundry/                        # reusable workflows, mise templates, this doc
 cmaintz-skills/                 # ship skill + the hook, as an installable plugin
 ```
+
+## 12. Monorepos — lessons from a Java/Spring + Angular pilot
+
+Applying Foundry to a real polyglot monorepo (a Spring Boot backend + Angular
+frontend + a browser extension) surfaced patterns worth codifying:
+
+- **Verbs are namespaced per package.** One root `mise.toml` exposes
+  `backend:gate`, `frontend:gate`, etc., plus an aggregate `gate`. CI runs each
+  package's gate as its own job.
+- **habit-hooks is per package, not per repo.** Its TypeScript detectors
+  (eslint/knip/ts-morph/jscpd) resolve from the package's own `node_modules`, so
+  the config and snooze baseline live in `frontend/.habit-hooks/`, and the sensor
+  runs *from* `frontend/`. Backend Java/PMD lives in `backend/.habit-hooks/`.
+- **Generate the smell baseline in CI, not locally.** On Windows the full-repo
+  file list blows the ~8191-char command-line limit, so a manual
+  `workflow_dispatch` job generates each `snooze.json` on Linux and commits it.
+  The per-package smell jobs soft-pass until their baseline exists.
+- **In-loop scope is `--branch`, not `--all`.** The Stop hook checks only the
+  changeset — correct for "flag what you touched", and it dodges the Windows
+  limit.
+- **Dependency audit needs a lockfile, generated on demand.** osv-scanner reads a
+  `gradle.lockfile`; enable Gradle dependency locking but keep the lockfile
+  gitignored and regenerate it in the audit job, so lock drift never breaks the
+  gate.
+- **Ratchet by diff where a baseline file is overkill.** Spotless
+  (`ratchetFrom origin/main`), Semgrep (`--baseline-commit`) and the no-`var` PMD
+  rule (CI checks only changed files) all enforce on new code while leaving
+  legacy untouched — the ratchet, without a committed baseline.
+- **Integrate, don't replace, existing CI.** The pilot kept its Docker
+  image-publish job verbatim and only added Foundry's gate + guard jobs alongside.

@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!-- Foundry preset: ban Java `var`. Copy to <module>/config/pmd/no-var.xml.
+     Run: pmd check -d src/main/java -R config/pmd/no-var.xml --suppress-marker foundry-allow-var
+     Enforce diff-scoped in CI so pre-existing uses aren't a day-one wall. -->
+<ruleset name="foundry-no-var" xmlns="http://pmd.sourceforge.net/ruleset/2.0.0">
+  <description>Disallow `var` (Java local type inference) unless explicitly justified.</description>
+  <rule name="NoVar" language="java"
+        message="Avoid `var`; use an explicit type, or justify with a trailing `// foundry-allow-var: reason` comment."
+        class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>
+      `var` hides the concrete type at the use site, which hurts readability for
+      humans and agents alike. Prefer an explicit type. Where `var` is genuinely
+      warranted (e.g. an unspeakable or very long generic type), keep it and add a
+      trailing `// foundry-allow-var: &lt;reason&gt;` comment on the same line;
+      the CI run uses that as PMD's suppress marker.
+    </description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value>//LocalVariableDeclaration[@TypeInferred = true()]</value>
+      </property>
+    </properties>
+  </rule>
+</ruleset>

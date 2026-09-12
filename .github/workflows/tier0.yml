@@ -48,6 +48,22 @@ jobs:
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Uses the repo's .gitleaks.toml if present (see presets/gitleaks.toml).
+          GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml
+      # Turn a bare red X into actionable guidance when a secret is found.
+      - name: Remediation guidance
+        if: failure()
+        run: |
+          {
+            echo "## 🔑 Secret scan found something"
+            echo ""
+            echo "**Decide first — real secret, or false positive?** (Ask if unsure.)"
+            echo ""
+            echo "- **Real secret:** rotate/revoke at the provider **first**, then remove from code, then purge from history (\`git filter-repo\`) and force-push. Never allowlist a real secret."
+            echo "- **False positive** (public-by-design config, dummy test fixture): add the *exact file path* to \`.gitleaks.toml\` \`[allowlist] paths\`, with a note on why. Never allowlist a whole directory."
+            echo ""
+            echo "The **\`/foundry-secret\`** skill walks through either path."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   ruleset-guard:
     name: Ruleset guard

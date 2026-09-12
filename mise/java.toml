@@ -1,16 +1,18 @@
 # Foundry verb interface — Java (Gradle) template. See CONTRACT.md.
-# Commands assume Gradle + Spotless + PMD; adjust for Maven or your plugins.
+# Commands assume Gradle + Spotless; structural smells come from habit-hooks'
+# Java/PMD plugin, not the Gradle build. Adjust for Maven or your plugins.
+# Proven on a Spring Boot repo (AutoApplicant); see OVERVIEW.md.
 
 [tools]
 java = "21"
 
 [tasks.fix]
-description = "Auto-format"
+description = "Auto-format (Spotless; use ratchetFrom('origin/main') to avoid a big-bang reformat)"
 run = "./gradlew spotlessApply"
 
 [tasks.lint]
-description = "Style + PMD smells (habit-hooks reads PMD for oversized-file/function)"
-run = "./gradlew spotlessCheck pmdMain"
+description = "Format check (Spotless). Structural smells run via habit-hooks (PMD)."
+run = "./gradlew spotlessCheck"
 
 [tasks.typecheck]
 description = "Compilation is Java's type check"
@@ -21,8 +23,17 @@ description = "Tests (wire a coverage floor via jacocoTestCoverageVerification)"
 run = "./gradlew test"
 
 [tasks.audit]
-description = "Dependency vulnerabilities (OWASP dependency-check plugin)"
-run = "./gradlew dependencyCheckAnalyze"
+description = "Dependency CVEs via osv-scanner over a Gradle lockfile (needs osv-scanner on PATH)"
+# Enable dependencyLocking { lockAllConfigurations() } in build.gradle.kts; the
+# lockfile is generated on demand (gitignored) so lock drift never breaks the gate.
+run = [
+    "./gradlew dependencies --write-locks",
+    "osv-scanner --lockfile=gradle.lockfile",
+]
+
+[tasks.novar]
+description = "Report `var` uses (needs pmd on PATH). Enforce diff-scoped in CI. Tag exceptions `// foundry-allow-var: reason`."
+run = "pmd check -d src/main/java -R config/pmd/no-var.xml -f text --suppress-marker foundry-allow-var"
 
 [tasks.gate]
 description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."

@@ -1,0 +1,41 @@
+# Reusable SAST via Semgrep.
+#
+#   jobs:
+#     sast:
+#       uses: CMaintz/foundry/.github/workflows/semgrep.yml@<sha>
+#
+# CodeQL is the GitHub-native alternative but is free only on PUBLIC repos;
+# Semgrep is free and works on private repos too, so it's the portable default.
+# Diff-aware: --baseline-commit means only findings the PR *introduces* fail —
+# the ratchet, applied by diff rather than a baseline file.
+name: semgrep
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        description: Semgrep ruleset(s). Space-separated registry slugs.
+        type: string
+        default: "p/ci"
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: SAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # baseline diff needs the base commit
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - run: pip install --disable-pip-version-check semgrep
+      - name: Semgrep (only new findings vs the PR base)
+        run: |
+          semgrep scan \
+            --config ${{ inputs.config }} \
+            --baseline-commit "${{ github.event.pull_request.base.sha }}" \
+            --error
