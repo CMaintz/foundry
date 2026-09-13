@@ -93,6 +93,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Diff from the merge-base (3-dot), not the raw base tip. pull_request
+          # events don't re-fire when the base branch advances, so base.sha goes
+          # stale on a PR whose branch sits untouched — and a 2-dot diff then
+          # reports files the base changed but this PR never touched (phantom
+          # loosening). merge-base scopes to this PR's own commits, matching
+          # `gh pr diff`. All downstream uses of BASE (blob(), ruleset_guard.py)
+          # inherit it.
+          BASE=$(git merge-base "$BASE" "$HEAD")
+
           changed=$(git diff --name-only "$BASE" "$HEAD")
           echo "Changed files:"; echo "$changed" | sed 's/^/  /'
 
