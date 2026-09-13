@@ -50,7 +50,17 @@ jobs:
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: ${{ inputs.mise_version }}
-      - run: npm ci
+      # Cache node_modules keyed on the lockfile and skip npm ci on a hit. npm ci
+      # otherwise wipes and rebuilds node_modules every run — often the job's long
+      # pole (a mise/setup-node npm cache only restores ~/.npm, not node_modules).
+      # Shared with the habits job via the same key.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: node_modules
+        with:
+          path: ${{ inputs.working_directory }}/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory)) }}
+      - if: steps.node_modules.outputs.cache-hit != 'true'
+        run: npm ci
       - run: mise run gate
 
   habits:
@@ -67,6 +77,12 @@ jobs:
           version: ${{ inputs.mise_version }}
       # knip / ts-morph / jscpd come from node_modules; the sensors are Python.
       # .habit-hooks/snooze.json holds the accepted baseline.
-      - run: npm ci
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: node_modules
+        with:
+          path: ${{ inputs.working_directory }}/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory)) }}
+      - if: steps.node_modules.outputs.cache-hit != 'true'
+        run: npm ci
       - run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
       - run: habit-hooks
