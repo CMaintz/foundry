@@ -292,3 +292,52 @@ frontend + a browser extension) surfaced patterns worth codifying:
   legacy untouched — the ratchet, without a committed baseline.
 - **Integrate, don't replace, existing CI.** The pilot kept its Docker
   image-publish job verbatim and only added Foundry's gate + guard jobs alongside.
+
+## 13. The split, and wiring branch protection
+
+A consumer doesn't put everything in one `ci.yml`. Split by *cadence and blast
+radius* into separate workflow files, each composing foundry's reusable pieces:
+
+| File | Contains | Trigger |
+|---|---|---|
+| `gate.yml` | the deterministic gate(s) — `ts.yml` / language gate per package | PR + push |
+| `quality.yml` | structural smells (habit-hooks), ratchet checks | PR + push |
+| `security.yml` | `tier0.yml` (secrets + ruleset-guard) + `semgrep.yml` | PR + push |
+| `bootstrap.yml` | `bootstrap.yml` — baseline refresh | `workflow_dispatch` |
+| `deploy.yml` | image publish / release — **push-to-main only** | push |
+
+```yaml
+# .github/workflows/security.yml
+name: security
+on: { pull_request: {}, push: { branches: [main] } }
+jobs:
+  tier0:
+    uses: CMaintz/foundry/.github/workflows/tier0.yml@<sha>
+  sast:
+    uses: CMaintz/foundry/.github/workflows/semgrep.yml@<sha>
+```
+
+Why split, not one file: `needs:` can't cross workflow files, so unrelated jobs
+don't serialise; a slow `quality` run doesn't gate a fast `security` result; and
+each file has one obvious trigger. **Keep `deploy` push-only** — a deploy job
+under `pull_request` shows up as a permanently *skipped* check, which is noise and
+can wedge branch protection (see below).
+
+### Branch protection — the gotchas that cost a pilot a day
+
+- **Required check names must match the job's `name:` string *exactly*.** Protection
+  matches on the rendered check name, not the job id. Rename a job (e.g.
+  `SpotBugs (backend)` → `SpotBugs (backend, report-only)`) and the old required
+  check never reports — PRs hang "Expected" forever. Update protection and the job
+  name in the same change.
+- **A `workflow_dispatch`-only job never appears as a PR check** — so don't add
+  `bootstrap` to required checks; it would block every PR waiting on a run that
+  isn't coming.
+- **A job gated `if: github.event_name == 'pull_request'` is *skipped* on push.**
+  That's fine for a required check (skipped ≠ failed on the branch it doesn't run
+  on), but a job skipped on the *PR itself* (wrong `if`) counts as neither pass nor
+  fail and can stall the merge. Gate on the event, not by accident.
+- **Enable "require branches to be up to date" (strict mode)** so a PR is re-tested
+  against the latest main before merge — this, plus the guard diffing from the
+  merge-base, is what stops a stale base from either sneaking a regression in or
+  false-flagging an untouched file.
