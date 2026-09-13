@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Project PMD ruleset for habit-hooks' Java sensor. Copy to <repo>/pmd/ruleset.xml.
+     The Java sensor prefers a project ruleset (pmd/ruleset.xml) over its bundled one
+     and still maps findings to smells BY PMD RULE NAME — so this is a faithful copy
+     of the bundled ruleset with ONE deliberate change:
+
+       ExcessiveParameterList minimum: 4 -> 8
+
+     Rationale: at 4 the rule fires on ordinary Spring DI constructors and Java
+     records (data carriers) — noise. At 8 it still catches a genuine god-class
+     (e.g. an 11-dependency service), which is the real "this class does too much"
+     signal — corroborated by high-complexity / oversized-function on the same class.
+
+     UnnecessaryImport is retained here for name-mapping but is disabled via
+     `[smells.unused-import] disabled` in .habit-hooks/config.toml (a formatter
+     already enforces unused imports correctly, with a classpath). -->
+<ruleset name="foundry-java-tuned"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>Foundry Java structural-smell rules (habit-hooks, tuned).</description>
+  <rule ref="category/java/design.xml/ExcessiveParameterList">
+    <properties><property name="minimum" value="8"/></properties>
+  </rule>
+  <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts">
+    <properties><property name="problemDepth" value="3"/></properties>
+  </rule>
+  <rule ref="category/java/design.xml/CyclomaticComplexity">
+    <properties><property name="methodReportLevel" value="10"/></properties>
+  </rule>
+  <rule ref="category/java/design.xml/NcssCount">
+    <properties><property name="methodReportLevel" value="12"/></properties>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+  <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+  <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
+</ruleset>

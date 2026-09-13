@@ -1,3 +1,30 @@
 # Copy to <repo>/.habit-hooks/config.toml
 # Detector: PMD. Provides oversized-file, oversized-function, high-complexity, etc.
+#
+# TOML ordering matters: top-level keys (plugins, files) MUST come before any
+# [table] header, or the parser attributes them to the table.
 plugins = ["java", "generic"]
+
+# Tests are not structural-smell-gated: long, mock-heavy test methods and many
+# fixtures are normal and fine. CI should police production maintainability, not
+# test structure. (Language-agnostic principle — see README.)
+files = ["!**/src/test/**/*.java"]
+
+# Silence PMD's progressbar / incremental-analysis WARN lines on CI stdout.
+[sensors.pmd]
+args = "--no-progress"
+
+# unused-import: PMD's UnnecessaryImport runs here WITHOUT an aux-classpath, so it
+# cannot resolve wildcard-import usage and false-flags e.g. `jakarta.persistence.*`
+# on JPA entities. It is also redundant — a formatter (Spotless removeUnusedImports)
+# already enforces unused imports correctly, WITH a classpath, in the gate. Disable
+# it so the snooze baseline stays honest. Remove this block if you don't run a
+# formatter that strips unused imports.
+[smells.unused-import]
+disabled = true
+
+# too-many-parameters (PMD ExcessiveParameterList) defaults to minimum=4, which
+# fires on ordinary Spring DI constructors and records (data carriers) — noise. To
+# raise the threshold to a real god-class signal (8), drop pmd/ruleset.xml (see
+# ../pmd/ruleset.xml) in the project: the Java sensor prefers a project ruleset and
+# still maps findings to smells by PMD rule name. See README ("Tuning thresholds").
