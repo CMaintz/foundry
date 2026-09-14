@@ -1,0 +1,96 @@
+# Reusable ratchet report — comment on a PR with how the accepted-debt baselines
+# moved, so the ratchet is VISIBLE (progress is otherwise invisible unless you
+# diff the baseline files by hand).
+#
+#   jobs:
+#     ratchet:
+#       uses: CMaintz/foundry/.github/workflows/ratchet-report.yml@<sha>
+#       with:
+#         baselines: |
+#           eslint-suppressions.json
+#           frontend/.habit-hooks/snooze.json
+#           backend/.habit-hooks/snooze.json
+#       permissions:
+#         contents: read
+#         pull-requests: write
+#
+# Each baseline's size is counted format-agnostically as the number of scalar
+# leaves (`[paths(scalars)] | length`): for eslint-suppressions.json that's the
+# number of (file, rule) suppressions; for a snooze.json array it's the number of
+# snoozed entries. A NEGATIVE delta is the goal — the baseline only shrinks. A
+# positive one should only appear on a labelled `ruleset-change`.
+name: ratchet-report
+
+on:
+  workflow_call:
+    inputs:
+      baselines:
+        description: Newline- or space-separated baseline JSON files to report on.
+        type: string
+        default: |
+          eslint-suppressions.json
+          .habit-hooks/snooze.json
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    name: Ratchet report
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # need the base commit to diff the baseline against
+      - name: Build and post the ratchet report
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BASELINES: ${{ inputs.baselines }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Scalar-leaf count of a JSON blob on stdin; 0 if empty/absent/invalid.
+          count() { jq '[paths(scalars)] | length' 2>/dev/null || echo 0; }
+
+          marker="<!-- foundry-ratchet-report -->"
+          rows=""; moved=0
+          for f in $BASELINES; do
+            [ -z "$f" ] && continue
+            before=$(git show "$BASE:$f" 2>/dev/null | count); before=${before:-0}
+            after=$([ -f "$f" ] && count < "$f" || echo 0)
+            delta=$((after - before))
+            if [ "$delta" -lt 0 ]; then icon="✅ −$(( -delta ))"; moved=1
+            elif [ "$delta" -gt 0 ]; then icon="⚠️ +$delta"; moved=1
+            else icon="· 0"; fi
+            rows="${rows}| \`$f\` | $before | $after | $icon |"$'\n'
+          done
+
+          {
+            echo "$marker"
+            echo "### 🔧 Ratchet report"
+            echo ""
+            echo "| Baseline | Before | After | Δ |"
+            echo "|---|--:|--:|--:|"
+            printf '%s' "$rows"
+            echo ""
+            if [ "$moved" -eq 0 ]; then
+              echo "_No baseline changed._"
+            else
+              echo "_A negative Δ is the goal — baselines only shrink. A positive Δ should only appear on a PR labelled \`ruleset-change\`._"
+            fi
+          } > body.md
+
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq "map(select(.body|startswith(\"$marker\"))) | .[0].id // empty")
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body="$(cat body.md)" >/dev/null
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -f body="$(cat body.md)" >/dev/null
+          fi
+          echo "Ratchet report posted."
