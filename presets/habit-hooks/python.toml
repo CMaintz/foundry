@@ -1,0 +1,9 @@
+# Copy to <repo>/.habit-hooks/config.toml
+# There's no habit-hooks Python sensor bundled here, so structural smells come from
+# ruff in `mise run lint` (the gate). This preset runs only the language-independent
+# `generic` (jscpd) duplication check. Add a habit-hooks-python plugin here if one
+# ships.
+plugins = ["generic"]
+
+# Tests are not smell-scanned (language-agnostic principle — see README).
+files = ["!**/tests/**", "!**/test_*.py", "!**/*_test.py"]

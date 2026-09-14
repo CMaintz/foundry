@@ -1,0 +1,8 @@
+# Copy to <repo>/.habit-hooks/config.toml
+# There's no habit-hooks .NET sensor yet, so structural smells come from Roslyn
+# analyzers in `mise run lint` / the build (with -warnaserror). This preset runs
+# only the language-independent `generic` (jscpd) duplication check.
+plugins = ["generic"]
+
+# Tests are not smell-scanned (language-agnostic principle — see README).
+files = ["!**/*Tests/**", "!**/*Tests.cs", "!**/*.Test.cs"]

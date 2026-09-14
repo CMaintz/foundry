@@ -1,0 +1,38 @@
+# Foundry verb interface — .NET (C#) template. See CONTRACT.md.
+# Commands assume `dotnet format` + Roslyn analyzers + NuGetAudit + the built-in
+# test runner. Adjust for your solution layout.
+
+[tools]
+# mise's .NET support varies by backend; if it can't provide the SDK, use
+# actions/setup-dotnet in CI and a local install, and drop this pin.
+dotnet = "8.0"
+
+[tasks.fix]
+description = "Auto-format (dotnet format)"
+run = "dotnet format"
+
+[tasks.lint]
+description = "Format check + analyzers"
+# `dotnet format --verify-no-changes` is the style check; Roslyn analyzers run in
+# the build below with -warnaserror, which is where structural issues surface.
+run = "dotnet format --verify-no-changes"
+
+[tasks.typecheck]
+description = "Build = C#'s compile + analyzer pass"
+# TreatWarningsAsErrors turns analyzer + NuGetAudit warnings into gate failures.
+run = "dotnet build -warnaserror"
+
+[tasks.test]
+description = "Tests (wire a coverage floor via coverlet + a threshold)"
+run = "dotnet test --no-build"
+
+[tasks.audit]
+description = "Dependency vulnerabilities"
+# `dotnet list --vulnerable` exits 0 even with findings, so fail explicitly when
+# the report names a vulnerable package. NuGetAudit (in the build above) is the
+# other half — it warns at restore, and -warnaserror makes that fail too.
+run = "! dotnet list package --vulnerable --include-transitive 2>&1 | grep -q 'has the following vulnerable'"
+
+[tasks.gate]
+description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]

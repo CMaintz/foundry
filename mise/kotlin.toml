@@ -1,0 +1,37 @@
+# Foundry verb interface — Kotlin (Gradle) template. See CONTRACT.md.
+# Commands assume ktlint (style) + detekt (structural smells) + osv-scanner.
+# Adjust for Maven or your plugins.
+
+[tools]
+java = "21" # Kotlin compiles on the JVM; pin to what the repo targets
+
+[tasks.fix]
+description = "Auto-format (ktlint)"
+run = "./gradlew ktlintFormat"
+
+[tasks.lint]
+description = "Style (ktlint) + structural smells (detekt)"
+# detekt is Kotlin's smell detector — the analogue of PMD for Java. Wire a detekt
+# baseline (detektBaseline) for the ratchet, so only new smells fail.
+run = "./gradlew ktlintCheck detekt"
+
+[tasks.typecheck]
+description = "Compilation is Kotlin's type check"
+run = "./gradlew compileKotlin"
+
+[tasks.test]
+description = "Tests (wire a coverage floor via kover or jacoco)"
+run = "./gradlew test"
+
+[tasks.audit]
+description = "Dependency CVEs via osv-scanner over a Gradle lockfile (needs osv-scanner on PATH)"
+# Enable dependencyLocking { lockAllConfigurations() }; lockfile generated on
+# demand (gitignored) so lock drift never breaks the gate.
+run = [
+    "./gradlew dependencies --write-locks",
+    "osv-scanner --lockfile=gradle.lockfile",
+]
+
+[tasks.gate]
+description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]

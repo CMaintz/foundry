@@ -1,0 +1,32 @@
+# Foundry verb interface — Python template. See CONTRACT.md.
+# Commands assume ruff (lint + format) + mypy + pytest + pip-audit, installed as
+# the project's dev dependencies. Adjust for poetry/uv/pdm as needed.
+
+[tools]
+python = "3.12"
+
+[tasks.fix]
+description = "Auto-fix lint + format (ruff)"
+run = ["ruff check --fix .", "ruff format ."]
+
+[tasks.lint]
+description = "Lint and structural smells (ruff)"
+# ruff subsumes flake8/isort/pyupgrade/etc.; enable the rule sets you want in
+# ruff.toml. This is both the style check and the smell detector for Python.
+run = ["ruff check .", "ruff format --check ."]
+
+[tasks.typecheck]
+description = "Static types (mypy)"
+run = "mypy ."
+
+[tasks.test]
+description = "Tests with coverage floor"
+run = "pytest --cov --cov-fail-under=0" # set your floor in place of 0
+
+[tasks.audit]
+description = "Dependency vulnerabilities (pip-audit)"
+run = "pip-audit"
+
+[tasks.gate]
+description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]
