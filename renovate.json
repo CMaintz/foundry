@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["local>CMaintz/foundry//presets/renovate"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "osv-scanner version pinned as a default in the reusable workflows",
+      "fileMatch": ["^\\.github/workflows/.*\\.ya?ml$"],
+      "matchStrings": ["osv_scanner_version:[\\s\\S]*?default:\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "google/osv-scanner",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "PMD version pinned as a default in the reusable workflows",
+      "fileMatch": ["^\\.github/workflows/.*\\.ya?ml$"],
+      "matchStrings": ["pmd_version:[\\s\\S]*?default:\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "pmd/pmd",
+      "extractVersionTemplate": "^pmd_releases/(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "mise CLI version pinned as a default in the reusable workflows",
+      "fileMatch": ["^\\.github/workflows/.*\\.ya?ml$"],
+      "matchStrings": ["mise_version:[\\s\\S]*?default:\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "jdx/mise",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    }
+  ]
+}
