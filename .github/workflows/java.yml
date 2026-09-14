@@ -79,6 +79,20 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Gate (lint -> typecheck -> test -> audit)
         run: mise run gate
+      - name: Gate remediation guidance
+        if: failure()
+        run: |
+          {
+            echo "## ❌ Gate failed"
+            echo ""
+            echo "The failing verb is the first red one in the log above. Reproduce and fix locally:"
+            echo '```'
+            echo "mise run gate      # or a single verb: mise run lint|typecheck|test|audit"
+            echo "mise run fix       # spotlessApply, then re-gate"
+            echo '```'
+            echo ""
+            echo "\`/ship\` runs fix → gate → review before re-pushing."
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Publish test report
         if: always() # a failing run is exactly when the report is worth having
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

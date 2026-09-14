@@ -168,3 +168,19 @@ jobs:
           fi
 
           echo "::notice::Ruleset changes are tightening-only or inert — allowed alongside source without a label."
+
+      # Turn the bare red X into the two choices the author actually has.
+      - name: Ruleset-guard remediation guidance
+        if: failure()
+        run: |
+          {
+            echo "## 🔒 Ruleset guard blocked this PR"
+            echo ""
+            echo "It changes both **production source** and a **gate-defining file** (a lint/PMD ruleset, a suppression or snooze baseline, a threshold, or a workflow) in a way that can't be proven *not* to loosen the gate."
+            echo ""
+            echo "**Pick one:**"
+            echo "- **It's a real fix, not a loosening** → move the ruleset change to its own PR. The guard only fires when ruleset *and* source change together."
+            echo "- **The loosening is deliberate** → add the \`ruleset-change\` label, so a human is on record for it."
+            echo ""
+            echo "Tightening a rule, or an inert change (whitespace/CRLF), passes automatically — you only land here when the direction is loosening or unprovable."
+          } >> "$GITHUB_STEP_SUMMARY"

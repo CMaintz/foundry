@@ -17,6 +17,12 @@ on:
         description: Semgrep ruleset(s). Space-separated registry slugs.
         type: string
         default: "p/ci"
+      semgrep_version:
+        description: >-
+          Pin semgrep (recommended — the contract says pin everything). Empty
+          installs latest.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -32,7 +38,13 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
-      - run: pip install --disable-pip-version-check semgrep
+      # Cache pip's wheel dir so the (large) semgrep install isn't re-downloaded
+      # every run. Keyed on the pin so a version bump refreshes it.
+      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        with:
+          path: ~/.cache/pip
+          key: pip-semgrep-${{ runner.os }}-${{ inputs.semgrep_version || 'latest' }}
+      - run: pip install --disable-pip-version-check "semgrep${{ inputs.semgrep_version && format('=={0}', inputs.semgrep_version) || '' }}"
       - name: Semgrep (only new findings vs the PR base)
         run: |
           semgrep scan \

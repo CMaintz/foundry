@@ -62,6 +62,20 @@ jobs:
       - if: steps.node_modules.outputs.cache-hit != 'true'
         run: npm ci
       - run: mise run gate
+      - name: Gate remediation guidance
+        if: failure()
+        run: |
+          {
+            echo "## ❌ Gate failed"
+            echo ""
+            echo "The failing verb is the first red one in the log above. Reproduce and fix locally:"
+            echo '```'
+            echo "mise run gate      # or a single verb: mise run lint|typecheck|test|audit"
+            echo "mise run fix       # auto-fix the mechanically fixable, then re-gate"
+            echo '```'
+            echo ""
+            echo "\`/ship\` runs fix → gate → review before re-pushing."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   habits:
     name: Structural smells
