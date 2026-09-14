@@ -1,0 +1,201 @@
+# Reusable Java / Gradle gate.
+#
+#   jobs:
+#     gate:
+#       uses: CMaintz/foundry/.github/workflows/java.yml@<sha>
+#       with:
+#         spotbugs: true      # opt-in bytecode analysis
+#         no_var: true        # opt-in diff-scoped no-`var` rule
+#
+# Runs the same six verbs a developer runs locally (`mise run gate`). If this and
+# a laptop ever disagree, that's a bug in the setup, not the code. Toolchain (JDK)
+# comes from the repo's mise.toml; Gradle caching from setup-gradle.
+#
+# Input names are snake_case, not kebab: `${{ inputs.mise-version }}` parses as
+# the subtraction `inputs.mise - version` and fails the workflow at startup.
+name: java
+
+on:
+  workflow_call:
+    inputs:
+      mise_version:
+        type: string
+        default: "2026.9.2"
+      working_directory:
+        description: Directory containing mise.toml, gradlew and .habit-hooks/.
+        type: string
+        default: "."
+      habit_hooks:
+        description: Run the structural-smell sensors (PMD). Needs a .habit-hooks/ dir.
+        type: boolean
+        default: true
+      habit_hooks_plugin:
+        type: string
+        default: "habit-hooks-java"
+      spotbugs:
+        description: Run SpotBugs (opt-in; requires the SpotBugs Gradle plugin).
+        type: boolean
+        default: false
+      spotbugs_task:
+        description: Gradle task for SpotBugs.
+        type: string
+        default: "spotbugsMain"
+      no_var:
+        description: Enforce the diff-scoped no-`var` rule on changed source (opt-in).
+        type: boolean
+        default: false
+      osv_scanner_version:
+        type: string
+        default: "2.5.1"
+      pmd_version:
+        type: string
+        default: "7.27.0"
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Deterministic gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # Spotless ratchetFrom origin/main needs history, not a shallow tip
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise_version }}
+      - uses: gradle/actions/setup-gradle@94bac82a5b62952e304b4f7a45a90e19c46c7e50 # v4
+      # `mise run audit` shells out to osv-scanner over a generated Gradle lockfile.
+      - name: Install osv-scanner
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o "$HOME/.local/bin/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/v${{ inputs.osv_scanner_version }}/osv-scanner_linux_amd64"
+          chmod +x "$HOME/.local/bin/osv-scanner"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Gate (lint -> typecheck -> test -> audit)
+        run: mise run gate
+      - name: Publish test report
+        if: always() # a failing run is exactly when the report is worth having
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: java-test-report
+          path: ${{ inputs.working_directory }}/build/reports/tests/test
+          retention-days: 7
+          if-no-files-found: ignore
+
+  habits:
+    name: Structural smells
+    if: inputs.habit_hooks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Baseline present?
+        id: baseline
+        run: |
+          if [ -f .habit-hooks/snooze.json ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          version: ${{ inputs.mise_version }}
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          python-version: '3.12'
+      - name: Cache PMD
+        if: steps.baseline.outputs.have == 'true'
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        with:
+          path: ~/.local/opt/pmd-bin-${{ inputs.pmd_version }}
+          key: pmd-${{ inputs.pmd_version }}
+      - name: Install PMD + habit-hooks
+        if: steps.baseline.outputs.have == 'true'
+        run: |
+          if [ ! -x "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin/pmd" ]; then
+            mkdir -p "$HOME/.local/opt"
+            curl -fsSL -o /tmp/pmd.zip \
+              "https://github.com/pmd/pmd/releases/download/pmd_releases/${{ inputs.pmd_version }}/pmd-dist-${{ inputs.pmd_version }}-bin.zip"
+            unzip -q /tmp/pmd.zip -d "$HOME/.local/opt"
+          fi
+          echo "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin" >> "$GITHUB_PATH"
+          pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+      - name: Smells (fails only on smells beyond the snooze baseline)
+        if: steps.baseline.outputs.have == 'true'
+        run: habit-hooks
+
+  spotbugs:
+    name: SpotBugs
+    if: inputs.spotbugs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise_version }}
+      - uses: gradle/actions/setup-gradle@94bac82a5b62952e304b4f7a45a90e19c46c7e50 # v4
+      - run: ./gradlew ${{ inputs.spotbugs_task }}
+
+  no-var:
+    name: No unjustified var
+    if: inputs.no_var && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # Runs from the repo root: `git diff` prints root-relative paths, so pmd's -d
+    # must resolve from root too (a non-root working-directory would double the
+    # prefix). The project dir is applied as a prefix below instead.
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Cache PMD
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        with:
+          path: ~/.local/opt/pmd-bin-${{ inputs.pmd_version }}
+          key: pmd-${{ inputs.pmd_version }}
+      - name: Install PMD
+        run: |
+          if [ ! -x "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin/pmd" ]; then
+            mkdir -p "$HOME/.local/opt"
+            curl -fsSL -o /tmp/pmd.zip \
+              "https://github.com/pmd/pmd/releases/download/pmd_releases/${{ inputs.pmd_version }}/pmd-dist-${{ inputs.pmd_version }}-bin.zip"
+            unzip -q /tmp/pmd.zip -d "$HOME/.local/opt"
+          fi
+          echo "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin" >> "$GITHUB_PATH"
+      # Diff from the merge-base (3-dot), not the raw base tip: pull_request events
+      # don't re-fire when main advances, so base.sha goes stale and a 2-dot diff
+      # would drag in files this PR never touched. Enforce no-`var` only on changed
+      # main source, so pre-existing uses are untouched until touched.
+      - name: Check changed Java files for unjustified var
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          WD: ${{ inputs.working_directory }}
+        run: |
+          set -euo pipefail
+          BASE=$(git merge-base "$BASE" "$HEAD")
+          prefix=""
+          if [ "$WD" != "." ]; then prefix="${WD%/}/"; fi
+          mapfile -t files < <(git diff --name-only --diff-filter=d "$BASE" "$HEAD" \
+            | grep -E "^${prefix}src/main/java/.*\.java$" || true)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No main Java files changed — nothing to check."; exit 0
+          fi
+          printf 'Checking %d changed file(s):\n' "${#files[@]}"; printf '  %s\n' "${files[@]}"
+          pmd check "${files[@]/#/-d=}" -R "${prefix}config/pmd/no-var.xml" \
+            -f text --no-progress --suppress-marker foundry-allow-var

@@ -1,0 +1,89 @@
+# Reusable PHP / Composer gate.
+#
+#   jobs:
+#     gate:
+#       uses: CMaintz/foundry/.github/workflows/php.yml@<sha>
+#
+# Runs the six verbs a developer runs locally (`mise run gate`). PHP toolchain
+# comes from the repo's mise.toml; Composer is preinstalled on the runner.
+#
+# Input names are snake_case — see the note in ts.yml.
+name: php
+
+on:
+  workflow_call:
+    inputs:
+      mise_version:
+        type: string
+        default: "2026.9.2"
+      working_directory:
+        description: Directory containing mise.toml, composer.json and .habit-hooks/.
+        type: string
+        default: "."
+      habit_hooks:
+        description: Run the structural-smell sensors (phpmd). Needs a .habit-hooks/ dir.
+        type: boolean
+        default: true
+      habit_hooks_plugin:
+        type: string
+        default: "habit-hooks-php"
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Deterministic gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise_version }}
+      # Cache the vendor tree keyed on composer.lock and skip the install on a hit
+      # (Composer install is the PHP job's long pole, like npm ci for Node).
+      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        id: vendor
+        with:
+          path: ${{ inputs.working_directory }}/vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles(format('{0}/composer.lock', inputs.working_directory)) }}
+      - if: steps.vendor.outputs.cache-hit != 'true'
+        run: composer install --no-interaction --no-progress
+      - name: Gate (lint -> typecheck -> test -> audit)
+        run: mise run gate
+
+  habits:
+    name: Structural smells
+    if: inputs.habit_hooks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Baseline present?
+        id: baseline
+        run: |
+          if [ -f .habit-hooks/snooze.json ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          python-version: '3.12'
+      # phpmd is bundled with the habit-hooks PHP plugin, so this needs only Python.
+      # (The optional `generic` jscpd plugin additionally needs Node on PATH.)
+      - name: Install habit-hooks
+        if: steps.baseline.outputs.have == 'true'
+        run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+      - name: Smells (fails only on smells beyond the snooze baseline)
+        if: steps.baseline.outputs.have == 'true'
+        run: habit-hooks
