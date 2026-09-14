@@ -46,8 +46,10 @@ jobs:
           key: pip-semgrep-${{ runner.os }}-${{ inputs.semgrep_version || 'latest' }}
       - run: pip install --disable-pip-version-check "semgrep${{ inputs.semgrep_version && format('=={0}', inputs.semgrep_version) || '' }}"
       - name: Semgrep (only new findings vs the PR base)
+        # github/inputs context via env, never inline in run: (shell-injection).
+        env:
+          CONFIG: ${{ inputs.config }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          semgrep scan \
-            --config ${{ inputs.config }} \
-            --baseline-commit "${{ github.event.pull_request.base.sha }}" \
-            --error
+          # CONFIG unquoted on purpose — space-separated ruleset slugs.
+          semgrep scan --config $CONFIG --baseline-commit "$BASE_SHA" --error
