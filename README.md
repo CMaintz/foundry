@@ -59,6 +59,7 @@ jobs:
 | `web.yml` | max-file-length gate for HTML/CSS |
 | `bootstrap.yml` | regenerate the habit-hooks snooze baseline on Linux, open a PR |
 | `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
+| `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
 
 Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./OVERVIEW.md) §13). [`presets/renovate.json`](./presets/renovate.json) keeps the pins fresh — the update path the "pin everything" rule needs.
 

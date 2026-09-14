@@ -1,0 +1,86 @@
+# Reusable autofix — the "fix it for me" button. Add a label to a PR and CI runs
+# `mise run fix`, commits the result to the PR branch, and drops the label.
+#
+#   # .github/workflows/autofix.yml (caller)
+#   name: autofix
+#   on:
+#     pull_request:
+#       types: [labeled]
+#   jobs:
+#     autofix:
+#       uses: CMaintz/foundry/.github/workflows/autofix.yml@v1
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#
+# Then, on a red PR, add the `autofix` label — the gate's lint/format failure says
+# to run `mise run fix`; this is that, one click, in CI.
+#
+# Same-repo PRs only: it runs the branch's code with a write token, so it must
+# never touch an untrusted fork. Note the GITHUB_TOKEN caveat below.
+name: autofix
+
+on:
+  workflow_call:
+    inputs:
+      trigger_label:
+        type: string
+        default: "autofix"
+      mise_version:
+        type: string
+        default: "2026.9.2"
+      working_directory:
+        type: string
+        default: "."
+
+permissions:
+  contents: read
+
+jobs:
+  autofix:
+    name: Auto-fix (mise run fix)
+    if: >-
+      github.event.label.name == inputs.trigger_label &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0 # Spotless ratchetFrom origin/main needs history
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise_version }}
+      # fix shells out to project formatters/linters, which need deps installed.
+      - working-directory: ${{ inputs.working_directory }}
+        run: |
+          if [ -f package-lock.json ]; then npm ci; fi
+          if [ -f composer.lock ]; then composer install --no-interaction --no-progress; fi
+      - name: mise run fix
+        working-directory: ${{ inputs.working_directory }}
+        run: mise run fix
+      - name: Commit and push the fixes (or report none)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            gh pr comment "$PR" --body "🧹 \`mise run fix\` found nothing to change."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "style: apply \`mise run fix\` [autofix]"
+            git push
+            gh pr comment "$PR" --body "🧹 Applied \`mise run fix\` and pushed. **Heads-up:** pushes by the Actions token don't re-trigger CI — re-run the gate (or push any commit) to confirm it's green."
+          fi
+      - name: Remove the trigger label
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr edit "$PR" --remove-label "${{ inputs.trigger_label }}" || true
