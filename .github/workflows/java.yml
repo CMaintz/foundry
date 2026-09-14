@@ -77,21 +77,56 @@ jobs:
             "https://github.com/google/osv-scanner/releases/download/v${{ inputs.osv_scanner_version }}/osv-scanner_linux_amd64"
           chmod +x "$HOME/.local/bin/osv-scanner"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Gate (lint -> typecheck -> test -> audit)
-        run: mise run gate
-      - name: Gate remediation guidance
-        if: failure()
+      # This IS `mise run gate` (lint -> typecheck -> test -> audit, in order),
+      # split one verb per step so a failure reddens the exact verb in the UI and
+      # gets a targeted fix. Devs still run the composite `mise run gate` locally.
+      - name: 'gate: lint'
+        id: lint
+        run: mise run lint
+      - name: How to fix (lint)
+        if: failure() && steps.lint.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed"
+            echo "## ❌ Gate failed at \`lint\` — formatting (Spotless)"
             echo ""
-            echo "The failing verb is the first red one in the log above. Reproduce and fix locally:"
+            echo "This is **100% mechanical**. Run it, commit, push — done:"
             echo '```'
-            echo "mise run gate      # or a single verb: mise run lint|typecheck|test|audit"
-            echo "mise run fix       # spotlessApply, then re-gate"
+            echo "mise run fix        # = ./gradlew spotlessApply"
             echo '```'
+            echo "(Structural smells are a separate 'Structural smells' job, not this one.) The offending files are in the **gate: lint** step log above."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: typecheck'
+        id: typecheck
+        run: mise run typecheck
+      - name: How to fix (typecheck)
+        if: failure() && steps.typecheck.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`typecheck\` — compilation"
             echo ""
-            echo "\`/ship\` runs fix → gate → review before re-pushing."
+            echo "Not auto-fixable. The file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: test'
+        id: test
+        run: mise run test
+      - name: How to fix (test)
+        if: failure() && steps.test.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`test\`"
+            echo ""
+            echo "A test failed or coverage fell below the floor. Reproduce with \`mise run test\`; the failing test is in the **gate: test** step log and the uploaded test report artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: audit'
+        id: audit
+        run: mise run audit
+      - name: How to fix (audit)
+        if: failure() && steps.audit.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`audit\` — vulnerable dependency"
+            echo ""
+            echo "Bump the flagged dependency (or a version override) to a patched release. If it's a false positive or unfixable now, accept that **specific** CVE with justification in osv-scanner.toml — never silence the whole check."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Publish test report
         if: always() # a failing run is exactly when the report is worth having

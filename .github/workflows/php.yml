@@ -52,21 +52,56 @@ jobs:
           key: vendor-${{ runner.os }}-${{ hashFiles(format('{0}/composer.lock', inputs.working_directory)) }}
       - if: steps.vendor.outputs.cache-hit != 'true'
         run: composer install --no-interaction --no-progress
-      - name: Gate (lint -> typecheck -> test -> audit)
-        run: mise run gate
-      - name: Gate remediation guidance
-        if: failure()
+      # This IS `mise run gate` (lint -> typecheck -> test -> audit, in order),
+      # split one verb per step so a failure reddens the exact verb in the UI and
+      # gets a targeted fix. Devs still run the composite `mise run gate` locally.
+      - name: 'gate: lint'
+        id: lint
+        run: mise run lint
+      - name: How to fix (lint)
+        if: failure() && steps.lint.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed"
+            echo "## ❌ Gate failed at \`lint\` — formatting / style / smells"
             echo ""
-            echo "The failing verb is the first red one in the log above. Reproduce and fix locally:"
+            echo "Most of this is **mechanically auto-fixable**. Run it, commit, push:"
             echo '```'
-            echo "mise run gate      # or a single verb: mise run lint|typecheck|test|audit"
-            echo "mise run fix       # auto-fix, then re-gate"
+            echo "mise run fix"
             echo '```'
+            echo "Whatever \`fix\` leaves behind is a real style/smell issue — the rule, file and line are in the **gate: lint** step log above."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: typecheck'
+        id: typecheck
+        run: mise run typecheck
+      - name: How to fix (typecheck)
+        if: failure() && steps.typecheck.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`typecheck\` — PHPStan"
             echo ""
-            echo "\`/ship\` runs fix → gate → review before re-pushing."
+            echo "Not auto-fixable. The file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: test'
+        id: test
+        run: mise run test
+      - name: How to fix (test)
+        if: failure() && steps.test.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`test\`"
+            echo ""
+            echo "A test failed or coverage fell below the floor. Reproduce with \`mise run test\`; the failing test and assertion are in the **gate: test** step log above."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: audit'
+        id: audit
+        run: mise run audit
+      - name: How to fix (audit)
+        if: failure() && steps.audit.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`audit\` — vulnerable dependency"
+            echo ""
+            echo "Bump the flagged dependency to a patched version (\`composer update <pkg>\`). If unfixable now, accept that **specific** advisory with justification — never silence the whole check."
           } >> "$GITHUB_STEP_SUMMARY"
 
   habits:
