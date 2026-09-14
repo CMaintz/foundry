@@ -56,9 +56,9 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 ## Agent half — `cmaintz-skills`
 
 - **Skills:** `ship`, `review`, `repo-align`, `foundry-secret`.
-- **Hooks:** `habit-hooks-guard.ps1` (Stop, smells), `auto-format.ps1` (PostToolUse,
-  per-edit prettier/eslint), `format-java-stop.ps1` (Stop, ratcheted Spotless),
-  `typecheck-stop.ps1` (Stop, type errors), `pre-push` (git hook, gate before push).
+- **Hooks:** `habit-hooks-guard` (Stop, smells), `auto-format` (PostToolUse, per-edit
+  prettier/eslint), `format-java-stop` (Stop, ratcheted Spotless),
+  `typecheck-stop` (Stop, type errors), `guard-generated-files` (PreToolUse, blocks hand-editing snooze/suppressions), `pre-push` (git hook). All portable sh.
 
 ## Cross-cutting mechanisms
 
