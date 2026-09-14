@@ -33,14 +33,34 @@ Callers invoke **verbs, never tools**. That is what lets one skill library serve
 
 ## Using it in a repo
 
+Fastest path — the scaffold copies the templates + presets and generates the caller workflows, then prints the branch-protection checklist:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CMaintz/foundry/main/scripts/foundry-init.sh -o foundry-init.sh
+bash foundry-init.sh java        # stacks: ts | java | php | kotlin | dotnet | python
+```
+
+Or wire it by hand — a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller workflow per concern:
+
 ```yaml
 # .github/workflows/gate.yml
 jobs:
   gate:
-    uses: CMaintz/foundry/.github/workflows/ts.yml@v1
+    uses: CMaintz/foundry/.github/workflows/java.yml@v1
 ```
 
-Plus a `mise.toml` defining the six verbs. See [templates/](./mise/).
+### Reusable workflows
+
+| Workflow | What it runs |
+|---|---|
+| `ts.yml` · `java.yml` · `php.yml` | the language gate (six verbs) + structural smells. `java` adds opt-in `spotbugs` / `no_var` jobs |
+| `tier0.yml` | language-agnostic: secret scan + `ruleset-guard` |
+| `semgrep.yml` | SAST, diff-aware (only new findings fail) |
+| `web.yml` | max-file-length gate for HTML/CSS |
+| `bootstrap.yml` | regenerate the habit-hooks snooze baseline on Linux, open a PR |
+| `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
+
+Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./OVERVIEW.md) §13). [`presets/renovate.json`](./presets/renovate.json) keeps the pins fresh — the update path the "pin everything" rule needs.
 
 ## Design
 
@@ -56,7 +76,7 @@ Full rationale: [DESIGN.md](./DESIGN.md).
 
 ## Status
 
-Early. TypeScript is the proven stack; Python, PHP and JVM are next. See DESIGN.md §10 for the rollout and §11 for what's still open.
+TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot — Spring Boot + Angular + a browser extension). PHP, Kotlin, .NET and Python have verb templates + presets; PHP has a reusable workflow. See DESIGN.md §10 for the rollout and §11 for what's still open.
 
 ## Licence
 

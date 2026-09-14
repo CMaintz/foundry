@@ -1,0 +1,7 @@
+# Normalize line endings to LF in the repo. Shell scripts, Python and workflow
+# YAML must be LF to run on Linux CI / in consumers, regardless of a contributor's
+# core.autocrlf. (See the global convention: normalize anything executed on Linux.)
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary

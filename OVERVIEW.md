@@ -323,6 +323,34 @@ each file has one obvious trigger. **Keep `deploy` push-only** — a deploy job
 under `pull_request` shows up as a permanently *skipped* check, which is noise and
 can wedge branch protection (see below).
 
+### Speed: cancel superseded runs, and skip work that can't be affected
+
+- **`concurrency` lives in the caller, not the reusable** (a reusable workflow
+  can't set it for you). Give each caller file
+  `concurrency: { group: <name>-${{ github.ref }}, cancel-in-progress: true }` so a
+  new push cancels the in-flight run for that branch instead of paying for both.
+- **Path-filter what genuinely can't be affected — but mind the required-check
+  trap.** A docs-only PR doesn't need the TS gate. The naive fix
+  (`on: pull_request: paths:`) backfires: a *required* check that's path-filtered
+  out is reported as `Expected` and never arrives, so the PR can't merge. The
+  working pattern is a single always-running **aggregate** job that the branch
+  protection requires, which `needs:` the real jobs and passes when they either
+  succeed or are legitimately skipped:
+
+  ```yaml
+  jobs:
+    gate:   { if: ..., uses: ... }        # heavy, may be skipped by an inner filter
+    gate-ok:                               # THIS is the required check
+      needs: [gate]
+      if: always()
+      runs-on: ubuntu-latest
+      steps:
+        - run: '[ "${{ needs.gate.result }}" != "failure" ] || exit 1'
+  ```
+
+  Require `gate-ok`, never the heavy job directly. Skipped ≠ failed, so a docs PR
+  goes green without running the gate, and a real failure still blocks.
+
 ### Branch protection — the gotchas that cost a pilot a day
 
 - **Required check names must match the job's `name:` string *exactly*.** Protection
