@@ -10,13 +10,14 @@ plugins = ["java", "generic"]
 # test structure. (Language-agnostic principle — see README.)
 files = ["**/*.java", "!**/src/test/**/*.java"]
 
-# -R names the tuned ruleset explicitly (see ../pmd/ruleset.xml -> copy to
-# <repo>/pmd/ruleset.xml). Prefer this over cwd-relative discovery: a missing or
-# misplaced ruleset then fails loudly ("ruleset not found") instead of SILENTLY
-# falling back to the plugin's bundled minimum=4 — a gate-weakening foundry
-# forbids. --no-progress silences PMD's WARN lines on CI stdout.
+# args MUST be a TOML array, not a string — habit-hooks mangles a string into
+# per-character ruleset refs (PMD: "Cannot load ruleset -/n/o/..."), breaking the
+# scan. As an array each element is a clean token. -R names the tuned ruleset (see
+# ../pmd/ruleset.xml -> copy to <repo>/pmd/ruleset.xml) so a missing/misplaced one
+# fails loudly instead of SILENTLY falling back to bundled minimum=4. --no-progress
+# silences PMD's progress-bar WARN.
 [sensors.pmd]
-args = "--no-progress -R pmd/ruleset.xml"
+args = ["--no-progress", "-R", "pmd/ruleset.xml"]
 
 # unused-import: PMD's UnnecessaryImport runs here WITHOUT an aux-classpath, so it
 # cannot resolve wildcard-import usage and false-flags e.g. `jakarta.persistence.*`

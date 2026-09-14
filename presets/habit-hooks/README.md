@@ -64,8 +64,10 @@ readability task — not something CI should block a feature PR on.
 Two ways to change what fires, in order of preference:
 
 1. **Disable or retune a smell in `config.toml`** — `[smells.<name>] disabled = true`,
-   or pass detector args under `[sensors.<name>] args = "…"`. `java.toml` ships two
-   worked examples: silencing PMD's progress bar, and disabling `unused-import`
+   or pass detector args under `[sensors.<name>] args = [...]`. ⚠️ **`args` must be a
+   TOML array, never a string** — habit-hooks mangles a string into per-character
+   tokens (PMD then reports "Cannot load ruleset -/n/o/…" and the scan breaks). `java.toml`
+   ships two worked examples: silencing PMD's progress bar, and disabling `unused-import`
    (PMD runs without a classpath here, so it false-flags wildcard imports — and a
    formatter already enforces unused-imports correctly in the gate).
 2. **Drop a project ruleset** — for Java, a `pmd/ruleset.xml` in the repo is
