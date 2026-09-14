@@ -109,7 +109,10 @@ YAML
 if [ -n "$PLUGIN" ]; then
   write ".github/workflows/bootstrap.yml" <<YAML
 name: bootstrap
-on: { workflow_dispatch: {} }
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 6 * * 1'   # weekly auto-prune, so the snooze baseline shrinks on its own
 jobs:
   bootstrap:
     uses: $REPO/.github/workflows/bootstrap.yml@$REF
