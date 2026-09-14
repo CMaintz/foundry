@@ -45,9 +45,14 @@ a max-file-length gate on those.
 
 ## Tests are not smell-scanned (every preset)
 
-Every preset excludes test files via `files = ["!…"]`. This is a **language-
-agnostic principle**, not a per-language quirk: long, mock-heavy test methods and
-piles of fixtures are *normal and correct* in tests. Structural-smell gates exist
+Every preset does this as **a positive include followed by a `!` exclusion**, e.g.
+`files = ["**/*.java", "!**/src/test/**/*.java"]`. ⚠️ **A bare exclusion
+(`files = ["!…"]`) matches *nothing* and silently disables the entire scan** —
+`habit-sensors` needs at least one positive glob, or it reports "nothing matched
+[files]" (and `--snooze` will happily write an empty baseline, hiding it). Always
+lead with the include. This is a **language-agnostic principle**, not a per-language
+quirk: long, mock-heavy test methods and piles of fixtures are *normal and correct*
+in tests. Structural-smell gates exist
 to police **production** maintainability; pointing them at tests just generates
 noise you'll snooze anyway. The glob differs per language (`**/src/test/**` for
 Java, `*.spec.ts`/`*.test.ts` for TS, `**/tests/**`/`*Test.php` for PHP) but the

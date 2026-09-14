@@ -6,4 +6,4 @@
 plugins = ["generic"]
 
 # Tests are not smell-scanned (language-agnostic principle — see README).
-files = ["!**/src/test/**/*.kt", "!**/src/test/**/*.kts"]
+files = ["**/*.kt", "**/*.kts", "!**/src/test/**/*.kt", "!**/src/test/**/*.kts"]

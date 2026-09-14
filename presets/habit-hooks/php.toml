@@ -5,4 +5,4 @@ plugins = ["php", "generic"]
 # Tests are not structural-smell-gated: long, fixture-heavy test methods are normal
 # and fine. CI should police production maintainability, not test structure.
 # (Language-agnostic principle — see README.)
-files = ["!**/tests/**", "!**/*Test.php"]
+files = ["**/*.php", "!**/tests/**", "!**/*Test.php"]

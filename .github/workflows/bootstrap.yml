@@ -76,10 +76,12 @@ jobs:
       - name: Regenerate (prune to shrink; snooze only to create)
         run: |
           export PATH="$PWD/node_modules/.bin:$PATH"
+          # --no-snooze feeds RAW findings: prune needs them to see which baselined
+          # files are now clean; snooze needs them to baseline all current smells.
           if [ -f .habit-hooks/snooze.json ]; then
-            habit-sensors --all | habit-snooze --prune
+            habit-sensors --all --no-snooze | habit-snooze --prune
           else
-            habit-sensors --all | habit-snooze --snooze
+            habit-sensors --all --no-snooze | habit-snooze --snooze
           fi
       - name: Open a PR with the refreshed baseline
         working-directory: .

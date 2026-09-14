@@ -4,4 +4,4 @@ plugins = ["typescript", "generic"]
 # Tests are not structural-smell-gated: long, mock-heavy specs are normal and fine.
 # CI should police production maintainability, not test structure. (Language-
 # agnostic principle — see README.)
-files = ["!**/*.spec.ts", "!**/*.spec.tsx", "!**/*.test.ts", "!**/*.test.tsx", "!**/*.test.js"]
+files = ["**/*.ts", "**/*.tsx", "!**/*.spec.ts", "!**/*.spec.tsx", "!**/*.test.ts", "!**/*.test.tsx"]

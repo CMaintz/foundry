@@ -8,7 +8,7 @@ plugins = ["java", "generic"]
 # Tests are not structural-smell-gated: long, mock-heavy test methods and many
 # fixtures are normal and fine. CI should police production maintainability, not
 # test structure. (Language-agnostic principle — see README.)
-files = ["!**/src/test/**/*.java"]
+files = ["**/*.java", "!**/src/test/**/*.java"]
 
 # -R names the tuned ruleset explicitly (see ../pmd/ruleset.xml -> copy to
 # <repo>/pmd/ruleset.xml). Prefer this over cwd-relative discovery: a missing or
