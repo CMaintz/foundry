@@ -350,15 +350,22 @@ can wedge branch protection (see below).
 
   Require `gate-ok`, never the heavy job directly. Skipped ≠ failed, so a docs PR
   goes green without running the gate, and a real failure still blocks.
-- **Scope the `push:main` run too, don't just the PR run.** The suite runs on
-  `push:main` as the post-merge *integration* check (with strict mode off, a PR can
-  merge behind main, so only the main run sees the merged result). But a naive
-  classifier emits "run everything" off-PR, so every merge re-runs the whole suite
-  unfiltered — the single biggest source of wasted minutes. Give the `changes` job
-  an event-aware range: PR → `merge-base..head`; `push` → the pushed range
-  `github.event.before..github.sha` (a backend-only merge then skips frontend);
-  `workflow_dispatch` / first-push / force-push (`before` is the zero-SHA or
-  unreachable) → run everything, fail-safe. Needs `fetch-depth: 0`.
+- **Consider dropping the `push:main` run entirely — it's usually redundant.** The
+  tempting rationale for keeping it is a post-merge *integration* check: with strict
+  mode off, a PR can merge behind main, so only a main run sees the merged result.
+  But that gap is self-healing — the **next PR's gate** runs `mise run gate` against
+  current main (its merge-base includes the integrated result), so any real break
+  surfaces there, one PR later. With rebase-merge the merged commit is also the same
+  code the PR gated. So on a minute-constrained repo, run the gate suite on
+  `pull_request` only (keep `workflow_dispatch` as a manual full-run for after a
+  genuinely risky merge); leave `push:main` for `deploy`/`bootstrap`. Measure before
+  assuming value: `gh run list --branch main --event push` — if no main run has ever
+  caught what a PR missed, it's pure cost.
+  *If* you do keep `push:main` (e.g. you can't rely on rebase-merge), at least scope
+  it: the naive classifier emits "run everything" off-PR, re-running the whole suite
+  unfiltered on every merge. Give the `changes` job an event-aware range — PR →
+  `merge-base..head`; `push` → `github.event.before..github.sha`; dispatch/first/
+  force-push → run everything (fail-safe) — so a backend-only merge skips frontend.
 
 ### Branch protection — the gotchas that cost a pilot a day
 
