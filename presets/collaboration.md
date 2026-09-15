@@ -26,6 +26,24 @@ git switch -c <type>/<short-desc> origin/main   # feat/… fix/… chore/… doc
 - **Rebase, don't merge main in.** When your branch falls behind, `git rebase
   origin/main` — keep history linear and the PR diff honest.
 
+## Delegate to sub-agents — don't do everything in one thread
+
+Default to spinning up sub-agents for work that is independent, read-heavy, or
+parallelisable. Most agents under-use this and grind through it serially.
+
+- **Explore / read-many** → an exploration sub-agent returns the *conclusion*, not
+  twenty file dumps in your context. Use it whenever answering means sweeping many
+  files or you're hunting for where something lives.
+- **Independent slices** → fan out one agent per slice/file when they don't touch
+  the same code; run them in a single batch so they go concurrently (give each its
+  own git worktree if they'll edit in parallel).
+- **Verify / adversarial** → a fresh agent prompted to *refute* a finding catches
+  what the authoring thread has already rationalised away.
+
+Keep the main thread as the orchestrator that decides and integrates; push the
+legwork out. Rule of thumb: if you're about to read your fifth file to answer one
+question, that's a sub-agent.
+
 ## Why it's a Foundry standard
 
 Colliding sessions is the single most expensive failure mode of multi-agent work:
