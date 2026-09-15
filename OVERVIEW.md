@@ -350,6 +350,15 @@ can wedge branch protection (see below).
 
   Require `gate-ok`, never the heavy job directly. Skipped ≠ failed, so a docs PR
   goes green without running the gate, and a real failure still blocks.
+- **Scope the `push:main` run too, don't just the PR run.** The suite runs on
+  `push:main` as the post-merge *integration* check (with strict mode off, a PR can
+  merge behind main, so only the main run sees the merged result). But a naive
+  classifier emits "run everything" off-PR, so every merge re-runs the whole suite
+  unfiltered — the single biggest source of wasted minutes. Give the `changes` job
+  an event-aware range: PR → `merge-base..head`; `push` → the pushed range
+  `github.event.before..github.sha` (a backend-only merge then skips frontend);
+  `workflow_dispatch` / first-push / force-push (`before` is the zero-SHA or
+  unreachable) → run everything, fail-safe. Needs `fetch-depth: 0`.
 
 ### Branch protection — the gotchas that cost a pilot a day
 
