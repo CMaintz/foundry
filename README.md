@@ -65,6 +65,23 @@ jobs:
 
 Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./OVERVIEW.md) §13). [`presets/renovate.json`](./presets/renovate.json) keeps the pins fresh — the update path the "pin everything" rule needs.
 
+### Versioning
+
+Foundry follows semver on the reusable-workflow **interface** (workflow inputs and
+the six-verb contract — not the internal steps):
+
+- **patch** (`v1.0.1`) — a fix with no interface change.
+- **minor** (`v1.1.0`) — a backward-compatible addition (a new workflow, a new
+  optional input, a feedback improvement).
+- **major** (`v2.0.0`) — a breaking change: an input renamed/removed, a verb's
+  meaning changed, a workflow dropped. Only then must a consumer act.
+
+Tag at **milestones** — a batch of merged PRs — not every commit; per-commit tags
+are noise. Cut an immutable `vX.Y.Z` tag, then **move the `vX` alias** to it, so a
+consumer pinning `@v1` rides non-breaking updates while `@v1.2.0` stays frozen.
+Pin by SHA for maximum reproducibility (Renovate bumps it) or by `@v1` for
+convenience. `CHANGELOG.md` records what each tag moved.
+
 ## Design
 
 Two ideas do most of the work:
