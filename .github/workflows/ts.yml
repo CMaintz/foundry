@@ -135,4 +135,26 @@ jobs:
       - if: steps.node_modules.outputs.cache-hit != 'true'
         run: npm ci
       - run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
-      - run: habit-hooks
+      - name: Smells (fails only on smells beyond the snooze baseline)
+        id: smells
+        run: habit-hooks
+      - name: How to read these smells
+        if: failure() && steps.smells.outcome == 'failure'
+        run: |
+          {
+            echo "## 📖 Structural smells — what each one means"
+            echo ""
+            echo "Each smell is a machine-checkable shadow of a function or file doing **more than one thing**. Fix toward the missing abstraction (a value object, a strategy, a named step) — never by splitting to a line count."
+            echo ""
+            echo "| Smell | What it's telling you | Fix toward |"
+            echo "|---|---|---|"
+            echo "| \`oversized-function\` | too long to hold one idea | extract a named step / collaborator |"
+            echo "| \`oversized-file\` | the file carries too many responsibilities | split by concern into cohesive units |"
+            echo "| \`high-complexity\` | too many branches = too many decisions in one place | replace conditionals with polymorphism/strategy; lift guard clauses |"
+            echo "| \`too-many-parameters\` | the function juggles too many collaborators | introduce a parameter object, or split the responsibility |"
+            echo "| \`deep-nesting\` | a nested block wants to be its own named function | extract it; use early returns |"
+            echo "| \`duplication\` | the same logic lives in two places | extract one shared function |"
+            echo "| \`dead-code\` / unused export | nothing references it | delete it |"
+            echo ""
+            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/code-standards.md\`. Clearing a smell is necessary, not sufficient — \"is this *one* thing?\" is still your call."
+          } >> "$GITHUB_STEP_SUMMARY"
