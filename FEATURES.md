@@ -47,6 +47,7 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 | `gitleaks.toml` | Secret-scan allowlist starting point. |
 | `renovate.json` | Dependency-update automation — the update path the pin-everything rule needs. |
 | `code-standards.md` | Agent-facing clean-code standard (functions do one thing / SRP), tied to the deterministic smells. `@`-include into AGENTS.md/CLAUDE.md. |
+| `collaboration.md` | Agent-facing working discipline — branch hygiene for parallel sessions (own branch off `origin/main`, one branch→one PR, rebase not merge). `@`-include into AGENTS.md/CLAUDE.md. |
 
 ## Scripts (`scripts/`)
 
