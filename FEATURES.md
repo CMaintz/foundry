@@ -23,7 +23,7 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 
 | Workflow | Purpose |
 |---|---|
-| `ts.yml` · `java.yml` · `php.yml` | Language gate — the six verbs, decomposed one-per-step with targeted failure summaries, + a structural-smells job. `java` adds opt-in `spotbugs` / `no_var`. node_modules / vendor / Gradle caching. |
+| `ts.yml` · `java.yml` · `php.yml` | Language gate — the six verbs, decomposed one-per-step with targeted failure summaries, + a structural-smells job (which prints a per-smell "what it means / fix toward" legend on failure). `java` adds opt-in `spotbugs` / `no_var`. node_modules / vendor / Gradle caching. |
 | `tier0.yml` | Language-agnostic: secret scan (gitleaks) + `ruleset-guard`, both with remediation step-summaries. Merge-base–scoped. |
 | `semgrep.yml` | SAST, diff-aware (`--baseline-commit`), pip-cached, pinnable. |
 | `web.yml` | Max-file-length gate for HTML/CSS. |
