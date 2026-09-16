@@ -47,9 +47,11 @@ Same rules in each — no "passes locally, fails in CI."
 
 ## Outer loop — campaigns (`repo-align`)
 
-Paying down debt across many files is the same discipline, scaled: pick a slice →
-inner loop → **adversarially review** the fix → ship → prune → repeat, until the
-baseline is clear, no safe slice remains, or a guardrail trips.
+Paying down debt is the same discipline, scaled — but **bounded**: pick a target up
+front (one file, one module, a small related surface), then pick a slice → inner
+loop → **adversarially review** the fix → ship → prune → repeat until *that target*
+is clean, no safe slice remains in it, or a guardrail trips. Stop there; don't grind
+the whole repo baseline in one run.
 
 ## Never game the metric
 
