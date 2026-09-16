@@ -1,8 +1,14 @@
-**oversized-function** — this method is long enough that it's holding more than one idea.
+An oversized method is holding more than one idea. Length is the symptom; a method doing several jobs is the cause.
 
-Length is a symptom, not the disease: the fix is to find the *seam*, not to hit a line count.
-- Read the body for **paragraphs** — groups of statements separated by blank lines or a comment. Each is usually one step that wants its own well-named private method.
-- Separate **deciding from doing**: if the method both chooses *what* to do (branching on a type/flag) and does it, pull each branch's work into its own method (or a strategy) and leave the method as the chooser.
-- Extract toward a **name**, not a number. `enrichAndPersistAndNotify(...)` → `enrich(...)`, `persist(...)`, `notify(...)`. If the honest name of an extracted piece needs an "and", split again.
+**Find the seam and extract toward a name:**
+1. Read the body in paragraphs — statements grouped by a blank line or a comment. Each is usually one step that wants its own well-named private method.
+2. Separate deciding from doing: if the method both *chooses* what to do (a switch on a type/flag) and does it, move each branch's work into its own method or a strategy, and leave this method as the chooser.
+3. Name each piece for the responsibility it owns. `enrichAndPersist(...)` is two methods: `enrich(...)` then `persist(...)`.
 
-**Don't** just cut the body at the halfway line into `fooPart2(...)`, and **don't** extract a helper that needs 5+ parameters — that means the seam is wrong and you've smeared one thing across two methods. Refactor toward cohesion; the smell clears as a side effect.
+Useful tip: describe the method in one honest sentence. If the sentence needs an "and", each half is a method.
+
+**AVOID:** cutting the body at the halfway line into `fooPart2(...)`, or extracting a helper that takes 5+ parameters — that smears one idea across two methods (the seam is wrong). The count moves; the tangle stays.
+
+You are done when the method reads as a short list of well-named steps and a first-time reader can hold it in their head.
+
+{% include "includes/line_level_issues.md" %}

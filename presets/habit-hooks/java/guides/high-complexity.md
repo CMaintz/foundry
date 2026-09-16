@@ -1,9 +1,14 @@
-**high-complexity** — too many branches/paths in one method: too many decisions living in one place.
+High complexity means one method makes too many decisions at once. The count (every `if`/`else`/`case`/`&&`/`||`/loop/`?:`) is the symptom; tangled responsibilities are the cause.
 
-Cyclomatic complexity counts the independent paths (every `if`/`else`/`case`/`&&`/`||`/loop/`?:`). Bring it down by removing decisions, not by hiding them:
-- **Guard clauses / early return.** Handle the invalid or edge cases up front and `return`, so the happy path drops an indentation level and the trailing `else` blocks disappear.
-- **Replace type/enum switches with polymorphism.** A `switch` on a kind that recurs across the class is a missing type — push each case's behaviour onto the type (a sealed interface + implementations, a strategy, an enum with an abstract method).
-- **Lift boolean tangles into named predicates.** `if (a && (b || c) && !d)` → `if (isEligible(...))` with the condition named once.
-- **Table/map over branches.** A long `switch` that just maps input → value is a `Map` lookup.
+**Remove decisions, don't hide them:**
+1. Lift guards out first — turn precondition checks into early returns so the happy path stays flat. Much of the count is preconditions wrapped around the real work.
+2. Change the shape of what remains: a `switch`/`if`-chain on one value is often polymorphism in disguise (a sealed interface + implementations, an enum with an abstract method) or a `Map` lookup; a nested loop is often a filter/map pipeline.
+3. If the branches are genuinely separate jobs, extract one method per branch, each named for what it handles.
 
-**Don't** split the method purely to move complexity into a helper that's just as branchy — that relocates the problem. Remove the decision or give it a home.
+Useful tip: describe each branch in one sentence. Two branches with the same sentence belong together; a branch you can't name cleanly wants its own method.
+
+**AVOID:** merging conditions with `&&`/`||`, or rewriting branches as ternaries, just to lower the score — the decisions remain, only the counter moves.
+
+You are done when a first-time reader can follow the method top to bottom without backtracking.
+
+{% include "includes/line_level_issues.md" %}

@@ -1,9 +1,15 @@
-**deep-nesting** — a block nested this deep (3+) is hard to follow: each level is an unstated condition the reader must hold in their head.
+A block nested this deep (3+) forces the reader to hold several unstated conditions at once. The depth is the symptom; a method doing too much in one place is the cause.
 
-Flatten it — a deeply nested block almost always wants to be a named method or an earlier exit:
-- **Invert and return early.** `if (ok) { ...big... }` → `if (!ok) return; ...big...`. Collapse the pyramid one level at a time.
-- **Extract the inner block** into a private method with a name that states its precondition — the nesting moves behind a call, and the name documents *when* it runs.
-- **Replace nested `if`s with a combined guard** where the conditions are really one rule: `if (a) if (b) if (c)` → `if (a && b && c)` (then name it if it's non-obvious).
-- **Loops:** pull the loop body into a method taking one element; `continue` on the skip case instead of wrapping the body in an `if`.
+**Flatten it, one level at a time:**
+1. Invert and return early: `if (ok) { ...big... }` → `if (!ok) return; ...big...`. Preconditions become guards and the pyramid collapses.
+2. Extract the inner block into a private method named for its precondition — the nesting moves behind a call that documents *when* it runs.
+3. Combine conditions that are really one rule: `if (a) if (b) if (c)` → `if (a && b && c)` (name it if non-obvious).
+4. In loops, pull the body into a method taking one element, and `continue` on the skip case instead of wrapping the body in an `if`.
 
-**Don't** keep the depth and just move the whole pyramid into a helper — extract the *inner* concern so each level earns its place.
+Useful tip: every level of indentation should earn its place — if you can't say what condition it represents, it wants to be flattened or named.
+
+**AVOID:** moving the whole pyramid into a helper unchanged — extract the *inner* concern, don't just relocate the nesting.
+
+You are done when no block is more than two levels deep and the happy path reads straight down.
+
+{% include "includes/line_level_issues.md" %}
