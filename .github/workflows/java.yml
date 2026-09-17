@@ -65,9 +65,18 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0 # Spotless ratchetFrom origin/main needs history, not a shallow tip
+      # If the repo pins PMD via the mise.toml postinstall hook, `mise install` here
+      # would re-download it every run even though the gate doesn't use PMD. Restore
+      # it first so setup:pmd no-ops on a hit (harmless empty cache if PMD isn't pinned).
+      - name: Cache PMD
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        with:
+          path: ~/.local/opt/pmd-bin-${{ inputs.pmd_version }}
+          key: pmd-${{ inputs.pmd_version }}
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: ${{ inputs.mise_version }}
+          cache: true
       - uses: gradle/actions/setup-gradle@94bac82a5b62952e304b4f7a45a90e19c46c7e50 # v4
       # `mise run audit` shells out to osv-scanner over a generated Gradle lockfile.
       - name: Install osv-scanner
