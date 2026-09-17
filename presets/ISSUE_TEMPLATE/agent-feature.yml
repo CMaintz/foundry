@@ -1,0 +1,46 @@
+name: Agent feature ticket
+description: A feature request the /feature driver can claim and drive to a PR. Copy to .github/ISSUE_TEMPLATE/ in a consumer repo.
+title: "feat: "
+labels: ["agent:ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The driver's output is only as good as this ticket. Every field below is
+        required — a ticket missing any of them is not claimable. See Foundry's
+        `presets/ticket-schema.md` for the why.
+  - type: textarea
+    id: intent
+    attributes:
+      label: Intent
+      description: The user story — what and why. What the fresh-context reviewer checks the diff against.
+      placeholder: As a <role> I want <capability> so that <benefit>.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: A checklist of verifiable, ideally machine-checkable outcomes. The driver's verify step and ship's spec review walk these item by item.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope boundaries
+      description: What the change must NOT touch. The guard against silent scope creep.
+      placeholder: Do not touch <X>.
+    validations:
+      required: true
+  - type: textarea
+    id: pointers
+    attributes:
+      label: Pointers
+      description: Relevant files, modules, or prior art to start from.
+      placeholder: |
+        - src/foo/bar.ts
+    validations:
+      required: true
