@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-09-17
+
 ### Added
 - **`presets/agent-loop.md`** — the canonical self-correcting agent loop (observe →
   fix the cause → verify → repeat until green *and* honest), `@`-includable.
@@ -73,6 +75,7 @@ Initial release.
 - Reusable-workflow inputs are snake_case (`inputs.mise-version` parses as a
   subtraction and fails at startup).
 
-[Unreleased]: https://github.com/CMaintz/foundry/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/CMaintz/foundry/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/CMaintz/foundry/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/CMaintz/foundry/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/CMaintz/foundry/releases/tag/v1.0.0
