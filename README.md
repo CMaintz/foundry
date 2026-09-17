@@ -80,14 +80,14 @@ Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-i
 
 ### From ticket to PR — the `/feature` driver
 
-Foundry answers *"when is a change done?"* — a green gate. The **`/feature` driver** is the thing in front of that — **ticket in, PR out** — specified in [designs/backlog-feature-driver.md](./designs/backlog-feature-driver.md) and landing as a skill in [cmaintz-skills](https://github.com/CMaintz/cmaintz-skills). Foundry ships the intake it consumes (the schema + issue template above); the driver:
+Foundry answers *"when is a change done?"* — a green gate. The **`/feature`** driver is the thing in front of that — **ticket in, PR out** — the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above); the driver:
 
 1. **Claim** an `agent:ready` ticket — a GitHub Issue (via the [`agent-feature`](./presets/ISSUE_TEMPLATE/agent-feature.yml) form) or a local `tickets/*.md`, same [schema](./presets/ticket-schema.md) — flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`.
 2. **Loop to the gate** — implement → `mise run gate` → act on the failure + habit-hooks coaching → retry, *bounded* (≤ 5 cycles; bail early on no progress, posting the stuck state to the issue thread and flipping `agent:blocked`).
 3. **Verify** the result against the ticket's acceptance-criteria checklist — green ≠ correct.
 4. **Hand to `/ship`** — which re-gates, runs a fresh-context review against the linked issue, commits, and opens the PR. The driver never opens a PR itself, so there's one trusted path to `main`.
 
-It re-implements none of the standards: the gate is the oracle, `ruleset-guard` + habit-hooks stop the loop gaming the metric, `/ship` is the handoff. Per the design it runs supervised (`/feature <ref>`) or as a backlog puller (`/loop /feature`), dogfooded on one real ticket before the puller is turned on.
+It re-implements none of the standards: the gate is the oracle, `ruleset-guard` + habit-hooks stop the loop gaming the metric, `/ship` is the handoff. Run it supervised — `/feature <ref>` — or as a backlog puller — `/loop <interval> /feature`.
 
 ### Versioning
 
