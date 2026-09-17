@@ -45,6 +45,7 @@ via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
 | Preset | Purpose |
 |---|---|
 | `habit-hooks/{ts,java,php,kotlin,dotnet,python}.toml` | Structural-smell config per stack; tests excluded; Java names its tuned ruleset via `-R`. |
+| `habit-hooks/java/guides/*.md` | Per-smell coaching (oversized-function, high-complexity, too-many-parameters, deep-nesting) — concrete "how to fix + don't game it" text that renders inline per finding, in-loop and CI. Drop into a repo's `.habit-hooks/java/guides/`. |
 | `pmd/ruleset.xml` | Tuned Java ruleset (`ExcessiveParameterList` minimum 8). |
 | `pmd/no-var.xml` | The no-`var` rule (diff-scoped in CI). |
 | `gitleaks.toml` | Secret-scan allowlist starting point. |

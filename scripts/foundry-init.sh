@@ -53,7 +53,22 @@ fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
 if [ "$STACK" = "java" ]; then
   fetch "presets/pmd/ruleset.xml" "$WD/pmd/ruleset.xml"
   fetch "presets/pmd/no-var.xml" "$WD/config/pmd/no-var.xml"
+  # Per-smell coaching guides (habit-hooks' project-override path) — the Java plugin
+  # ships none, so without these every smell renders one generic message.
+  for g in oversized-function high-complexity too-many-parameters deep-nesting; do
+    fetch "presets/habit-hooks/java/guides/$g.md" "$WD/.habit-hooks/java/guides/$g.md"
+  done
 fi
+
+# On Windows, tasks only run under bash if this is in GLOBAL mise config — mise
+# refuses (and warns about) it in a project config for security. Set it once.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    if command -v mise >/dev/null 2>&1; then
+      mise settings set windows_default_inline_shell_args "bash -c" 2>/dev/null \
+        && echo "  set global mise: windows_default_inline_shell_args = bash -c"
+    fi ;;
+esac
 
 echo "- caller workflows (pinned to $REF)"
 if [ -n "$CI" ]; then
