@@ -53,6 +53,8 @@ via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
 | `code-standards.md` | Agent-facing clean-code standard (functions do one thing / SRP), tied to the deterministic smells. `@`-include into AGENTS.md/CLAUDE.md. |
 | `collaboration.md` | Agent-facing working discipline — branch hygiene for parallel sessions (own branch off `origin/main`, one branch→one PR, rebase not merge). `@`-include into AGENTS.md/CLAUDE.md. |
 | `agent-loop.md` | Agent-facing working *loop* — observe (run the oracle) → diagnose the real cause → act → verify/self-critique → repeat until green *and* honest; tiered in-loop/pre-push/CI; never game the metric. `@`-include into AGENTS.md/CLAUDE.md. |
+| `ticket-schema.md` | The unit of work the `feature` driver claims — intent, acceptance-criteria checklist, scope, pointers; GitHub-label state machine + local-md fallback. The checklist is what `verify` and spec-review walk. |
+| `ISSUE_TEMPLATE/agent-feature.yml` | GitHub issue form enforcing the ticket schema (required fields, `agent:ready` label). Copy to a consumer's `.github/ISSUE_TEMPLATE/`. |
 
 ## Scripts (`scripts/`)
 
@@ -61,7 +63,10 @@ via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
 
 ## Agent half — `cmaintz-skills`
 
-- **Skills:** `ship`, `review`, `repo-align`, `foundry-secret`.
+- **Skills:** `ship`, `review`, `repo-align`, `foundry-secret`, `feature` (backlog-driven
+  driver: claim a ticket → isolated worktree → bounded gate-fix loop → behavioural
+  verify → `ship`; `/feature <ref>` supervised or `/feature` puller, `/loop /feature`
+  for semi-auto. See `designs/backlog-feature-driver.md`).
 - **Hooks:** `habit-hooks-guard` (Stop, smells), `auto-format` (PostToolUse, per-edit
   prettier/eslint), `format-java-stop` (Stop, ratcheted Spotless),
   `typecheck-stop` (Stop, type errors), `guard-generated-files` (PreToolUse, blocks hand-editing snooze/suppressions), `pre-push` (git hook). All portable sh.
