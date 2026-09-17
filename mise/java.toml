@@ -6,6 +6,30 @@
 [tools]
 java = "21"
 
+# PMD is a JVM app (launcher + jars) whose GitHub release asset has no OS in its
+# name, so it can't be a clean [tools] entry. Pin the version here; setup:pmd
+# installs it idempotently, the postinstall hook runs that on `mise install`, and
+# its bin goes on mise's PATH — so the habit-hooks Java sensor + no-var find PMD
+# with no manual install, identically local and in CI.
+[env]
+PMD_VERSION = "7.27.0"
+_.path = ["{{env.HOME}}/.local/opt/pmd-bin-{{env.PMD_VERSION}}/bin"]
+
+[hooks]
+postinstall = "mise run setup:pmd"
+
+[tasks."setup:pmd"]
+description = "Install the pinned PMD if absent (habit-hooks Java sensor + no-var need it)"
+run = """
+dst="$HOME/.local/opt/pmd-bin-$PMD_VERSION"
+if [ -x "$dst/bin/pmd" ]; then exit 0; fi
+echo "Installing PMD $PMD_VERSION -> $dst"
+mkdir -p "$HOME/.local/opt"
+curl -fsSL -o "/tmp/pmd-$PMD_VERSION.zip" "https://github.com/pmd/pmd/releases/download/pmd_releases/$PMD_VERSION/pmd-dist-$PMD_VERSION-bin.zip"
+unzip -q -o "/tmp/pmd-$PMD_VERSION.zip" -d "$HOME/.local/opt"
+rm -f "/tmp/pmd-$PMD_VERSION.zip"
+"""
+
 [tasks.fix]
 description = "Auto-format (Spotless; use ratchetFrom('origin/main') to avoid a big-bang reformat)"
 run = "./gradlew spotlessApply"
@@ -32,7 +56,8 @@ run = [
 ]
 
 [tasks.novar]
-description = "Report `var` uses (needs pmd on PATH). Enforce diff-scoped in CI. Tag exceptions `// foundry-allow-var: reason`."
+description = "Report `var` uses. Enforce diff-scoped in CI. Tag exceptions `// foundry-allow-var: reason`."
+depends = ["setup:pmd"]
 run = "pmd check -d src/main/java -R config/pmd/no-var.xml -f text --suppress-marker foundry-allow-var"
 
 [tasks.gate]

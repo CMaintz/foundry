@@ -35,7 +35,10 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 ## mise verb templates (`mise/`)
 
 `ts` · `java` · `php` · `kotlin` · `dotnet` · `python` — each exposes the six verbs
-(`fix`/`lint`/`typecheck`/`test`/`audit`/`gate`), gate sequential.
+(`fix`/`lint`/`typecheck`/`test`/`audit`/`gate`), gate sequential. `java` also pins
+**PMD** (which can't be a `[tools]` entry — JVM launcher + jars, no OS-tagged asset)
+via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
+`mise install` and on PATH, local and CI alike — no manual install.
 
 ## Presets (`presets/`)
 
