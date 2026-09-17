@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Ticket → PR intake for the `/feature` driver**: `presets/ticket-schema.md` (the
+  ticket the driver works — intent, acceptance-criteria checklist, scope, pointers;
+  GitHub-label state machine + local-md fallback) and
+  `presets/ISSUE_TEMPLATE/agent-feature.yml` (the issue form that enforces it). Design
+  in `designs/backlog-feature-driver.md`; consumed by the `feature` skill in
+  cmaintz-skills. README documents the ticket→PR flow.
+
 ## [1.2.0] — 2026-09-17
 
 ### Added
