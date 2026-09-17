@@ -19,11 +19,13 @@ REF="${FOUNDRY_REF:-main}"
 REPO="CMaintz/foundry"
 RAW="https://raw.githubusercontent.com/$REPO/$REF"
 
+# HH = the habit-hooks preset basename (presets/habit-hooks/<HH>.toml). It tracks the
+# plugin/language name, so `ts` maps to `typescript` — the others match the stack.
 case "$STACK" in
-  ts)     PLUGIN="habit-hooks-typescript"; CI="ts.yml" ;;
-  java)   PLUGIN="habit-hooks-java";       CI="java.yml" ;;
-  php)    PLUGIN="habit-hooks-php";        CI="php.yml" ;;
-  kotlin|dotnet|python) PLUGIN=""; CI="" ;;  # mise template only; inline gate
+  ts)     PLUGIN="habit-hooks-typescript"; CI="ts.yml";   HH="typescript" ;;
+  java)   PLUGIN="habit-hooks-java";       CI="java.yml"; HH="java" ;;
+  php)    PLUGIN="habit-hooks-php";        CI="php.yml";  HH="php" ;;
+  kotlin|dotnet|python) PLUGIN=""; CI=""; HH="$STACK" ;;  # mise template only; inline gate
   *) echo "unknown stack: $STACK" >&2; exit 2 ;;
 esac
 
@@ -44,7 +46,7 @@ echo "== Foundry scaffold: $STACK @ $REF =="
 
 echo "- verbs + smells config"
 fetch "mise/$STACK.toml" "$WD/mise.toml"
-fetch "presets/habit-hooks/$STACK.toml" "$WD/.habit-hooks/config.toml"
+fetch "presets/habit-hooks/$HH.toml" "$WD/.habit-hooks/config.toml"
 
 echo "- shared presets"
 fetch "presets/gitleaks.toml" ".gitleaks.toml"

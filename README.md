@@ -55,7 +55,7 @@ jobs:
 
 | Workflow | What it runs |
 |---|---|
-| `ts.yml` · `java.yml` · `php.yml` | the language gate (six verbs) + structural smells. `java` adds opt-in `spotbugs` / `no_var` jobs |
+| `ts.yml` · `java.yml` · `php.yml` | the language gate (six verbs, decomposed one-per-step with targeted fix summaries) + structural smells (which print a per-smell "fix toward" legend on failure). `java` adds opt-in `spotbugs` / `no_var` jobs |
 | `tier0.yml` | language-agnostic: secret scan + `ruleset-guard` |
 | `semgrep.yml` | SAST, diff-aware (only new findings fail) |
 | `web.yml` | max-file-length gate for HTML/CSS |
@@ -63,7 +63,19 @@ jobs:
 | `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
 | `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
 
-Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./OVERVIEW.md) §13). [`presets/renovate.json`](./presets/renovate.json) keeps the pins fresh — the update path the "pin everything" rule needs.
+Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./OVERVIEW.md) §13).
+
+### Presets
+
+Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-include straight into your `AGENTS.md` / `CLAUDE.md`):
+
+| Preset | What |
+|---|---|
+| [`habit-hooks/<stack>.toml`](./presets/habit-hooks/) | structural-smell config per stack — tests excluded, the language-independent `generic` duplication check everywhere ([details](./presets/habit-hooks/README.md)) |
+| [`habit-hooks/java/guides/`](./presets/habit-hooks/java/guides/) | per-smell coaching for the Java sensor — concrete "fix toward this", rendered inline in-loop *and* in CI |
+| [`pmd/ruleset.xml`](./presets/pmd/) · `pmd/no-var.xml` | tuned Java ruleset (`ExcessiveParameterList` ≥ 8) + the no-`var` rule |
+| [`gitleaks.toml`](./presets/gitleaks.toml) · [`renovate.json`](./presets/renovate.json) | secret-scan allowlist starting point + the dependency-update path the "pin everything" rule needs |
+| [`code-standards.md`](./presets/code-standards.md) · [`collaboration.md`](./presets/collaboration.md) · [`agent-loop.md`](./presets/agent-loop.md) | agent-facing standing docs — clean code (functions do one thing / SRP), working discipline (branch hygiene + sub-agents), and the self-correcting loop (observe → fix the cause → verify → repeat until green *and* honest) |
 
 ### Versioning
 
