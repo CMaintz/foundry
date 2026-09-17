@@ -13,8 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   ticket the driver works — intent, acceptance-criteria checklist, scope, pointers;
   GitHub-label state machine + local-md fallback) and
   `presets/ISSUE_TEMPLATE/agent-feature.yml` (the issue form that enforces it). Design
-  in `designs/backlog-feature-driver.md`; the `/feature` skill itself lives in
-  cmaintz-skills. README documents the ticket→PR flow.
+  in `designs/backlog-feature-driver.md`; the `/feature` skill that consumes this
+  lands separately in cmaintz-skills. README documents the ticket→PR flow.
 
 ## [1.2.0] — 2026-09-17
 
