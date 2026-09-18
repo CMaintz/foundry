@@ -18,6 +18,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 - **`scripts/setup-labels.sh`** — idempotently creates the GitHub labels the workflows
   + ticket state machine need (agent:ready/working/blocked, align, ruleset-change,
   autofix); run by `foundry-init`.
+- **jscpd pinned via mise** (`mise/java.toml` → `[tools] "npm:jscpd"`) — the `generic`
+  plugin's duplicated-code detector now resolves the same version locally, in the
+  habit-hooks-guard Stop hook, and in CI (`mise-action` runs `mise install`), instead of
+  an unpinned `npm i -g jscpd` that could drift and shift duplication findings.
 
 ### Changed
 - Ticket transport is **GitHub Issues only** — dropped the half-specified local-md
