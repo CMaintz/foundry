@@ -34,14 +34,17 @@ Clearing these is **necessary, not sufficient**: a short, low-complexity functio
 can still do two things. The mechanical checks buy you the floor; the judgment —
 "is this *one* thing?" — is yours and the reviewer's.
 
-## Refactor toward cohesion, not away from a line count
+## Reduce length and complexity for real — via the right seam
 
-Splitting is not the goal; the **right seam** is. Don't shatter a coherent function
-into anemic one-liners to dodge a threshold — that scatters one thing across many
-and reads worse. Find the missing abstraction (a value object, a strategy, a named
-step in a pipeline) that lets each piece *name* one thing. Litmus test: if the
-helper you're extracting needs five parameters, the seam is wrong — the concern
-didn't actually separate.
+Length and cyclomatic complexity are **real problems, not just numbers to satisfy**:
+a long, branchy function is hard to read and change no matter what. So genuinely
+reduce them — but by finding the **right seam**, not by shattering a coherent
+function into anemic one-liners to dodge a threshold (that scatters one thing across
+many and reads worse). Each extracted piece should *name* one thing; usually that's
+a humble well-named helper, sometimes a value object or a strategy — the **name**
+matters, not the grandeur, and you don't need a domain concept to justify extracting
+a step. Litmus test: if the helper you're extracting needs five parameters, the seam
+is wrong — the concern didn't actually separate.
 
 ## Why it's a Foundry standard
 
