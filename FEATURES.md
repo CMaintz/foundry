@@ -53,13 +53,14 @@ via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
 | `code-standards.md` | Agent-facing clean-code standard (functions do one thing / SRP), tied to the deterministic smells. `@`-include into AGENTS.md/CLAUDE.md. |
 | `collaboration.md` | Agent-facing working discipline — branch hygiene for parallel sessions (own branch off `origin/main`, one branch→one PR, rebase not merge). `@`-include into AGENTS.md/CLAUDE.md. |
 | `agent-loop.md` | Agent-facing working *loop* — observe (run the oracle) → diagnose the real cause → act → verify/self-critique → repeat until green *and* honest; tiered in-loop/pre-push/CI; never game the metric. `@`-include into AGENTS.md/CLAUDE.md. |
-| `ticket-schema.md` | The unit of work the `feature` driver claims — intent, acceptance-criteria checklist, scope, pointers; GitHub-label state machine + local-md fallback. The checklist is what `verify` and spec-review walk. |
+| `ticket-schema.md` | The GitHub-Issue ticket the `feature` driver + `repo-align` claim — intent, acceptance-criteria checklist, scope, pointers; `agent:ready`/`working`/`blocked` label state machine. The checklist is what `verify` and spec-review walk. |
 | `ISSUE_TEMPLATE/agent-feature.yml` | GitHub issue form enforcing the ticket schema (required fields, `agent:ready` label). Copy to a consumer's `.github/ISSUE_TEMPLATE/`. |
 
 ## Scripts (`scripts/`)
 
 - `ruleset_guard.py` — per-entry, tightening-aware anti-gaming check.
 - `foundry-init.sh` — one-shot repo scaffold.
+- `setup-labels.sh` — create the GitHub labels the workflows + ticket state machine need (agent:ready/working/blocked, align, ruleset-change, autofix). Idempotent; run by `foundry-init`.
 
 ## Agent half — `cmaintz-skills`
 

@@ -72,6 +72,14 @@ case "$(uname -s)" in
     fi ;;
 esac
 
+echo "- GitHub labels (ticket state machine + gate controls)"
+if command -v gh >/dev/null 2>&1 && gh repo view >/dev/null 2>&1; then
+  fetch "scripts/setup-labels.sh" "scripts/setup-labels.sh"
+  bash scripts/setup-labels.sh || echo "  (skipped — check \`gh auth status\`)"
+else
+  echo "  skip: no gh / no GitHub remote yet — run scripts/setup-labels.sh once you have one"
+fi
+
 echo "- caller workflows (pinned to $REF)"
 if [ -n "$CI" ]; then
   write ".github/workflows/gate.yml" <<YAML
