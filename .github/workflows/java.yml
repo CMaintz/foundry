@@ -180,7 +180,13 @@ jobs:
         with:
           path: ~/.local/opt/pmd-bin-${{ inputs.pmd_version }}
           key: pmd-${{ inputs.pmd_version }}
-      - name: Install PMD + habit-hooks
+      # Node + jscpd: the `generic` plugin's duplication sensor is a Node CLI. Without
+      # it, habit-hooks dies with `incomplete-run` on a repo that enables generic.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          node-version: '20'
+      - name: Install PMD + habit-hooks + jscpd
         if: steps.baseline.outputs.have == 'true'
         run: |
           if [ ! -x "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin/pmd" ]; then
@@ -191,6 +197,7 @@ jobs:
           fi
           echo "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin" >> "$GITHUB_PATH"
           pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+          npm i -g jscpd   # generic plugin's duplication sensor
       - name: Smells (fails only on smells beyond the snooze baseline)
         id: smells
         if: steps.baseline.outputs.have == 'true'

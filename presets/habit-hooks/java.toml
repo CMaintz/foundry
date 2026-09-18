@@ -46,10 +46,3 @@ disabled = true
 [sensors.line-count]
 args = ["--max", "300"]
 
-# jscpd (the `generic` plugin's duplication detector) is a Node CLI. A Java backend
-# job/machine has no Node, so it errors with `incomplete-run`. We keep `generic` for
-# its pure-Python line-count (file-length above) but DISABLE jscpd here. To get Java
-# duplication detection, install Node + `npm i -g jscpd` in the smells job (and
-# locally) and delete this block.
-[sensors.jscpd]
-disabled = true
