@@ -10,11 +10,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - **Ticket → PR intake for the `/feature` driver**: `presets/ticket-schema.md` (the
-  ticket the driver works — intent, acceptance-criteria checklist, scope, pointers;
-  GitHub-label state machine + local-md fallback) and
+  GitHub-Issue ticket the driver works — intent, acceptance-criteria checklist, scope,
+  pointers; `agent:ready`/`working`/`blocked` state machine) and
   `presets/ISSUE_TEMPLATE/agent-feature.yml` (the issue form that enforces it). Design
   in `designs/backlog-feature-driver.md`; consumed by the `feature` skill in
   cmaintz-skills. README documents the ticket→PR flow.
+- **`scripts/setup-labels.sh`** — idempotently creates the GitHub labels the workflows
+  + ticket state machine need (agent:ready/working/blocked, align, ruleset-change,
+  autofix); run by `foundry-init`.
+
+### Changed
+- Ticket transport is **GitHub Issues only** — dropped the half-specified local-md
+  (`tickets/*.md`) fallback from the schema, design, and docs. `repo-align` now
+  coordinates concurrent sessions through `align` issues (worktrees don't share
+  local files).
 
 ## [1.2.0] — 2026-09-17
 

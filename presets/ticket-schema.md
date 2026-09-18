@@ -1,14 +1,11 @@
 # Ticket schema — a ticket the `/feature` driver can work
 
-The unit of work the `feature` driver claims and drives to a PR. One schema, two
-transports: a **GitHub Issue** (the default) or a local `tickets/*.md` frontmatter
-block (the fallback for repos with no GitHub remote). Both normalize to the same
-object inside the driver.
+The unit of work the `feature` driver (and `repo-align`) claims and drives to a PR:
+a **GitHub Issue**. The driver normalizes it to one ticket object internally.
 
 This file is reference: the `feature` skill inlines the fields it needs, so a
-consumer repo need not copy it. Copy it in only if you use the local-md fallback
-and want the frontmatter format to hand — and copy `ISSUE_TEMPLATE/agent-feature.yml`
-into the consumer's `.github/ISSUE_TEMPLATE/` if you use the GitHub transport.
+consumer repo need not copy it. Copy `ISSUE_TEMPLATE/agent-feature.yml` into the
+consumer's `.github/ISSUE_TEMPLATE/` to enforce the schema on new issues.
 
 The driver's output quality is capped by the ticket's. A ticket missing any
 required field is not `agent:ready` — in puller mode it is skipped; in supervised
@@ -26,7 +23,7 @@ required field is not `agent:ready` — in puller mode it is skipped; in supervi
   creep.
 - **Pointers** — relevant files, modules, or prior art the agent should start from.
 
-## Labels — the state machine (GitHub transport)
+## Labels — the state machine
 
 The driver moves a ticket through three labels; the issue thread is its work log.
 
@@ -38,36 +35,7 @@ The driver moves a ticket through three labels; the issue thread is its work log
 ## Onboarding — create the labels first
 
 GitHub **silently drops** a template's `labels:` entry if the label does not exist
-in the repo, so the state machine no-ops with no error until the labels exist.
-Create them once per consumer repo:
-
-```bash
-gh label create agent:ready   --color 0e8a16 --description "Groomed, complete, free to claim"
-gh label create agent:working --color fbca04 --description "Claimed and assigned (WIP=1)"
-gh label create agent:blocked --color d93f0b --description "Escalated to a human; reason in thread"
-```
-
-## Local-md transport
-
-For a repo with no GitHub remote, a ticket is `tickets/<slug>.md` with the same
-fields as frontmatter, plus two the labels carry on GitHub:
-
-```yaml
----
-status: ready        # ready | working | blocked
-claimed_at:          # ISO timestamp, stamped on claim — drives the 30-min stale reset
-intent: >
-  As a <role> I want <capability> so that <benefit>.
-scope: >
-  Do not touch <X>.
-pointers:
-  - src/foo/bar.ts
----
-
-## Acceptance criteria
-- [ ] ...
-- [ ] ...
-```
-
-`claimed_at` exists because local files carry no GitHub assignment timestamp, and
-the stale-claim reset needs one.
+in the repo, so the state machine no-ops with no error until the labels exist. Run
+[`scripts/setup-labels.sh`](../scripts/setup-labels.sh) once per repo (idempotent);
+it creates these plus `align`, `ruleset-change`, and `autofix`. `foundry-init` runs
+it for you.

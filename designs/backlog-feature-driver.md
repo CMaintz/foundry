@@ -54,15 +54,14 @@ preset artifacts in `foundry`. So:
 |---|---|---|
 | The `/feature` driver skill | `cmaintz-skills` | `skills/feature/SKILL.md` (+ helpers) |
 | GitHub issue template | `foundry` | `presets/ISSUE_TEMPLATE/agent-feature.yml` |
-| Local-md ticket schema (fallback) | `foundry` | `presets/ticket-schema.md` (same fields) |
+| Ticket schema (reference) | `foundry` | `presets/ticket-schema.md` |
 | Inventory entry | `foundry` | `FEATURES.md` (same session) |
 
 Adding a skill is **additive** under CONTRACT versioning — no major bump.
 
 ## 4. The ticket is the spec (and caps output quality)
 
-Both sources — a GitHub Issue body and a local `tickets/*.md` frontmatter block —
-normalize to **one ticket object** inside the driver. One schema, two transports.
+A GitHub Issue body normalizes to **one ticket object** inside the driver.
 
 Required fields:
 
@@ -95,8 +94,6 @@ Labels are the state; the issue thread is the durable work log.
 - `agent:ready` — groomed, has a checklist, free to claim.
 - `agent:working` — claimed and assigned; exactly one at a time (WIP = 1).
 - `agent:blocked` — escalated to a human, with the reason already in the thread.
-
-Local-md fallback mirrors this via a `status:` frontmatter field.
 
 ## 6. The driver flow
 
@@ -178,20 +175,17 @@ This honours the signed-off semi-auto goal without shipping an unexercised loop.
 
 ## 11. v1 scope, non-goals, open questions
 
-**In scope (v1):** GitHub Issues as the default transport; the local-md fallback
-with the *same* schema, normalized inside the driver; WIP = 1; 30-min stale reset;
+**In scope (v1):** GitHub Issues as the transport; WIP = 1; 30-min stale reset;
 5-cycle + no-progress inner loop; supervised dogfood then puller.
 
-**Non-goals (v1):** multi-ticket parallelism; tooling built *around* the local-md
-fallback beyond the shared schema; a bespoke tracker integration (Linear/Jira);
-auto-merging PRs (a human still approves).
+**Non-goals (v1):** multi-ticket parallelism; a bespoke tracker integration
+(Linear/Jira); a no-GitHub / local-file transport; auto-merging PRs (a human still
+approves).
 
 **Open questions:**
 - Orchestration substrate for the puller — the `loop` skill (self-paced) vs a
   deterministic `Workflow` script (needed only if we later fan out candidate
   approaches → judge → implement). `loop` is enough for v1.
-- Where the 30-min stale timer lives when running purely local-md (no GitHub
-  timestamps) — likely a `claimed_at` frontmatter stamp.
 - How `/feature` interviews for a thin ticket without blocking an unattended
   puller run (probably: puller only claims tickets that already pass a
   criteria-completeness check; interview mode is for supervised `/feature <id>`).

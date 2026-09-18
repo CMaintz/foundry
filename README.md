@@ -76,13 +76,13 @@ Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-i
 | [`pmd/ruleset.xml`](./presets/pmd/) · `pmd/no-var.xml` | tuned Java ruleset (`ExcessiveParameterList` ≥ 8) + the no-`var` rule |
 | [`gitleaks.toml`](./presets/gitleaks.toml) · [`renovate.json`](./presets/renovate.json) | secret-scan allowlist starting point + the dependency-update path the "pin everything" rule needs |
 | [`code-standards.md`](./presets/code-standards.md) · [`collaboration.md`](./presets/collaboration.md) · [`agent-loop.md`](./presets/agent-loop.md) | agent-facing standing docs — clean code (functions do one thing / SRP), working discipline (branch hygiene + sub-agents), and the self-correcting loop (observe → fix the cause → verify → repeat until green *and* honest) |
-| [`ticket-schema.md`](./presets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/ISSUE_TEMPLATE/agent-feature.yml) | the ticket the `/feature` driver works — intent, an acceptance-criteria checklist, scope, pointers — as a GitHub issue form or a local `tickets/*.md`. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
+| [`ticket-schema.md`](./presets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/ISSUE_TEMPLATE/agent-feature.yml) | the GitHub-Issue ticket the `/feature` driver works — intent, an acceptance-criteria checklist, scope, pointers. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
 
 ### From ticket to PR — the `/feature` driver
 
 Foundry answers *"when is a change done?"* — a green gate. The **`/feature`** driver is the thing in front of that — **ticket in, PR out** — the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above); the driver:
 
-1. **Claim** an `agent:ready` ticket — a GitHub Issue (via the [`agent-feature`](./presets/ISSUE_TEMPLATE/agent-feature.yml) form) or a local `tickets/*.md`, same [schema](./presets/ticket-schema.md) — flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`.
+1. **Claim** an `agent:ready` ticket — a GitHub Issue on the [`agent-feature`](./presets/ISSUE_TEMPLATE/agent-feature.yml) form ([schema](./presets/ticket-schema.md)) — flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`.
 2. **Loop to the gate** — implement → `mise run gate` → act on the failure + habit-hooks coaching → retry, *bounded* (≤ 5 cycles; bail early on no progress, posting the stuck state to the issue thread and flipping `agent:blocked`).
 3. **Verify** the result against the ticket's acceptance-criteria checklist — green ≠ correct.
 4. **Hand to `/ship`** — which re-gates, runs a fresh-context review against the linked issue, commits, and opens the PR. The driver never opens a PR itself, so there's one trusted path to `main`.
