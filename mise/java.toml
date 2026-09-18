@@ -5,6 +5,12 @@
 
 [tools]
 java = "21"
+# jscpd = the duplicated-code detector for the `generic` habit-hooks plugin (the
+# java preset enables it alongside PMD). Pinned via mise so local runs, the
+# habit-hooks-guard Stop hook, and CI (mise-action runs `mise install`) all resolve
+# the SAME version — an unpinned `npm i -g jscpd` drifts and shifts duplication
+# findings between machines. Bump in lockstep with any consumer's pin.
+"npm:jscpd" = "5.2.1"
 
 # PMD is a JVM app (launcher + jars) whose GitHub release asset has no OS in its
 # name, so it can't be a clean [tools] entry. Pin the version here; setup:pmd
