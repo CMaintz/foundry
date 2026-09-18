@@ -119,7 +119,7 @@ why it's used to *teach* an agent rather than just gate it.
 It runs in two placements:
 
 - **In-loop:** a global **Stop hook** (`~/.claude/settings.json`) fires
-  `habit-hooks-guard.ps1` when the agent is about to finish — but only in repos
+  `habit-hooks-guard.sh` when the agent is about to finish — but only in repos
   that opted in by having a `.habit-hooks/` directory, so it's silent everywhere
   else and safe to install globally. It's a *Stop* hook, not *PostToolUse*,
   because habit-hooks costs ~25s cold (~6s warm) — far too slow to fire after
@@ -251,7 +251,7 @@ same smell names. Nothing already built changes.
 
 ```
 ~/.claude/settings.json         # global: the habit-hooks Stop hook, no-attribution config
-~/.claude/hooks/                # the hook script (habit-hooks-guard.ps1)
+~/.claude/hooks/                # the hook script (habit-hooks-guard.sh)
 
 <repo>/mise.toml                # the six verbs for this repo
 <repo>/.habit-hooks/            # config.toml + snooze.json (the smell baseline)

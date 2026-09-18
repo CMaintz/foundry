@@ -68,9 +68,9 @@ via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
   driver: claim a ticket → isolated worktree → bounded gate-fix loop → behavioural
   verify → `ship`; `/feature <ref>` supervised or `/feature` puller, `/loop /feature`
   for semi-auto. See `designs/backlog-feature-driver.md`).
-- **Hooks:** `habit-hooks-guard` (Stop, smells), `auto-format` (PostToolUse, per-edit
+- **Hooks:** `habit-hooks-guard` (Stop, smells — appends a per-smell "fix toward" legend), `auto-format` (PostToolUse, per-edit
   prettier/eslint), `format-java-stop` (Stop, ratcheted Spotless),
-  `typecheck-stop` (Stop, type errors), `guard-generated-files` (PreToolUse, blocks hand-editing snooze/suppressions), `pre-push` (git hook). All portable sh.
+  `typecheck-stop` (Stop, type errors), `guard-generated-files` (PreToolUse — blocks edits to snooze/suppressions via Edit/Write **and** Bash writes), `pre-push` (git hook). All portable sh.
 
 ## Cross-cutting mechanisms
 

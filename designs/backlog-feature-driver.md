@@ -128,9 +128,12 @@ strict:
 - **Worktree per ticket.** Each claim gets its own worktree off `origin/main`, so
   the loop honours `collaboration.md` (own branch off `origin/main`, one branch →
   one PR) without touching the main checkout. Removed on success or abandon.
-- **Stale-claim recovery.** A ticket `agent:working` with **no branch and no PR**
-  for **30 minutes** resets to `agent:ready`. Without this, one crashed session
-  strands a ticket forever. (Threshold tunable; 30 min is the starting default.)
+- **Stale-claim recovery.** A ticket `agent:working` with **no activity** (branch,
+  PR, or thread) for **2 hours** resets to `agent:ready` and is resumed from the
+  thread + any open PR. Key off *inactivity*, not "no branch/PR yet" — a session that
+  died mid-work (a crash, or the human's usage ran out) can't release its own claim
+  and may already have opened a PR, so recovery must be passive, time-based, and able
+  to reclaim a ticket that has a PR. (Threshold tunable; 2h is the starting default.)
 
 ## 8. Inner-loop bounds — so "loop until solved" actually terminates
 
