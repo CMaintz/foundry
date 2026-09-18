@@ -46,9 +46,9 @@ Don't over-correct, either. A straight-line sequence of steps at one level is fi
 one function — **not** every step wants to be a helper. Extract where there's *real*
 complexity (tangled branches) or a **pyramid of doom** (deep nesting), not to hit a
 count. When you do, aim at the right seam: the missing abstraction (a value object, a
-strategy) **or** simply a well-named helper for a coherent step — a humble name counts,
-you don't need a domain concept. Litmus: a helper that needs five parameters means the
-seam is wrong — the concern didn't actually separate.
+strategy, a named step in a pipeline) **or** simply a well-named helper for a coherent
+step — a humble name counts, you don't need a domain concept. Litmus: a helper that
+needs five parameters means the seam is wrong — the concern didn't actually separate.
 
 ## Name your values — no magic numbers or strings
 
