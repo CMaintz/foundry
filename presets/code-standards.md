@@ -75,7 +75,10 @@ already made clear by a well-named variable or parameter. As with length: the po
   ~100 — no separate gate — and only leaves a line long when it *can't* wrap it (an
   unbreakable string/URL), which is exactly the case you'd exempt. TS/JS: ESLint
   `max-len` (120) with `ignoreStrings` / `ignoreTemplateLiterals` / `ignoreUrls` /
-  `ignoreRegExpLiterals`, so prompts and formatted text don't trip it.
+  `ignoreRegExpLiterals`, so prompts and formatted text don't trip it — foundry ships
+  this as [`eslint.config.mjs`](./eslint.config.mjs); extend it in your project.
+  Prettier's `printWidth` (120) is what auto-wraps; `max-len` is the backstop for
+  what it can't.
 - **Function length / complexity count *statements and branches*, not characters** —
   a long prompt string is one statement, so it does **not** inflate `oversized-function`
   (NcssCount) or `high-complexity`. Those are about doing too much (above), never line
