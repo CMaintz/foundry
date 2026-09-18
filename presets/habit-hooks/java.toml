@@ -16,8 +16,13 @@ files = ["**/*.java", "!**/src/test/**/*.java"]
 # ../pmd/ruleset.xml -> copy to <repo>/pmd/ruleset.xml) so a missing/misplaced one
 # fails loudly instead of SILENTLY falling back to bundled minimum=4. --no-progress
 # silences PMD's progress-bar WARN.
+# --suppress-marker: a line with `// foundry-allow-smell: <reason>` suppresses PMD on
+# it, so a *genuine* non-seam (a linear toEntity/save mapper, a flat long builder) can
+# be accepted on the record — reviewable in the diff — instead of forced into a
+# split-to-pass or silently steered around. Use sparingly, always with a reason; it is
+# NOT for dodging a real refactor. (Mirrors `foundry-allow-var` for the no-var check.)
 [sensors.pmd]
-args = ["--no-progress", "-R", "pmd/ruleset.xml"]
+args = ["--no-progress", "-R", "pmd/ruleset.xml", "--suppress-marker", "foundry-allow-smell"]
 
 # unused-import: PMD's UnnecessaryImport runs here WITHOUT an aux-classpath, so it
 # cannot resolve wildcard-import usage and false-flags e.g. `jakarta.persistence.*`
@@ -33,3 +38,18 @@ disabled = true
 # copied pmd/ruleset.xml raises it to a real god-class signal (8); the -R above
 # points PMD at it, and findings still map to smells by PMD rule name. See README
 # ("Tuning thresholds").
+
+# File-length: flag files over 300 lines (oversized-file). 300 rather than the
+# sensor default of 200 — verbose-but-cohesive files (esp. Java) legitimately pass
+# 200, and this is a ratcheted coaching signal, not a hard wall. Config/data/prose
+# are already excluded by the `files` globs; keep big prompts in their own resource file.
+[sensors.line-count]
+args = ["--max", "300"]
+
+# jscpd (the `generic` plugin's duplication detector) is a Node CLI. A Java backend
+# job/machine has no Node, so it errors with `incomplete-run`. We keep `generic` for
+# its pure-Python line-count (file-length above) but DISABLE jscpd here. To get Java
+# duplication detection, install Node + `npm i -g jscpd` in the smells job (and
+# locally) and delete this block.
+[sensors.jscpd]
+disabled = true
