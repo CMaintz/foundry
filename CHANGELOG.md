@@ -25,6 +25,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
   coordinates concurrent sessions through `align` issues (worktrees don't share
   local files).
 
+- **OVERVIEW §7 gains a gate-governance map** — one table of every gate-defining file
+  (`snooze.json`, `eslint-suppressions.json`, `.jscpd.json`, rulesets/thresholds) →
+  what protects it (hook / ruleset-guard / bootstrap) → the reminder to add new ones to
+  `ruleset_paths`. `foundry-init` Next-steps now flags that some sensors ship disabled.
+
+### Fixed
+- `foundry-init` scaffolded the `bootstrap` cron as **weekly** (`0 6 * * 1`) after the
+  intended cadence became daily — new repos now scaffold `0 6 * * *` (one shrink PR/day).
+
 ## [1.2.0] — 2026-09-17
 
 ### Added

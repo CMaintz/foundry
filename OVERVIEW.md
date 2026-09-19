@@ -161,6 +161,24 @@ touches is proven not to loosen the gate: a suppression baseline whose count onl
 shrank, a snooze list that only got shorter, or a pure CRLF/LF flip. This is what
 lets `mise run fix` prune the baseline and ship that in the same PR as the fix.
 
+### What counts as a gate-defining file — and who watches it
+
+Governance is split across three enforcement points by *when* they run — a
+client-side hook (cmaintz-skills), the CI guard (`tier0.yml`), and the regenerator
+(`bootstrap.yml`). This table is the single map of what's protected and how:
+
+| File | Controls | Protected by |
+|---|---|---|
+| `snooze.json` | structural-smell baseline | **hook** blocks hand-edits (incl. Bash writes) · **ruleset-guard** blocks growth without the label · **bootstrap** regenerates (prune only shrinks) |
+| `eslint-suppressions.json` | lint baseline | same three |
+| `.jscpd.json` | which paths the duplication sensor scans | **ruleset-guard** — widening the ignore list alongside source needs the label |
+| `pmd/ruleset.xml`, thresholds, `mise.toml`, workflows | rule definitions / gate wiring | **ruleset-guard** — direction can't be proven, so any change alongside source needs the label |
+| `ruleset_paths` regex | *which* files ruleset-guard treats as gate-defining (this table's first column) | the `tier0` input default, or a consumer's override — **keep it in sync when you add a guarded file** |
+
+The recurring failure mode: a *new* gate-defining file (like `.jscpd.json`) isn't
+added to `ruleset_paths`, so widening it slips past the guard. When you introduce
+one, add it to the regex in the same change.
+
 ## 8. The skills ecosystem — and how it touches the gate
 
 Foundry's own skill layer is deliberately thin, because most of the *practice*
