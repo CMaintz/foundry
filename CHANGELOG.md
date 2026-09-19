@@ -18,12 +18,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 - **`scripts/setup-labels.sh`** — idempotently creates the GitHub labels the workflows
   + ticket state machine need (agent:ready/working/blocked, align, ruleset-change,
   autofix); run by `foundry-init`.
+- **`presets/habit-hooks/jscpd.json`** — jscpd ignore list (tests + fixtures), fetched
+  by `foundry-init` for the java stack. jscpd walks the dir itself and does NOT honor
+  the `.habit-hooks` `files` exclusion, so without this, enabling duplication detection
+  gates test code. The java preset's enable-jscpd instructions now point at it, and the
+  snooze re-seed step.
 
 ### Changed
 - Ticket transport is **GitHub Issues only** — dropped the half-specified local-md
   (`tickets/*.md`) fallback from the schema, design, and docs. `repo-align` now
   coordinates concurrent sessions through `align` issues (worktrees don't share
   local files).
+- `tier0` ruleset-guard's default `ruleset_paths` now includes `.jscpd.json` — widening
+  its ignore list loosens the duplication gate, so it needs the `ruleset-change` label
+  alongside source (same governance as a snooze baseline or a PMD ruleset).
 
 ## [1.2.0] — 2026-09-17
 
