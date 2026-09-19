@@ -137,7 +137,7 @@ name: bootstrap
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '0 6 * * 1'   # weekly auto-prune, so the snooze baseline shrinks on its own
+    - cron: '0 6 * * *'   # daily auto-prune — baseline shrinks on its own, one PR/day max
 jobs:
   bootstrap:
     uses: $REPO/.github/workflows/bootstrap.yml@$REF
@@ -155,7 +155,10 @@ cat <<'NEXT'
    FOUNDRY_REF=<a tag or SHA> so the reusable workflows are pinned, not floating on main.
 2. Install the detectors and generate the smell baseline: run the `bootstrap`
    workflow once (Actions tab -> bootstrap -> Run workflow). It opens a PR with
-   .habit-hooks/snooze.json.
+   .habit-hooks/snooze.json. NB: some sensors ship DISABLED (opt-in) — e.g. jscpd
+   duplication for java, since it needs Node. Skim .habit-hooks/config.toml for
+   `[sensors.*] disabled = true` and turn on the ones you can support, so coverage
+   isn't silently narrower than you think.
 3. Turn on Renovate (or Dependabot) so the pins you just set stay fresh.
 4. Branch protection on `main` (Settings -> Branches), require these checks:
      - Deterministic gate            (gate.yml)
