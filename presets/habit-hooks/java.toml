@@ -8,6 +8,11 @@ plugins = ["java", "generic"]
 # Tests are not structural-smell-gated: long, mock-heavy test methods and many
 # fixtures are normal and fine. CI should police production maintainability, not
 # test structure. (Language-agnostic principle — see README.)
+#
+# NB: this `files` list scopes the line-based + PMD sensors ONLY. jscpd (see the
+# generic plugin below) does its OWN directory walk and ignores this list — so if you
+# enable jscpd, exclude tests/fixtures from IT via a `.jscpd.json` (copy
+# ../jscpd.json to <repo>/.jscpd.json), or it gates duplication in test code.
 files = ["**/*.java", "!**/src/test/**/*.java"]
 
 # args MUST be a TOML array, not a string — habit-hooks mangles a string into
@@ -48,8 +53,16 @@ args = ["--max", "300"]
 
 # jscpd (the `generic` plugin's duplication detector) is a Node CLI. A Java backend
 # job/machine has no Node, so it errors with `incomplete-run`. We keep `generic` for
-# its pure-Python line-count (file-length above) but DISABLE jscpd here. To get Java
-# duplication detection, install Node + `npm i -g jscpd` in the smells job (and
-# locally) and delete this block.
+# its pure-Python line-count (file-length above) but DISABLE jscpd here by default.
+#
+# To turn on Java duplication detection:
+#   1. Provision jscpd. The java mise template pins `npm:jscpd`, and the java.yml
+#      habits job runs mise-action (mise install) — so it lands on PATH with no extra
+#      step. (Locally: `mise install`.)
+#   2. Copy ../jscpd.json to <repo>/.jscpd.json FIRST. jscpd ignores the `files` list
+#      above and walks the dir itself, so without this it gates test + fixture
+#      duplication (exactly what `files` excludes for the other sensors).
+#   3. Delete this block, then re-seed the snooze baseline (bootstrap, snooze mode) so
+#      pre-existing production duplication is grandfathered and only NEW gates.
 [sensors.jscpd]
 disabled = true
