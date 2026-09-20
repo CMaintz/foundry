@@ -191,10 +191,23 @@ jobs:
           fi
           echo "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin" >> "$GITHUB_PATH"
           pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+      # `--branch` (below) diffs the checked-out branch against `branchBase` (habit-hooks
+      # default `main`) and scans ONLY what this branch changed — not the whole tree on
+      # every PR (the full scan is a baseline-time job, see bootstrap.yml). A PR checkout
+      # is detached at the merge commit, so `main` has no local ref and habit-hooks
+      # refuses to guess (a hard error, never a silent pass). Point a local `main` at the
+      # PR base — already in history from fetch-depth: 0. On push, `main` already resolves.
+      - name: Make base ref resolvable for --branch
+        if: steps.baseline.outputs.have == 'true' && github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git branch -f main "$BASE_SHA"
       - name: Smells (fails only on smells beyond the snooze baseline)
         id: smells
         if: steps.baseline.outputs.have == 'true'
-        run: habit-hooks
+        # --branch: scan only files changed vs the base. Unchanged files are already
+        # covered by the snooze baseline; re-scanning them every PR is wasted work.
+        run: habit-hooks --branch
       - name: How to read these smells
         if: failure() && steps.smells.outcome == 'failure'
         run: |

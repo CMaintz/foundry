@@ -36,6 +36,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 - `tier0` ruleset-guard's default `ruleset_paths` now includes `.jscpd.json` — widening
   its ignore list loosens the duplication gate, so it needs the `ruleset-change` label
   alongside source (same governance as a snooze baseline or a PMD ruleset).
+- **The smell gate scans only changed files** (`habit-hooks --branch`) in `java.yml`
+  and `ts.yml`, instead of the whole tree every PR. Unchanged files are already covered
+  by the snooze baseline; the full scan is a baseline-time job (`bootstrap`). Each habits
+  job now creates a local `main` at the PR base so `--branch` resolves in a detached PR
+  checkout (`ts.yml` gains `fetch-depth: 0`). habit-hooks errors loudly if the base ref
+  is missing — it never silently passes an unscanned tree.
 
 ## [1.2.0] — 2026-09-17
 
