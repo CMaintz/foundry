@@ -5,3 +5,11 @@
 *.png binary
 *.jpg binary
 *.gif binary
+
+# Changelogs are append-only bullet lists that every PR edits at the same spot
+# (top of "## [Unreleased]"), so parallel PRs conflict on identical-location adds.
+# `union` is a BUILT-IN git merge driver (no local config, so GitHub honors it too):
+# on conflict it keeps BOTH sides' lines instead of stopping. Order isn't guaranteed
+# and identical lines can dupe — both tidied when a release is cut — but the conflict
+# class disappears. Applies to any repo that vendors this file.
+CHANGELOG.md merge=union
