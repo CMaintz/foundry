@@ -55,6 +55,10 @@ fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
 if [ "$STACK" = "java" ]; then
   fetch "presets/pmd/ruleset.xml" "$WD/pmd/ruleset.xml"
   fetch "presets/pmd/no-var.xml" "$WD/config/pmd/no-var.xml"
+  # jscpd's ignore list (tests + fixtures). Inert while jscpd is disabled in the
+  # config, but pre-placed so that enabling duplication detection doesn't first gate
+  # test code — jscpd walks the dir itself and ignores the config's `files` list.
+  fetch "presets/habit-hooks/jscpd.json" "$WD/.jscpd.json"
   # Per-smell coaching guides (habit-hooks' project-override path) — the Java plugin
   # ships none, so without these every smell renders one generic message.
   for g in oversized-function high-complexity too-many-parameters deep-nesting; do

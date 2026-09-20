@@ -17,7 +17,7 @@ on:
           Extended regex of paths that constitute "the ruleset". A PR touching
           both these and production source is examined for loosening.
         type: string
-        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml)'
+        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml)'
       source_paths:
         description: Extended regex of production source paths.
         type: string
