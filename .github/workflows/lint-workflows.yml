@@ -1,12 +1,13 @@
-# foundry lints its own workflows — the deterministic net that would have caught
-# the kebab-case reusable-workflow input bug (inputs.mise-version parses as
-# `inputs.mise - version`, an undeclared property, and fails at run startup with
-# no API-visible error). actionlint validates expression syntax and declared
-# context properties, so that mistake fails here instead.
-#
-# shellcheck integration is disabled for now to keep this focused on
-# workflow/expression validation; the guard's bash can be shellcheck-clean later.
-name: lint-workflows
+# foundry lints its own repo hygiene, deterministically:
+#   - actionlint — workflow expression + context validation. Would have caught the
+#     kebab-case reusable-workflow input bug (inputs.mise-version parses as
+#     `inputs.mise - version`, an undeclared property, failing at run startup with no
+#     API-visible error). Its embedded shellcheck stays off for now (`-shellcheck=`) so
+#     turning it on doesn't red-wall every `run:` block at once — a later tightening.
+#   - shellcheck — the bash foundry SHIPS (foundry-init.sh, setup-labels.sh) that
+#     consumers run at onboarding. shellcheck is preinstalled on ubuntu runners.
+#   - typos — doc/identifier spelling slips across the repo.
+name: lint
 
 on:
   push:
@@ -30,3 +31,25 @@ jobs:
             "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
           tar -xzf actionlint.tar.gz actionlint
           ./actionlint -shellcheck= -color
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      # shellcheck ships on GitHub's ubuntu runners — no install step needed.
+      - name: shellcheck the shipped scripts
+        run: shellcheck scripts/*.sh
+
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Run typos
+        env:
+          VERSION: "1.49.0" # pin like actionlint; bump via Renovate
+        run: |
+          set -euo pipefail
+          curl -fsSL -o typos.tar.gz \
+            "https://github.com/crate-ci/typos/releases/download/v${VERSION}/typos-v${VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          tar -xzf typos.tar.gz ./typos
+          ./typos
