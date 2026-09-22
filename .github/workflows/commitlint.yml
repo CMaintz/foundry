@@ -1,0 +1,20 @@
+# Enforces Conventional Commits on PR commits — the input release-please derives version
+# bumps and the changelog from. Without it, a mistyped prefix (`feat` vs `fix`, or a bare
+# subject) silently produces a wrong bump or a missing changelog entry. Merge commits are
+# ignored by default.
+name: commitlint
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # commitlint needs the PR's full commit range to lint each one
+      - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6.2.1

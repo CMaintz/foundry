@@ -1,0 +1,48 @@
+# Automated versioning. On every push to main, release-please reads the conventional
+# commits since the last release and maintains a rolling "release PR" that bumps the
+# version + regenerates the CHANGELOG. Merging that PR cuts the release (tag + GitHub
+# release) — so YOU decide *when* to release by merging, at a milestone. `release-type:
+# simple` = no language package to publish; it just tracks the version + changelog.
+#
+# Uses the default GITHUB_TOKEN: simplest, no PAT/secret. Trade-off — PRs opened by the
+# default token don't trigger other workflows, so the release PR's own gate checks won't
+# auto-run. That's fine for a version-bump/changelog PR you review before merging.
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # create the release PR, tags, and the GitHub release
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # release-please tags `vX.Y.Z` but does NOT manage the floating major alias. Move
+      # `v1` onto each new release so consumers pinned to `@v1` pick up minors/patches.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          fetch-depth: 0
+      - name: Move the floating major tag to the new release
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          TAG: ${{ steps.release.outputs.tag_name }}
+          MAJOR: ${{ steps.release.outputs.major }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force origin
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # `^{}` dereferences an annotated tag to its commit before re-pointing v<major>.
+          git tag -f "v${MAJOR}" "${TAG}^{}"
+          git push origin -f "refs/tags/v${MAJOR}"
