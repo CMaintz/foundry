@@ -1,0 +1,6 @@
+{
+  "//": "The fixture set the harness loads. This is the ratcheted surface: the list may ONLY GROW. Removing an entry drops a regression case — ruleset-guard's `coverage` kind flags it as a loosening (needs the ruleset-change label). Adding one is tightening (more coverage, no label). Fixture files live next to this in ./fixtures/ (TS) or /prompt-eval/ on the test classpath (Java).",
+  "fixtures": [
+    "example.json"
+  ]
+}

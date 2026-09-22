@@ -52,6 +52,20 @@ echo "- shared presets"
 fetch "presets/gitleaks.toml" ".gitleaks.toml"
 fetch "presets/renovate.json" "renovate.json"
 fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
+
+# Loop telemetry: the verb wrapper (on PATH via the mise template's {{config_root}}/scripts)
+# and the offline summariser. See designs/loop-telemetry.md.
+fetch "scripts/foundry-verb-wrap" "scripts/foundry-verb-wrap"
+fetch "scripts/foundry-loop-report" "scripts/foundry-loop-report"
+chmod +x scripts/foundry-verb-wrap scripts/foundry-loop-report 2>/dev/null || true
+# The telemetry log is local-only observability, never committed.
+if [ ! -f .gitignore ]; then
+  printf '# Foundry loop telemetry (local observability)\n.foundry/\n' > .gitignore
+  echo "  wrote: .gitignore (+.foundry/)"
+elif ! grep -qxF '.foundry/' .gitignore 2>/dev/null; then
+  printf '\n# Foundry loop telemetry (local observability)\n.foundry/\n' >> .gitignore
+  echo "  updated: .gitignore (+.foundry/)"
+fi
 if [ "$STACK" = "java" ]; then
   fetch "presets/pmd/ruleset.xml" "$WD/pmd/ruleset.xml"
   fetch "presets/pmd/no-var.xml" "$WD/config/pmd/no-var.xml"

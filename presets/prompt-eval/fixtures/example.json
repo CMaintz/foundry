@@ -1,0 +1,7 @@
+{
+  "name": "English platform engineer, mid-career",
+  "input": "Job posting + candidate profile the prompt is given (kept minimal here). Your scorer receives this as context to judge the output against.",
+  "expectedBlocks": ["## Honesty & ATS Rules", "## Banned Phrases"],
+  "good": "At Netcompany I owned the Terraform estate across 30 AWS accounts; median deploy time went from 40 minutes to 9 because we stopped treating every environment as a special case. That was mostly observability work — you cannot shorten a deploy you cannot see. What draws me to this role is owning the estate, not a queue of tickets against it.",
+  "weak": "I am writing to apply for the platform engineer position. I am a results-driven team player who is passionate about cloud infrastructure and confident I would be a great fit. In today's fast-paced environment I hit the ground running and wear many hats. I look forward to hearing from you."
+}

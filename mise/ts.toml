@@ -5,8 +5,24 @@
 node = "22.14.0" # pin to whatever the repo actually uses
 
 [env]
-# Put local binaries on PATH so tasks call `eslint`, not `npx eslint`.
-_.path = ["./node_modules/.bin"]
+# Put local binaries on PATH so tasks call `eslint`, not `npx eslint`; and the repo's
+# scripts/ so the gate can call `foundry-verb-wrap` by name (foundry-init installs it).
+_.path = ["./node_modules/.bin", "{{config_root}}/scripts"]
+
+# Loop telemetry: each gate verb appends one JSONL line here (see designs/loop-telemetry.md).
+# Gitignore `.foundry/`. Read it with `foundry-loop-report`. The gate calls
+# `foundry-verb-wrap` (installed by foundry-init, on PATH via scripts/ above).
+FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
+
+# ── FOUNDRY_SINCE — changed-scope for the fast placements ────────────────────
+# A git ref (empty ⇒ origin/main). When SET, the file-local verbs (`lint`, `test`)
+# restrict work to files changed since its merge-base with HEAD — for the in-loop
+# Stop hook and pre-push, where speed matters. When UNSET (CI, and the final
+# `/ship` gate), they run whole-tree. Whole-program checks (`typecheck`) ignore it
+# and always run whole-tree — a changed file can break an unchanged one. This is
+# execute-scope, safe only because whole-tree CI is the authoritative backstop.
+# See designs/changed-scope-gate.md. An unresolvable ref falls back to whole-tree
+# (never skips). The signal is opt-in per verb; callers MUST NOT require it.
 
 [tasks.fix]
 description = "Auto-fix what is mechanically fixable; never opinionated"
@@ -23,7 +39,21 @@ description = "Style and smells; non-mutating"
 # Fails on new violations AND on stale suppressions, so the baseline cannot rot.
 # eslint-suppressions.json holds the accepted debt — it is committed, and it may
 # only ever shrink. Never add to it by hand; never delete it to make lint pass.
-run = "eslint ."
+# Honours FOUNDRY_SINCE (see [env]): scoped to changed files at the fast placements,
+# whole-tree in CI. eslint findings are file-local, so scoping is safe; the
+# whole-tree CI run still catches stale suppressions repo-wide.
+run = '''
+set -eu
+if [ -z "${FOUNDRY_SINCE+x}" ]; then exec eslint .; fi
+base="${FOUNDRY_SINCE:-origin/main}"
+mb=$(git merge-base "$base" HEAD 2>/dev/null || true)
+if [ -z "$mb" ]; then echo "changed-scope lint: cannot resolve '$base'; whole-tree"; exec eslint .; fi
+changed=$(git diff --name-only --diff-filter=ACMR "$mb" -- '*.ts' '*.tsx' '*.js' '*.cjs' '*.mjs' 2>/dev/null || true)
+untracked=$(git ls-files --others --exclude-standard -- '*.ts' '*.tsx' '*.js' '*.cjs' '*.mjs' 2>/dev/null || true)
+files=$(printf '%s\n%s\n' "$changed" "$untracked" | sort -u | sed '/^$/d')
+if [ -z "$files" ]; then echo "changed-scope lint: no changed JS/TS since $mb"; exit 0; fi
+printf '%s\n' "$files" | xargs -d '\n' eslint
+'''
 
 [tasks.typecheck]
 description = "Static types"
@@ -33,20 +63,70 @@ run = "tsc -b"
 
 [tasks.test]
 description = "Tests with coverage floor"
-run = "vitest run --coverage"
+# FOUNDRY_SINCE unset (CI / final gate): full suite + coverage floor — the oracle.
+# FOUNDRY_SINCE set (in-loop / pre-push): only tests affected by the changeset, via
+# vitest's module graph, and WITHOUT the coverage floor — coverage is a whole-tree
+# property, so it's enforced on the unset path only. Unresolvable ref ⇒ full suite.
+run = '''
+set -eu
+if [ -z "${FOUNDRY_SINCE+x}" ]; then exec vitest run --coverage; fi
+base="${FOUNDRY_SINCE:-origin/main}"
+mb=$(git merge-base "$base" HEAD 2>/dev/null || true)
+if [ -z "$mb" ]; then echo "changed-scope test: cannot resolve '$base'; full suite"; exec vitest run --coverage; fi
+exec vitest run --changed "$mb"
+'''
 
 [tasks.audit]
 description = "Dependency vulnerabilities. Local subset; CI Tier 0 adds gitleaks"
 run = "npm audit --audit-level=critical"
+
+# Architecture fitness (opt-in, tier-c auxiliary until you adopt it). Enforces YOUR
+# layer map + no cycles via dependency-cruiser (needs `dependency-cruiser` installed).
+# Whole-graph, so NOT changed-scoped — a cycle can be formed by an unrelated edge.
+# To adopt: fill the layer map in .dependency-cruiser.cjs (from presets/arch/), generate
+# the shrink-only baseline once, then fold `mise run arch` into `lint`. See
+# designs/arch-fitness.md. Architecture-agnostic — hexagonal is just the default map.
+[tasks.arch]
+description = "Architecture fitness: no cross-layer imports, no cycles (dependency-cruiser)"
+run = '''
+set -eu
+cfg=".dependency-cruiser.cjs"
+base=".dependency-cruiser-known-violations.json"
+if [ ! -f "$cfg" ]; then echo "arch: no $cfg yet — copy presets/arch/ and fill your layer map"; exit 0; fi
+if [ -f "$base" ]; then
+  exec depcruise src --config "$cfg" --ignore-known "$base"
+fi
+exec depcruise src --config "$cfg"
+'''
+
+# Flaky-test triage (opt-in, tier-c auxiliary). Runs tests emitting a machine report,
+# then lets `foundry-flaky` drop QUARANTINED flakes (flaky-baseline.json) from the gate
+# decision while still printing them — a real failure still fails. Fold into `test` when
+# adopted; keep coverage on the main `test`. See designs/flake-triager.md. `foundry-flaky`
+# is on PATH via scripts/ (foundry-init installs it).
+[tasks."test:flaky"]
+description = "Tests, with quarantined flakes reported but not gating (flaky-baseline.json)"
+run = '''
+set -eu
+mkdir -p .foundry
+rep=".foundry/vitest-report.json"
+vitest run --reporter=json --outputFile="$rep" || true
+foundry-flaky gate "$rep" flaky-baseline.json
+'''
 
 [tasks.gate]
 description = "The authoritative composite — the oracle. Nothing merges without this green."
 # Array form runs sequentially. Do NOT use `depends`: mise runs dependencies in
 # parallel with no ordering guarantee, which makes gate output unreadable and
 # hides which check failed first.
+# Each verb is wrapped by `foundry-verb-wrap`, which times it, appends one JSONL line
+# to FOUNDRY_TELEMETRY, then propagates the verb's exit code unchanged — telemetry
+# never changes the outcome, and a failing verb still stops the sequence. Read the log
+# with `foundry-loop-report`. The wrapper is required (foundry-init installs it, on
+# PATH via scripts/ — see [env]); it is NOT on the six-verb contract.
 run = [
-    "mise run lint",
-    "mise run typecheck",
-    "mise run test",
-    "mise run audit",
+    "foundry-verb-wrap lint      -- mise run lint",
+    "foundry-verb-wrap typecheck -- mise run typecheck",
+    "foundry-verb-wrap test      -- mise run test",
+    "foundry-verb-wrap audit     -- mise run audit",
 ]
