@@ -5,7 +5,8 @@
 #       uses: CMaintz/foundry/.github/workflows/java.yml@<sha>
 #       with:
 #         spotbugs: true      # opt-in bytecode analysis
-#         no_var: true        # opt-in diff-scoped no-`var` rule
+#
+# no-`var` is not an input: it's folded into `lint` (mise.toml), enforced by the gate.
 #
 # Runs the same six verbs a developer runs locally (`mise run gate`). If this and
 # a laptop ever disagree, that's a bug in the setup, not the code. Toolchain (JDK)
@@ -40,10 +41,6 @@ on:
         description: Gradle task for SpotBugs.
         type: string
         default: "spotbugsMain"
-      no_var:
-        description: Enforce the diff-scoped no-`var` rule on changed source (opt-in).
-        type: boolean
-        default: false
       osv_scanner_version:
         type: string
         default: "2.5.1"
@@ -91,17 +88,24 @@ jobs:
       # gets a targeted fix. Devs still run the composite `mise run gate` locally.
       - name: 'gate: lint'
         id: lint
+        # FOUNDRY_BASE_REF is the ratchet base for lint's no-`var` check (see mise.toml):
+        # the PR base SHA on PRs (origin/main isn't a reliable ref in a PR checkout),
+        # empty on dispatch ⇒ novar falls back to origin/main. fetch-depth: 0 (above)
+        # supplies the history the merge-base needs.
+        env:
+          FOUNDRY_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: mise run lint
       - name: How to fix (lint)
         if: failure() && steps.lint.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed at \`lint\` — formatting (Spotless)"
+            echo "## ❌ Gate failed at \`lint\` — formatting (Spotless) or no-\`var\`"
             echo ""
-            echo "This is **100% mechanical**. Run it, commit, push — done:"
+            echo "**Formatting** is 100% mechanical — run it, commit, push:"
             echo '```'
             echo "mise run fix        # = ./gradlew spotlessApply"
             echo '```'
+            echo "**no-\`var\`** is not auto-fixable: replace \`var\` with the explicit type, or tag a justified use \`// foundry-allow-var: reason\`. It only flags \`var\` on files this PR changed."
             echo "(Structural smells are a separate 'Structural smells' job, not this one.) The offending files are in the **gate: lint** step log above."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: typecheck'
@@ -244,50 +248,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@94bac82a5b62952e304b4f7a45a90e19c46c7e50 # v4
       - run: ./gradlew ${{ inputs.spotbugs_task }}
 
-  no-var:
-    name: No unjustified var
-    if: inputs.no_var && github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    # Runs from the repo root: `git diff` prints root-relative paths, so pmd's -d
-    # must resolve from root too (a non-root working-directory would double the
-    # prefix). The project dir is applied as a prefix below instead.
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          fetch-depth: 0
-      - name: Cache PMD
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
-        with:
-          path: ~/.local/opt/pmd-bin-${{ inputs.pmd_version }}
-          key: pmd-${{ inputs.pmd_version }}
-      - name: Install PMD
-        run: |
-          if [ ! -x "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin/pmd" ]; then
-            mkdir -p "$HOME/.local/opt"
-            curl -fsSL -o /tmp/pmd.zip \
-              "https://github.com/pmd/pmd/releases/download/pmd_releases/${{ inputs.pmd_version }}/pmd-dist-${{ inputs.pmd_version }}-bin.zip"
-            unzip -q /tmp/pmd.zip -d "$HOME/.local/opt"
-          fi
-          echo "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin" >> "$GITHUB_PATH"
-      # Diff from the merge-base (3-dot), not the raw base tip: pull_request events
-      # don't re-fire when main advances, so base.sha goes stale and a 2-dot diff
-      # would drag in files this PR never touched. Enforce no-`var` only on changed
-      # main source, so pre-existing uses are untouched until touched.
-      - name: Check changed Java files for unjustified var
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
-          WD: ${{ inputs.working_directory }}
-        run: |
-          set -euo pipefail
-          BASE=$(git merge-base "$BASE" "$HEAD")
-          prefix=""
-          if [ "$WD" != "." ]; then prefix="${WD%/}/"; fi
-          mapfile -t files < <(git diff --name-only --diff-filter=d "$BASE" "$HEAD" \
-            | grep -E "^${prefix}src/main/java/.*\.java$" || true)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No main Java files changed — nothing to check."; exit 0
-          fi
-          printf 'Checking %d changed file(s):\n' "${#files[@]}"; printf '  %s\n' "${files[@]}"
-          pmd check "${files[@]/#/-d=}" -R "${prefix}config/pmd/no-var.xml" \
-            -f text --no-progress --suppress-marker foundry-allow-var
+  # no-`var` used to be a separate job here. It's now folded into `lint` (mise.toml),
+  # so the deterministic gate enforces it in one place — locally and in CI — and it's
+  # no longer opt-in. The gate job's checkout uses fetch-depth: 0, and it passes
+  # FOUNDRY_BASE_REF (the PR base SHA) so novar diff-scopes correctly. See
+  # designs/verb-tiers.md and designs/changed-scope-gate.md.

@@ -45,6 +45,24 @@ possible — trust the in-loop signal, don't defer to CI:
 
 Same rules in each — no "passes locally, fails in CI."
 
+### Fast iterative runs — `FOUNDRY_SINCE`
+
+While you're *iterating* — running the oracle over and over on one change — scope the
+file-local verbs to what you touched so each round is fast. Set `FOUNDRY_SINCE` to your
+branch base:
+
+```
+FOUNDRY_SINCE=origin/main mise run gate    # lint + test only over the changeset
+```
+
+`lint` and `test` then run on changed files only (tests via the module graph);
+`typecheck` still runs whole-tree, because a change can break an unchanged file's types
+and scoping that would be a false green. **Your final verification is always a clean,
+whole-tree `mise run gate` with `FOUNDRY_SINCE` unset** — the scoped runs are for speed
+during the loop, not for declaring done. CI never sets it, so whole-tree CI stays the
+backstop. Unset it and you're back to the full local gate; an unresolvable ref falls
+back to whole-tree on its own.
+
 ## Outer loop — campaigns (`repo-align`)
 
 Paying down debt is the same discipline, scaled — but **bounded**: pick a target up

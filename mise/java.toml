@@ -2,6 +2,14 @@
 # Commands assume Gradle + Spotless; structural smells come from habit-hooks'
 # Java/PMD plugin, not the Gradle build. Adjust for Maven or your plugins.
 # Proven on a Spring Boot repo (AutoApplicant); see OVERVIEW.md.
+#
+# No FOUNDRY_SINCE execute-scoping here, unlike mise/ts.toml — and that's deliberate,
+# not an omission (see designs/changed-scope-gate.md). On the JVM the Gradle build
+# dominates wall-clock, and Gradle already scopes the fast placements for free:
+# Spotless `spotlessCheck` ratchets from origin/main (only changed files), incremental
+# compilation scopes `typecheck`, and up-to-date checks skip unaffected `test` work.
+# Bolting a changed-file file-list on top would save little and fight the build tool.
+# The one ratchet-scoped check that needs an explicit diff is `novar`, below.
 
 [tools]
 java = "21"
@@ -19,7 +27,12 @@ java = "21"
 # with no manual install, identically local and in CI.
 [env]
 PMD_VERSION = "7.27.0"
-_.path = ["{{env.HOME}}/.local/opt/pmd-bin-{{env.PMD_VERSION}}/bin"]
+# PMD on PATH, plus the repo's scripts/ so the gate can call `foundry-verb-wrap` by name.
+_.path = ["{{env.HOME}}/.local/opt/pmd-bin-{{env.PMD_VERSION}}/bin", "{{config_root}}/scripts"]
+
+# Loop telemetry: each gate verb appends one JSONL line here (see designs/loop-telemetry.md).
+# Gitignore `.foundry/`. Read it with `foundry-loop-report`. foundry-init installs the wrapper.
+FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
 
 [hooks]
 postinstall = "mise run setup:pmd"
@@ -41,8 +54,12 @@ description = "Auto-format (Spotless; use ratchetFrom('origin/main') to avoid a 
 run = "./gradlew spotlessApply"
 
 [tasks.lint]
-description = "Format check (Spotless). Structural smells run via habit-hooks (PMD)."
-run = "./gradlew spotlessCheck"
+description = "Format check (Spotless) + no-`var` on changed source. Smells run via habit-hooks (PMD)."
+# lint is 'style + smells' (CONTRACT.md), not only auto-fixable formatting: Spotless
+# is mechanical (`mise run fix`), but no-`var` is a real rule — fix it or tag a
+# justified use. Both are non-mutating here. novar is ratchet-scoped (see below), so
+# folding it in never fails on legacy `var`.
+run = ["./gradlew spotlessCheck", "mise run novar"]
 
 [tasks.typecheck]
 description = "Compilation is Java's type check"
@@ -61,11 +78,36 @@ run = [
     "osv-scanner --lockfile=gradle.lockfile",
 ]
 
+# no-`var` is a ratchet-scoped check: it must fail only on *new* `var`, never on legacy.
+# It diffs from the merge-base of a base ref with HEAD — pre-existing `var` is untouched
+# until its file is edited. The base ref is FOUNDRY_BASE_REF (the ratchet base, distinct
+# from FOUNDRY_SINCE's speed signal), defaulting to origin/main for local runs; CI sets
+# it to the PR base SHA, since origin/main isn't a reliable ref in a PR checkout. An
+# unresolvable base skips (CI enforces from a full-history checkout, so it's authoritative).
+# Folded into `lint` above — no separate CI job needed.
 [tasks.novar]
-description = "Report `var` uses. Enforce diff-scoped in CI. Tag exceptions `// foundry-allow-var: reason`."
+description = "no-`var` on changed Java (ratchet base = FOUNDRY_BASE_REF, default origin/main). Tag exceptions `// foundry-allow-var: reason`."
 depends = ["setup:pmd"]
-run = "pmd check -d src/main/java -R config/pmd/no-var.xml -f text --suppress-marker foundry-allow-var"
+run = '''
+set -eu
+mb=$(git merge-base "${FOUNDRY_BASE_REF:-origin/main}" HEAD 2>/dev/null || true)
+if [ -z "$mb" ]; then echo "novar: cannot resolve base '${FOUNDRY_BASE_REF:-origin/main}'; skipping"; exit 0; fi
+files=$(git diff --name-only --diff-filter=ACMR "$mb" 2>/dev/null | grep -E '^src/main/java/.*\.java$' || true)
+if [ -z "$files" ]; then echo "novar: no changed main Java files"; exit 0; fi
+set --
+for f in $files; do set -- "$@" "-d=$f"; done
+pmd check "$@" -R config/pmd/no-var.xml -f text --no-progress --suppress-marker foundry-allow-var
+'''
 
 [tasks.gate]
 description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
-run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]
+# Each verb wrapped by `foundry-verb-wrap`: times it, appends a line to FOUNDRY_TELEMETRY,
+# propagates the exit code unchanged (telemetry never changes the outcome; a failing verb
+# still stops the sequence). Read with `foundry-loop-report`. Wrapper on PATH via scripts/
+# ([env]); foundry-init installs it. Not part of the six-verb contract.
+run = [
+    "foundry-verb-wrap lint      -- mise run lint",
+    "foundry-verb-wrap typecheck -- mise run typecheck",
+    "foundry-verb-wrap test      -- mise run test",
+    "foundry-verb-wrap audit     -- mise run audit",
+]
