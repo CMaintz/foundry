@@ -8,7 +8,7 @@ post-processes a test report (JUnit XML *and* vitest JSON) against `flaky-baseli
 and fails only if a NON-quarantined test failed (quarantined flakes are printed, never
 hidden); `classify` mode reruns failed tests N times to separate flakes (flip) from real
 failures (always fail) and surfaces prune candidates (quarantined-but-now-stable). Both
-modes tested across formats + quarantined/real/no-baseline cases. `presets/flaky-baseline.example.json`
+modes tested across formats + quarantined/real/no-baseline cases. `presets/baselines/flaky-baseline.example.json`
 (schema); baseline reuses the guard's `snooze` kind — verified add=loosening (needs
 label), remove=tightening (free), no new guard code. `mise/ts.toml` gains an opt-in
 `test:flaky` integration task. **Not yet:** live rerun on a real runner (no JVM/node
