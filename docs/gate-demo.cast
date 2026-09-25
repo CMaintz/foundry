@@ -1,0 +1,10 @@
+{"version":2,"width":84,"height":13,"env":{"SHELL":"/bin/bash","TERM":"xterm-256color"}}
+[0.4,"o","\u001b[90m# one deterministic gate — while an agent edits, before you push, and on the PR\u001b[0m\r\n"]
+[1.3,"o","\u001b[1;36m$ mise run gate\u001b[0m\r\n"]
+[1.9,"o","  lint       \u001b[1;32mok\u001b[0m\r\n"]
+[2.4,"o","  typecheck  \u001b[1;32mok\u001b[0m\r\n"]
+[3,"o","  test       \u001b[1;32mok\u001b[0m\u001b[90m  142 passed . coverage 91%\u001b[0m\r\n"]
+[3.6,"o","  audit      \u001b[1;32mok\u001b[0m\u001b[90m  0 criticals . secrets clean\u001b[0m\r\n"]
+[4.5,"o","  \u001b[1;42m GATE GREEN \u001b[0m\u001b[90m  nothing merges without this\u001b[0m\r\n"]
+[5.8,"o","\r\n\u001b[90m# linters, types, tests & scanners hold sole authority — the LLM only proposes.\u001b[0m\r\n"]
+[7.2,"o"," "]
