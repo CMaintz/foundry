@@ -14,7 +14,7 @@ const steps = [
   [0.6, '  lint       ' + ok + '\r\n'],
   [0.5, '  typecheck  ' + ok + '\r\n'],
   [0.6, '  test       ' + ok + dim('  142 passed . coverage 91%') + '\r\n'],
-  [0.6, '  audit      ' + ok + dim('  0 criticals . secrets clean') + '\r\n'],
+  [0.6, '  audit      ' + ok + dim('  0 critical . secrets clean') + '\r\n'],
   [0.9, '  ' + badge + dim('  nothing merges without this') + '\r\n'],
   [1.3, '\r\n' + dim('# linters, types, tests & scanners hold sole authority — the LLM only proposes.') + '\r\n'],
   [1.4, ' '],
