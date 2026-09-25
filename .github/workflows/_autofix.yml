@@ -1,14 +1,14 @@
 # Reusable autofix — the "fix it for me" button. Add a label to a PR and CI runs
 # `mise run fix`, commits the result to the PR branch, and drops the label.
 #
-#   # .github/workflows/autofix.yml (caller)
+#   # .github/workflows/_autofix.yml (caller)
 #   name: autofix
 #   on:
 #     pull_request:
 #       types: [labeled]
 #   jobs:
 #     autofix:
-#       uses: CMaintz/foundry/.github/workflows/autofix.yml@v1
+#       uses: CMaintz/foundry/.github/workflows/_autofix.yml@v1
 #       permissions:
 #         contents: write
 #         pull-requests: write

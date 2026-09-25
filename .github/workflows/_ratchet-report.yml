@@ -4,7 +4,7 @@
 #
 #   jobs:
 #     ratchet:
-#       uses: CMaintz/foundry/.github/workflows/ratchet-report.yml@<sha>
+#       uses: CMaintz/foundry/.github/workflows/_ratchet-report.yml@<sha>
 #       with:
 #         baselines: |
 #           eslint-suppressions.json

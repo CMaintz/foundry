@@ -22,9 +22,9 @@ RAW="https://raw.githubusercontent.com/$REPO/$REF"
 # HH = the habit-hooks preset basename (presets/habit-hooks/<HH>.toml). It tracks the
 # plugin/language name, so `ts` maps to `typescript` — the others match the stack.
 case "$STACK" in
-  ts)     PLUGIN="habit-hooks-typescript"; CI="ts.yml";   HH="typescript" ;;
-  java)   PLUGIN="habit-hooks-java";       CI="java.yml"; HH="java" ;;
-  php)    PLUGIN="habit-hooks-php";        CI="php.yml";  HH="php" ;;
+  ts)     PLUGIN="habit-hooks-typescript"; CI="_ts.yml";   HH="typescript" ;;
+  java)   PLUGIN="habit-hooks-java";       CI="_java.yml"; HH="java" ;;
+  php)    PLUGIN="habit-hooks-php";        CI="_php.yml";  HH="php" ;;
   kotlin|dotnet|python) PLUGIN=""; CI=""; HH="$STACK" ;;  # mise template only; inline gate
   *) echo "unknown stack: $STACK" >&2; exit 2 ;;
 esac
@@ -134,10 +134,10 @@ name: security
 on: { pull_request: {}, push: { branches: [main] } }
 concurrency: { group: security-\${{ github.ref }}, cancel-in-progress: true }
 jobs:
-  tier0:
-    uses: $REPO/.github/workflows/tier0.yml@$REF
+  guards:
+    uses: $REPO/.github/workflows/_guards.yml@$REF
   sast:
-    uses: $REPO/.github/workflows/semgrep.yml@$REF
+    uses: $REPO/.github/workflows/_semgrep.yml@$REF
 YAML
 
 write ".github/workflows/ratchet.yml" <<YAML
@@ -145,7 +145,7 @@ name: ratchet
 on: { pull_request: {} }
 jobs:
   ratchet:
-    uses: $REPO/.github/workflows/ratchet-report.yml@$REF
+    uses: $REPO/.github/workflows/_ratchet-report.yml@$REF
     permissions: { contents: read, pull-requests: write }
 YAML
 
@@ -158,7 +158,7 @@ on:
     - cron: '0 6 * * *'   # daily auto-prune — baseline shrinks on its own, one PR/day max
 jobs:
   bootstrap:
-    uses: $REPO/.github/workflows/bootstrap.yml@$REF
+    uses: $REPO/.github/workflows/_bootstrap.yml@$REF
     with:
       working_directory: "$WD"
       habit_hooks_plugin: "$PLUGIN"
@@ -180,7 +180,7 @@ cat <<'NEXT'
 3. Turn on Renovate (or Dependabot) so the pins you just set stay fresh.
 4. Branch protection on `main` (Settings -> Branches), require these checks:
      - Deterministic gate            (gate.yml)
-     - Secret scan, Ruleset guard    (security.yml / tier0)
+     - Secret scan, Ruleset guard    (security.yml / _guards)
      - SAST                          (security.yml / semgrep)
      - Structural smells             (once a baseline exists)
    Gotchas: required-check names must match the job name EXACTLY; do NOT require

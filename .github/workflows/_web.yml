@@ -2,7 +2,7 @@
 #
 #   jobs:
 #     web:
-#       uses: CMaintz/foundry/.github/workflows/web.yml@<sha>
+#       uses: CMaintz/foundry/.github/workflows/_web.yml@<sha>
 #       with: { max_lines: 400 }
 #
 # File-length limits apply to markup and styles too — a 2000-line stylesheet is a

@@ -1,32 +1,39 @@
-# Reusable PHP / Composer gate.
+# Reusable TypeScript / Node gate.
 #
 #   jobs:
 #     gate:
-#       uses: CMaintz/foundry/.github/workflows/php.yml@<sha>
+#       uses: CMaintz/foundry/.github/workflows/_ts.yml@v1
 #
-# Runs the six verbs a developer runs locally (`mise run gate`). PHP toolchain
-# comes from the repo's mise.toml; Composer is preinstalled on the runner.
+# Runs the same six verbs a developer runs locally. If this and `mise run gate`
+# on a laptop ever disagree, that is a bug in the setup, not in the code.
 #
-# Input names are snake_case — see the note in ts.yml.
-name: php
+# Input names are snake_case, not kebab: `${{ inputs.mise-version }}` parses as
+# the subtraction `inputs.mise - version` in Actions expressions and fails the
+# workflow at startup. Learned the hard way.
+name: ts
 
 on:
   workflow_call:
     inputs:
       mise_version:
+        description: >-
+          Pin mise itself, not just the action. Left unpinned, mise-action asks
+          mise.jdx.dev/VERSION for "latest", which can advertise a version whose
+          GitHub release assets are not published yet.
         type: string
         default: "2026.9.2"
       working_directory:
-        description: Directory containing mise.toml, composer.json and .habit-hooks/.
+        description: Directory containing mise.toml and package.json.
         type: string
         default: "."
       habit_hooks:
-        description: Run the structural-smell sensors (phpmd). Needs a .habit-hooks/ dir.
+        description: Run the structural-smell sensors. Requires a .habit-hooks/ directory.
         type: boolean
         default: true
       habit_hooks_plugin:
+        description: Language plugin package for habit-hooks.
         type: string
-        default: "habit-hooks-php"
+        default: "habit-hooks-typescript"
 
 permissions:
   contents: read
@@ -43,15 +50,17 @@ jobs:
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: ${{ inputs.mise_version }}
-      # Cache the vendor tree keyed on composer.lock and skip the install on a hit
-      # (Composer install is the PHP job's long pole, like npm ci for Node).
-      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
-        id: vendor
+      # Cache node_modules keyed on the lockfile and skip npm ci on a hit. npm ci
+      # otherwise wipes and rebuilds node_modules every run — often the job's long
+      # pole (a mise/setup-node npm cache only restores ~/.npm, not node_modules).
+      # Shared with the habits job via the same key.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: node_modules
         with:
-          path: ${{ inputs.working_directory }}/vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles(format('{0}/composer.lock', inputs.working_directory)) }}
-      - if: steps.vendor.outputs.cache-hit != 'true'
-        run: composer install --no-interaction --no-progress
+          path: ${{ inputs.working_directory }}/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory)) }}
+      - if: steps.node_modules.outputs.cache-hit != 'true'
+        run: npm ci
       # This IS `mise run gate` (lint -> typecheck -> test -> audit, in order),
       # split one verb per step so a failure reddens the exact verb in the UI and
       # gets a targeted fix. Devs still run the composite `mise run gate` locally.
@@ -77,9 +86,9 @@ jobs:
         if: failure() && steps.typecheck.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed at \`typecheck\` — PHPStan"
+            echo "## ❌ Gate failed at \`typecheck\`"
             echo ""
-            echo "Not auto-fixable. The file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
+            echo "Type / compilation errors — not auto-fixable. The file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: test'
         id: test
@@ -101,7 +110,7 @@ jobs:
           {
             echo "## ❌ Gate failed at \`audit\` — vulnerable dependency"
             echo ""
-            echo "Bump the flagged dependency to a patched version (\`composer update <pkg>\`). If unfixable now, accept that **specific** advisory with justification — never silence the whole check."
+            echo "Bump the flagged dependency to a patched version. If it's a false positive or unfixable now, accept that **specific** CVE with justification (osv-scanner.toml / the tool's ignore file) — never silence the whole check."
           } >> "$GITHUB_STEP_SUMMARY"
 
   habits:
@@ -114,29 +123,34 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          fetch-depth: 0
-      - name: Baseline present?
-        id: baseline
-        run: |
-          if [ -f .habit-hooks/snooze.json ]; then
-            echo "have=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
-            echo "have=false" >> "$GITHUB_OUTPUT"
-          fi
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
-        if: steps.baseline.outputs.have == 'true'
+          fetch-depth: 0 # --branch needs the base commit in history to diff against
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
-          python-version: '3.12'
-      # phpmd is bundled with the habit-hooks PHP plugin, so this needs only Python.
-      # (The optional `generic` jscpd plugin additionally needs Node on PATH.)
-      - name: Install habit-hooks
-        if: steps.baseline.outputs.have == 'true'
-        run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+          version: ${{ inputs.mise_version }}
+      # knip / ts-morph / jscpd come from node_modules; the sensors are Python.
+      # .habit-hooks/snooze.json holds the accepted baseline.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: node_modules
+        with:
+          path: ${{ inputs.working_directory }}/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory)) }}
+      - if: steps.node_modules.outputs.cache-hit != 'true'
+        run: npm ci
+      - run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+      # `--branch` (below) diffs against `branchBase` (default `main`) to scan only what
+      # this branch changed. A PR checkout is detached, so `main` has no local ref and
+      # habit-hooks errors rather than guess — point a local `main` at the PR base
+      # (in history from fetch-depth: 0). On push, `main` already resolves.
+      - name: Make base ref resolvable for --branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git branch -f main "$BASE_SHA"
       - name: Smells (fails only on smells beyond the snooze baseline)
         id: smells
-        if: steps.baseline.outputs.have == 'true'
-        run: habit-hooks
+        # --branch: scan only files changed vs the base; unchanged files are already
+        # covered by the snooze baseline, so re-scanning them every PR is wasted work.
+        run: habit-hooks --branch
       - name: How to read these smells
         if: failure() && steps.smells.outcome == 'failure'
         run: |

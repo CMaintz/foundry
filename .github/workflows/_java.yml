@@ -2,7 +2,7 @@
 #
 #   jobs:
 #     gate:
-#       uses: CMaintz/foundry/.github/workflows/java.yml@<sha>
+#       uses: CMaintz/foundry/.github/workflows/_java.yml@<sha>
 #       with:
 #         spotbugs: true      # opt-in bytecode analysis
 #

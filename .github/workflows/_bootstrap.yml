@@ -3,7 +3,7 @@
 #
 #   jobs:
 #     bootstrap:
-#       uses: CMaintz/foundry/.github/workflows/bootstrap.yml@<sha>
+#       uses: CMaintz/foundry/.github/workflows/_bootstrap.yml@<sha>
 #       with:
 #         habit_hooks_plugin: habit-hooks-typescript
 #       permissions:

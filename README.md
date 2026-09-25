@@ -48,20 +48,24 @@ Or wire it by hand — a `mise.toml` with the six verbs (see [templates/](./mise
 # .github/workflows/gate.yml
 jobs:
   gate:
-    uses: CMaintz/foundry/.github/workflows/java.yml@v1
+    uses: CMaintz/foundry/.github/workflows/_java.yml@v1
 ```
 
 ### Reusable workflows
 
+Reusable workflows are `_`-prefixed to group them in the file listing — GitHub requires
+every workflow file at the top level of `.github/workflows/`, so a filename prefix is the
+only grouping it allows. Consumers reference them by path (`uses: …/_java.yml@v1`).
+
 | Workflow | What it runs |
 |---|---|
-| `ts.yml` · `java.yml` · `php.yml` | the language gate (six verbs, decomposed one-per-step with targeted fix summaries) + structural smells (which print a per-smell "fix toward" legend on failure). `java` adds opt-in `spotbugs` / `no_var` jobs |
-| `tier0.yml` | language-agnostic: secret scan + `ruleset-guard` |
-| `semgrep.yml` | SAST, diff-aware (only new findings fail) |
-| `web.yml` | max-file-length gate for HTML/CSS |
-| `bootstrap.yml` | regenerate the habit-hooks snooze baseline on Linux, open a PR |
-| `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
-| `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
+| `_ts.yml` · `_java.yml` · `_php.yml` | the language gate (six verbs, decomposed one-per-step with targeted fix summaries) + structural smells (which print a per-smell "fix toward" legend on failure). `_java.yml` adds an opt-in `spotbugs` job (the no-`var` rule is folded into `lint`) |
+| `_guards.yml` | language-agnostic: secret scan + `ruleset-guard` |
+| `_semgrep.yml` | SAST, diff-aware (only new findings fail) |
+| `_web.yml` | max-file-length gate for HTML/CSS |
+| `_bootstrap.yml` | regenerate the habit-hooks snooze baseline on Linux, open a PR |
+| `_ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
+| `_autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
 
 Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./OVERVIEW.md) §13).
 

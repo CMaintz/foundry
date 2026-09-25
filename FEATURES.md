@@ -23,14 +23,14 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 
 | Workflow | Purpose |
 |---|---|
-| `ts.yml` · `java.yml` · `php.yml` | Language gate — the six verbs, decomposed one-per-step with targeted failure summaries, + a structural-smells job (which prints a per-smell "what it means / fix toward" legend on failure). `java` adds opt-in `spotbugs` / `no_var`. node_modules / vendor / Gradle caching. |
-| `tier0.yml` | Language-agnostic: secret scan (gitleaks) + `ruleset-guard`, both with remediation step-summaries. Merge-base–scoped. |
-| `semgrep.yml` | SAST, diff-aware (`--baseline-commit`), pip-cached, pinnable. |
-| `web.yml` | Max-file-length gate for HTML/CSS. |
-| `bootstrap.yml` | Regenerate the habit-hooks snooze baseline on Linux (`--prune` to shrink), open a PR. |
-| `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved. |
-| `autofix.yml` | Label a PR `autofix` → runs `mise run fix`, commits + pushes the result. |
-| `lint-workflows.yml` | actionlint over foundry's own workflows. |
+| `_ts.yml` · `_java.yml` · `_php.yml` | Language gate — the six verbs, decomposed one-per-step with targeted failure summaries, + a structural-smells job (which prints a per-smell "what it means / fix toward" legend on failure). `_java.yml` adds an opt-in `spotbugs` job (no-`var` is folded into `lint`). node_modules / vendor / Gradle caching. |
+| `_guards.yml` | Language-agnostic: secret scan (gitleaks) + `ruleset-guard`, both with remediation step-summaries. Merge-base–scoped. |
+| `_semgrep.yml` | SAST, diff-aware (`--baseline-commit`), pip-cached, pinnable. |
+| `_web.yml` | Max-file-length gate for HTML/CSS. |
+| `_bootstrap.yml` | Regenerate the habit-hooks snooze baseline on Linux (`--prune` to shrink), open a PR. |
+| `_ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved. |
+| `_autofix.yml` | Label a PR `autofix` → runs `mise run fix`, commits + pushes the result. |
+| `lint-workflows.yml` | actionlint + shellcheck + typos over foundry's own repo (not reusable — no `_`). |
 
 ## mise verb templates (`mise/`)
 

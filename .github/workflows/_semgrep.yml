@@ -2,7 +2,7 @@
 #
 #   jobs:
 #     sast:
-#       uses: CMaintz/foundry/.github/workflows/semgrep.yml@<sha>
+#       uses: CMaintz/foundry/.github/workflows/_semgrep.yml@<sha>
 #
 # CodeQL is the GitHub-native alternative but is free only on PUBLIC repos;
 # Semgrep is free and works on private repos too, so it's the portable default.

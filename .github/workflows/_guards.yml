@@ -1,11 +1,12 @@
-# Reusable Tier 0 — language-agnostic checks that run on every repo.
+# Reusable "guards" — language-agnostic checks that run on every repo: secret scan +
+# ruleset-guard. (Formerly tier0.yml.)
 #
 #   jobs:
-#     tier0:
-#       uses: CMaintz/foundry/.github/workflows/tier0.yml@v1
+#     guards:
+#       uses: CMaintz/foundry/.github/workflows/_guards.yml@v1
 #
 # Nothing here knows what language the repo is written in.
-name: tier0
+name: guards
 
 on:
   workflow_call:

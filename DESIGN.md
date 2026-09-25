@@ -307,7 +307,7 @@ cadences, which is what justifies the split.
 C:\Users\akash\Projects\_foundry\        ← leading underscore: sorts above the IDE dirs,
   │                                          reads as "not an application"
   ├── foundry/                           → github.com/CMaintz/foundry
-  │   ├── .github/workflows/             reusable workflow_call: tier0.yml, ts.yml, jvm.yml, php.yml
+  │   ├── .github/workflows/             reusable workflow_call: _guards.yml, _ts.yml, _java.yml, _php.yml
   │   ├── mise/                          shared task templates per stack
   │   ├── presets/                       eslint / tsconfig / ruff / phpstan base configs
   │   ├── habit-hooks/                   config.toml presets per stack
@@ -323,7 +323,7 @@ C:\Users\akash\Projects\_foundry\        ← leading underscore: sorts above the
       └── CONTRACT.md                    ◀── same file, kept in sync
 ```
 
-- `foundry` is consumed **by repos**, via `uses: CMaintz/foundry/.github/workflows/ts.yml@v1`.
+- `foundry` is consumed **by repos**, via `uses: CMaintz/foundry/.github/workflows/_ts.yml@v1`.
 - `cmaintz-skills` is consumed **by the agent**, via `/plugin marketplace add CMaintz/cmaintz-skills`.
 
 **The seam is `CONTRACT.md`** — the verb interface of §3, copied verbatim into both. As long as both
