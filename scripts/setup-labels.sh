@@ -10,7 +10,7 @@ set -euo pipefail
 
 label() { gh label create "$1" --color "$2" --description "$3" --force >/dev/null && echo "  label: $1"; }
 
-# Ticket state machine — the /feature driver and repo-align (see presets/ticket-schema.md)
+# Ticket state machine — the /feature driver and repo-align (see templates/ticket-schema.md)
 label "agent:ready"    0e8a16 "Groomed, complete, free to claim"
 label "agent:working"  fbca04 "Claimed and assigned (WIP=1)"
 label "agent:blocked"  d93f0b "Escalated to a human; reason in the issue thread"

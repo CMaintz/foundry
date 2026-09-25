@@ -53,8 +53,8 @@ preset artifacts in `foundry`. So:
 | Artifact | Repo | Path |
 |---|---|---|
 | The `/feature` driver skill | `cmaintz-skills` | `skills/feature/SKILL.md` (+ helpers) |
-| GitHub issue template | `foundry` | `presets/ISSUE_TEMPLATE/agent-feature.yml` |
-| Ticket schema (reference) | `foundry` | `presets/ticket-schema.md` |
+| GitHub issue template | `foundry` | `templates/ISSUE_TEMPLATE/agent-feature.yml` |
+| Ticket schema (reference) | `foundry` | `templates/ticket-schema.md` |
 | Inventory entry | `foundry` | `FEATURES.md` (same session) |
 
 Adding a skill is **additive** under CONTRACT versioning — no major bump.
