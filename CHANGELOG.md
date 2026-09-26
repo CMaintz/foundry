@@ -6,6 +6,30 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0](https://github.com/CMaintz/foundry/compare/v1.2.0...v1.3.0) (2026-09-26)
+
+
+### Features
+
+* add feature-driver ticket schema, issue template, and design ([0d8e640](https://github.com/CMaintz/foundry/commit/0d8e640b5f62df3c9dc3597c3bd3c19bd686583b))
+* **ci:** automated versioning via release-please + commitlint ([b2eb6d7](https://github.com/CMaintz/foundry/commit/b2eb6d7f99c2cd03a2a543614bcbf76aada717dc))
+* **ci:** automated versioning via release-please + commitlint ([99bf775](https://github.com/CMaintz/foundry/commit/99bf775c4a014a9586596cfd32ff969ff4de9382))
+* feature-driver ticket schema, issue template, and design ([b9a28d1](https://github.com/CMaintz/foundry/commit/b9a28d1a9472ca0f6d45471b5f9deaa3e3948b55))
+* **habit-hooks:** jscpd test-exclusion preset + guard it ([b00e106](https://github.com/CMaintz/foundry/commit/b00e106a602625564afeb172cec4d10b638568a6))
+* **habit-hooks:** jscpd test-exclusion preset + ruleset-guard it ([c7bdbe0](https://github.com/CMaintz/foundry/commit/c7bdbe026a69d032c6e489ade1443b7b5bea35e0))
+* **labels:** reusable setup-labels.sh + wire into foundry-init; drop local-md ([3b2f9b0](https://github.com/CMaintz/foundry/commit/3b2f9b04afb851795327cfd3bbf24791a01ce5d0))
+* setup-labels.sh + GitHub-only tickets (drop local-md) ([6e19907](https://github.com/CMaintz/foundry/commit/6e199078a08ed1579e4eb8cec3dce606205af187))
+* **standards:** cohesion + magic values + size limits (file-length 300, line-length eslint, foundry-allow-smell) ([547d487](https://github.com/CMaintz/foundry/commit/547d487623f62fd8309b12e7384dc16fc5c71471))
+* **standards:** foundry-allow-smell PMD marker + base eslint config (line-length) ([8faa2a6](https://github.com/CMaintz/foundry/commit/8faa2a6ebfeaf3c8f53c0e5f42ba90b6fbfc2b46))
+* **tooling:** changed-scope, loop telemetry, arch fitness, flake triager, prompt-eval ([6df77cc](https://github.com/CMaintz/foundry/commit/6df77cc020debf3fbe80b0578fbea91dccdac3ab))
+* **tooling:** changed-scope, telemetry, arch fitness, flake triager, prompt-eval ([14853b4](https://github.com/CMaintz/foundry/commit/14853b4d76891e9a6ad4895e8d6817ddaee4e177))
+
+
+### Bug Fixes
+
+* **docs:** 'criticals' -&gt; 'critical' in the gate demo ([d4bbe15](https://github.com/CMaintz/foundry/commit/d4bbe15e38fddc615940ae4e3f4be236f4da9533))
+* **java preset:** disable jscpd (Node CLI) — keep generic's file-length only ([c9198b2](https://github.com/CMaintz/foundry/commit/c9198b2bc7aa0368c283237203999597a1627a30))
+
 ## [Unreleased]
 
 ### Added
