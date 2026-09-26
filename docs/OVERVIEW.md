@@ -4,7 +4,7 @@ A narrative tour of the system: the harness engineering, the gates, the habit
 sensors, the skills, and the loop that lets an agent get better at a codebase
 over time. If you read one document, read this one.
 
-For the rules themselves see [CONTRACT.md](./CONTRACT.md); for the design
+For the rules themselves see [CONTRACT.md](../CONTRACT.md); for the design
 rationale and decisions see [DESIGN.md](./DESIGN.md).
 
 ---
@@ -39,7 +39,7 @@ The system is three moving parts, deliberately separated by who consumes them:
   us. It's the structural-smell sensor layer, and Foundry borrows its
   tool-independent smell vocabulary as a backbone.
 
-The seam between `foundry` and `cmaintz-skills` is [CONTRACT.md](./CONTRACT.md),
+The seam between `foundry` and `cmaintz-skills` is [CONTRACT.md](../CONTRACT.md),
 copied verbatim into both. If those two copies ever need to differ, the split
 was wrong.
 

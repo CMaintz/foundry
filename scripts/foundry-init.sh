@@ -49,7 +49,7 @@ fetch "mise/$STACK.toml" "$WD/mise.toml"
 fetch "presets/habit-hooks/$HH.toml" "$WD/.habit-hooks/config.toml"
 
 echo "- shared presets"
-fetch "presets/gitleaks.toml" ".gitleaks.toml"
+fetch "presets/security/gitleaks.toml" ".gitleaks.toml"
 fetch "presets/renovate.json" "renovate.json"
 fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
 
@@ -67,8 +67,8 @@ elif ! grep -qxF '.foundry/' .gitignore 2>/dev/null; then
   echo "  updated: .gitignore (+.foundry/)"
 fi
 if [ "$STACK" = "java" ]; then
-  fetch "presets/pmd/ruleset.xml" "$WD/pmd/ruleset.xml"
-  fetch "presets/pmd/no-var.xml" "$WD/config/pmd/no-var.xml"
+  fetch "presets/lint/pmd/ruleset.xml" "$WD/pmd/ruleset.xml"
+  fetch "presets/lint/pmd/no-var.xml" "$WD/config/pmd/no-var.xml"
   # jscpd's ignore list (tests + fixtures). Inert while jscpd is disabled in the
   # config, but pre-placed so that enabling duplication detection doesn't first gate
   # test code — jscpd walks the dir itself and ignores the config's `files` list.

@@ -4,7 +4,7 @@
 **Home:** foundry (per-`mise` template) · **Placement weight:** shift-left (local only)
 
 **Implemented:** `mise/ts.toml` — `lint` + `test` honour `FOUNDRY_SINCE` (validated
-across unset / valid-ref / empty / unresolvable-ref); `presets/agent-loop.md` documents
+across unset / valid-ref / empty / unresolvable-ref); `presets/agent/agent-loop.md` documents
 the activation (fast scoped inner-loop runs, whole-tree final gate); `mise/java.toml` —
 honest "Gradle already scopes it" note, `novar` folded into `lint` and made
 ratchet-scoped via `FOUNDRY_BASE_REF`; reusable `java.yml` — separate `no-var` job +
