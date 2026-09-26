@@ -106,8 +106,9 @@ on: { pull_request: {}, push: { branches: [main] } }
 concurrency: { group: gate-\${{ github.ref }}, cancel-in-progress: true }
 jobs:
   gate:
-    uses: $REPO/.github/workflows/$CI@$REF
+    uses: $REPO/.github/workflows/gate.yml@$REF   # the public facade — pin this, not the per-stack files
     with:
+      stack: "$STACK"
       working_directory: "$WD"
 YAML
 else
@@ -134,10 +135,8 @@ name: security
 on: { pull_request: {}, push: { branches: [main] } }
 concurrency: { group: security-\${{ github.ref }}, cancel-in-progress: true }
 jobs:
-  tier0:
-    uses: $REPO/.github/workflows/tier0.yml@$REF
-  sast:
-    uses: $REPO/.github/workflows/semgrep.yml@$REF
+  security:
+    uses: $REPO/.github/workflows/security.yml@$REF   # facade: secret scan + ruleset-guard + SAST
 YAML
 
 write ".github/workflows/ratchet.yml" <<YAML
@@ -178,13 +177,13 @@ cat <<'NEXT'
    `[sensors.*] disabled = true` and turn on the ones you can support, so coverage
    isn't silently narrower than you think.
 3. Turn on Renovate (or Dependabot) so the pins you just set stay fresh.
-4. Branch protection on `main` (Settings -> Branches), require these checks:
-     - Deterministic gate            (gate.yml)
-     - Secret scan, Ruleset guard    (security.yml / tier0)
-     - SAST                          (security.yml / semgrep)
-     - Structural smells             (once a baseline exists)
-   Gotchas: required-check names must match the job name EXACTLY; do NOT require
-   the workflow_dispatch `bootstrap` job; enable "require branches up to date".
+4. Branch protection on `main` (Settings -> Branches), require these two checks:
+     - gate / gate-ok            (the language gate + structural smells)
+     - security / security-ok    (secret scan + ruleset-guard + SAST)
+   The facades expose ONE stable aggregate check each, so required-check names DON'T
+   change when a stack is added or an internal workflow is renamed. Gotchas: the name
+   must match EXACTLY (`gate / gate-ok`); do NOT require the `bootstrap` job; enable
+   "require branches up to date".
 5. Commit, open a PR, and confirm the gate is green from a clean tree.
 NEXT
 echo "Done."

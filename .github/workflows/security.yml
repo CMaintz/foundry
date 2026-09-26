@@ -1,0 +1,70 @@
+# The public security FACADE — one stable entrypoint for the language-agnostic checks:
+# secret scan + ruleset-guard (via internal _guards.yml) and SAST (via internal
+# _semgrep.yml). Consumers pin THIS; the `_`-prefixed internals are implementation.
+#
+#   jobs:
+#     security:
+#       uses: CMaintz/foundry/.github/workflows/security.yml@v2
+#       with: { ruleset_paths: '^(mise\.toml|backend/.habit-hooks/|…)' }
+#
+# Require the `security-ok` check in branch protection.
+name: security
+
+on:
+  workflow_call:
+    inputs:
+      ruleset_paths:
+        description: "Extended regex of gate-defining paths (ruleset-guard)."
+        type: string
+        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml)'
+      source_paths:
+        type: string
+        default: '^(src|app|lib)/'
+      test_paths:
+        type: string
+        default: '\.(test|spec)\.[jt]sx?$'
+      ruleset_label:
+        type: string
+        default: "ruleset-change"
+      semgrep_config:
+        type: string
+        default: "p/ci"
+      semgrep_version:
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  guards:
+    uses: ./.github/workflows/_guards.yml
+    with:
+      ruleset_paths: ${{ inputs.ruleset_paths }}
+      source_paths: ${{ inputs.source_paths }}
+      test_paths: ${{ inputs.test_paths }}
+      ruleset_label: ${{ inputs.ruleset_label }}
+  sast:
+    uses: ./.github/workflows/_semgrep.yml
+    with:
+      config: ${{ inputs.semgrep_config }}
+      semgrep_version: ${{ inputs.semgrep_version }}
+
+  security-ok:
+    if: always()
+    needs: [guards, sast]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify the security checks passed
+        env:
+          R_GUARDS: ${{ needs.guards.result }}
+          R_SAST: ${{ needs.sast.result }}
+        run: |
+          set -euo pipefail
+          echo "guards=$R_GUARDS sast=$R_SAST"
+          for r in "$R_GUARDS" "$R_SAST"; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              echo "::error::a security check did not pass"; exit 1
+            fi
+          done
+          echo "security ok"
