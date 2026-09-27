@@ -52,7 +52,7 @@ jobs:
   gate:
     uses: CMaintz/foundry/.github/workflows/gate.yml@v2
     with:
-      stack: java              # ts | java | php
+      stack: java              # ts | java | php | dotnet
       working_directory: "."   # monorepo? call this job once per package
 ```
 
@@ -62,7 +62,7 @@ Pin **these**, whatever the stack. They dispatch internally to the per-stack wor
 
 | Facade | What it runs | Key inputs |
 |---|---|---|
-| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (six verbs, one-per-step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/java/php), `working_directory`, `spotbugs` |
+| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (six verbs, one-per-step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/java/php/dotnet), `working_directory`, `spotbugs` |
 | [`security.yml`](./.github/workflows/security.yml) | language-agnostic: secret scan + `ruleset-guard` + diff-aware SAST | `ruleset_paths`, `source_paths`, … |
 
 Auxiliary reusables you call directly (not behind a facade):
@@ -74,7 +74,7 @@ Auxiliary reusables you call directly (not behind a facade):
 | `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
 | `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
 
-> Internals are `_`-prefixed (`_java.yml`, `_ts.yml`, `_php.yml`, `_guards.yml`, `_semgrep.yml`) — the facades' implementation. Don't pin them directly; they can change between minor versions.
+> Internals are `_`-prefixed (`_java.yml`, `_ts.yml`, `_php.yml`, `_dotnet.yml`, `_guards.yml`, `_semgrep.yml`) — the facades' implementation. Don't pin them directly; they can change between minor versions.
 
 Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./docs/OVERVIEW.md) §13).
 

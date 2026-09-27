@@ -25,10 +25,10 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 
 | Facade | Purpose |
 |---|---|
-| `gate.yml` | Dispatches by `stack` (ts/java/php) to the per-stack language gate — the six verbs decomposed one-per-step + a structural-smells job (per-smell "what it means / fix toward" legend). Java adds an opt-in `spotbugs` job (no-`var` is folded into `lint`). |
+| `gate.yml` | Dispatches by `stack` (ts/java/php/dotnet) to the per-stack language gate — the six verbs decomposed one-per-step + a structural-smells job (per-smell "what it means / fix toward" legend). Java adds an opt-in `spotbugs` job (no-`var` is folded into `lint`). |
 | `security.yml` | Language-agnostic: secret scan (gitleaks) + `ruleset-guard` + diff-aware SAST (semgrep). |
 
-**Internal reusables** (`_`-prefixed — implementation the facades call via nested local `uses:`; not the API): `_ts.yml` · `_java.yml` · `_php.yml` (per-stack gates) · `_guards.yml` (secrets + ruleset-guard) · `_semgrep.yml` (SAST).
+**Internal reusables** (`_`-prefixed — implementation the facades call via nested local `uses:`; not the API): `_ts.yml` · `_java.yml` · `_php.yml` · `_dotnet.yml` (per-stack gates) · `_guards.yml` (secrets + ruleset-guard) · `_semgrep.yml` (SAST).
 
 **Auxiliary reusables** (called directly, not behind a facade):
 

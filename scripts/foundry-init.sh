@@ -25,7 +25,8 @@ case "$STACK" in
   ts)     PLUGIN="habit-hooks-typescript"; CI="ts.yml";   HH="typescript" ;;
   java)   PLUGIN="habit-hooks-java";       CI="java.yml"; HH="java" ;;
   php)    PLUGIN="habit-hooks-php";        CI="php.yml";  HH="php" ;;
-  kotlin|dotnet|python) PLUGIN=""; CI=""; HH="$STACK" ;;  # mise template only; inline gate
+  dotnet) PLUGIN="habit-hooks-generic"; CI="dotnet.yml"; HH="dotnet" ;;  # facade gate, stack=dotnet
+  kotlin|python) PLUGIN=""; CI=""; HH="$STACK" ;;  # mise template only; inline gate
   *) echo "unknown stack: $STACK" >&2; exit 2 ;;
 esac
 
