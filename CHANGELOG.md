@@ -6,6 +6,13 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.1.0](https://github.com/CMaintz/foundry/compare/v2.0.0...v2.1.0) (2026-09-27)
+
+
+### Features
+
+* **bootstrap:** auto-merge prune baseline PRs ([8393e39](https://github.com/CMaintz/foundry/commit/8393e396327dbe61521f5870a178dd7392a2c262))
+
 ## [2.0.0](https://github.com/CMaintz/foundry/compare/v1.2.0...v2.0.0) (2026-09-27)
 
 
