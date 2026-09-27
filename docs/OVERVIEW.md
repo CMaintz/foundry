@@ -90,7 +90,7 @@ Three probabilistic *roles* are kept deliberately separate (people mush them):
 
 ## 5. The gate, job by job
 
-The CI gate (`gate.yml`, or foundry's reusable `ts.yml` + `tier0.yml`) is four
+The CI gate (`gate.yml`, or foundry's reusable `ts.yml` + `_guards.yml`) is four
 jobs. CI is **100% deterministic on purpose** — no model, no API key, no secrets
 beyond the default token.
 
@@ -164,7 +164,7 @@ lets `mise run fix` prune the baseline and ship that in the same PR as the fix.
 ### What counts as a gate-defining file — and who watches it
 
 Governance is split across three enforcement points by *when* they run — a
-client-side hook (cmaintz-skills), the CI guard (`tier0.yml`), and the regenerator
+client-side hook (cmaintz-skills), the CI guard (`_guards.yml`), and the regenerator
 (`bootstrap.yml`). This table is the single map of what's protected and how:
 
 | File | Controls | Protected by |
@@ -173,7 +173,7 @@ client-side hook (cmaintz-skills), the CI guard (`tier0.yml`), and the regenerat
 | `eslint-suppressions.json` | lint baseline | same three |
 | `.jscpd.json` | which paths the duplication sensor scans | **ruleset-guard** — widening the ignore list alongside source needs the label |
 | `pmd/ruleset.xml`, thresholds, `mise.toml`, workflows | rule definitions / gate wiring | **ruleset-guard** — direction can't be proven, so any change alongside source needs the label |
-| `ruleset_paths` regex | *which* files ruleset-guard treats as gate-defining (this table's first column) | the `tier0` input default, or a consumer's override — **keep it in sync when you add a guarded file** |
+| `ruleset_paths` regex | *which* files ruleset-guard treats as gate-defining (this table's first column) | the `guards` input default, or a consumer's override — **keep it in sync when you add a guarded file** |
 
 The recurring failure mode: a *new* gate-defining file (like `.jscpd.json`) isn't
 added to `ruleset_paths`, so widening it slips past the guard. When you introduce
@@ -316,23 +316,22 @@ frontend + a browser extension) surfaced patterns worth codifying:
 A consumer doesn't put everything in one `ci.yml`. Split by *cadence and blast
 radius* into separate workflow files, each composing foundry's reusable pieces:
 
-| File | Contains | Trigger |
+| File | Calls (facade) | Trigger |
 |---|---|---|
-| `gate.yml` | the deterministic gate(s) — `ts.yml` / language gate per package | PR + push |
-| `quality.yml` | structural smells (habit-hooks), ratchet checks | PR + push |
-| `security.yml` | `tier0.yml` (secrets + ruleset-guard) + `semgrep.yml` | PR + push |
+| `gate.yml` | `gate.yml` facade — `with: { stack, working_directory }`, once per package; includes structural smells | PR + push |
+| `security.yml` | `security.yml` facade — secrets + ruleset-guard + SAST in one call | PR + push |
 | `bootstrap.yml` | `bootstrap.yml` — baseline refresh | `workflow_dispatch` |
 | `deploy.yml` | image publish / release — **push-to-main only** | push |
 
 ```yaml
-# .github/workflows/security.yml
+# .github/workflows/security.yml — pin the facade; it runs secrets + ruleset-guard + SAST
 name: security
 on: { pull_request: {}, push: { branches: [main] } }
 jobs:
-  tier0:
-    uses: CMaintz/foundry/.github/workflows/tier0.yml@<sha>
-  sast:
-    uses: CMaintz/foundry/.github/workflows/semgrep.yml@<sha>
+  security:
+    uses: CMaintz/foundry/.github/workflows/security.yml@v2
+    with:
+      ruleset_paths: '^(mise\.toml|backend/\.habit-hooks/|frontend/\.habit-hooks/|\.github/workflows/)'
 ```
 
 Why split, not one file: `needs:` can't cross workflow files, so unrelated jobs

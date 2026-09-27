@@ -44,26 +44,37 @@ curl -fsSL https://raw.githubusercontent.com/CMaintz/foundry/main/scripts/foundr
 bash foundry-init.sh java        # stacks: ts | java | php | kotlin | dotnet | python
 ```
 
-Or wire it by hand — a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller workflow per concern:
+Or wire it by hand — a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller that pins the **facades** and passes your stack:
 
 ```yaml
 # .github/workflows/gate.yml
 jobs:
   gate:
-    uses: CMaintz/foundry/.github/workflows/java.yml@v1
+    uses: CMaintz/foundry/.github/workflows/gate.yml@v2
+    with:
+      stack: java              # ts | java | php
+      working_directory: "."   # monorepo? call this job once per package
 ```
 
-### Reusable workflows
+### The public API — two facades
+
+Pin **these**, whatever the stack. They dispatch internally to the per-stack workflows, so the files you pin never change when a stack is added or an internal is renamed. Require their `*-ok` aggregate checks in branch protection.
+
+| Facade | What it runs | Key inputs |
+|---|---|---|
+| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (six verbs, one-per-step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/java/php), `working_directory`, `spotbugs` |
+| [`security.yml`](./.github/workflows/security.yml) | language-agnostic: secret scan + `ruleset-guard` + diff-aware SAST | `ruleset_paths`, `source_paths`, … |
+
+Auxiliary reusables you call directly (not behind a facade):
 
 | Workflow | What it runs |
 |---|---|
-| `ts.yml` · `java.yml` · `php.yml` | the language gate (six verbs, decomposed one-per-step with targeted fix summaries) + structural smells (which print a per-smell "fix toward" legend on failure). `java` adds opt-in `spotbugs` / `no_var` jobs |
-| `tier0.yml` | language-agnostic: secret scan + `ruleset-guard` |
-| `semgrep.yml` | SAST, diff-aware (only new findings fail) |
 | `web.yml` | max-file-length gate for HTML/CSS |
 | `bootstrap.yml` | regenerate the habit-hooks snooze baseline on Linux, open a PR |
 | `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
 | `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
+
+> Internals are `_`-prefixed (`_java.yml`, `_ts.yml`, `_php.yml`, `_guards.yml`, `_semgrep.yml`) — the facades' implementation. Don't pin them directly; they can change between minor versions.
 
 Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./docs/OVERVIEW.md) §13).
 
