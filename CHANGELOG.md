@@ -6,6 +6,13 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.2.0](https://github.com/CMaintz/foundry/compare/v2.1.0...v2.2.0) (2026-09-28)
+
+
+### Features
+
+* **dotnet:** first-class .NET/C# stack ([9a9f41d](https://github.com/CMaintz/foundry/commit/9a9f41d2f7a481bc86bb4a2bbdd49c4e4c8e0e36))
+
 ## [2.1.0](https://github.com/CMaintz/foundry/compare/v2.0.0...v2.1.0) (2026-09-27)
 
 
