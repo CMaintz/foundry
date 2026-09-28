@@ -1,0 +1,150 @@
+# Reusable .NET / C# gate — INTERNAL. Call it via the `gate.yml` facade
+# (`uses: CMaintz/foundry/.github/workflows/gate.yml@v2` with `stack: dotnet`), not directly.
+#
+# Runs the same six verbs a developer runs locally (`mise run gate`). Toolchain (the
+# .NET SDK) comes from the repo's mise.toml (`dotnet = "8.0"`). There is no habit-hooks
+# C# sensor, so structural analysis comes from Roslyn analyzers in `typecheck`
+# (`dotnet build -warnaserror`); habit-hooks contributes only file-length (+ opt-in jscpd).
+#
+# Input names are snake_case (kebab parses as a subtraction and fails at startup).
+name: dotnet
+
+on:
+  workflow_call:
+    inputs:
+      mise_version:
+        type: string
+        default: "2026.9.2"
+      working_directory:
+        description: Directory containing mise.toml and the solution/project + .habit-hooks/.
+        type: string
+        default: "."
+      habit_hooks:
+        description: Run the structural-smell sensors (file-length + opt-in duplication).
+        type: boolean
+        default: true
+      habit_hooks_plugin:
+        type: string
+        default: "habit-hooks-generic"
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Deterministic gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise_version }}
+          cache: true
+      # `mise run gate` (lint -> typecheck -> test -> audit), one verb per step so a
+      # failure reddens the exact verb and gets a targeted fix. Devs run the composite
+      # `mise run gate` locally.
+      - name: 'gate: lint'
+        id: lint
+        run: mise run lint
+      - name: How to fix (lint)
+        if: failure() && steps.lint.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`lint\` — formatting / analyzers (\`dotnet format --verify-no-changes\`)"
+            echo ""
+            echo "**Formatting** is mechanical — run it, commit, push:"
+            echo '```'
+            echo "mise run fix        # = dotnet format"
+            echo '```'
+            echo "Anything \`format\` leaves is an analyzer/style issue — the rule + file:line are in the **gate: lint** step log above."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: typecheck'
+        id: typecheck
+        run: mise run typecheck
+      - name: How to fix (typecheck)
+        if: failure() && steps.typecheck.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`typecheck\` — build (\`dotnet build -warnaserror\`)"
+            echo ""
+            echo "A compile error or a Roslyn analyzer warning (treated as an error). Not auto-fixable — the file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: test'
+        id: test
+        run: mise run test
+      - name: How to fix (test)
+        if: failure() && steps.test.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`test\`"
+            echo ""
+            echo "A test failed or coverage fell below the floor. Reproduce with \`mise run test\`; the failing test is in the **gate: test** step log above."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: audit'
+        id: audit
+        run: mise run audit
+      - name: How to fix (audit)
+        if: failure() && steps.audit.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`audit\` — vulnerable dependency (\`dotnet list package --vulnerable\`)"
+            echo ""
+            echo "Bump the flagged package (or add a version override) to a patched release. If it's a false positive or unfixable now, accept it deliberately — never silence the whole check."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  habits:
+    name: Structural smells
+    if: inputs.habit_hooks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Baseline present?
+        id: baseline
+        run: |
+          if [ -f .habit-hooks/snooze.json ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          python-version: '3.12'
+      - name: Install habit-hooks
+        if: steps.baseline.outputs.have == 'true'
+        run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+      # --branch diffs against `main`; a PR checkout is detached, so point a local `main`
+      # at the PR base (in history from fetch-depth: 0). habit-hooks errors loudly if the
+      # base ref is missing — never a silent pass.
+      - name: Make base ref resolvable for --branch
+        if: steps.baseline.outputs.have == 'true' && github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git branch -f main "$BASE_SHA"
+      - name: Smells (fails only on smells beyond the snooze baseline)
+        id: smells
+        if: steps.baseline.outputs.have == 'true'
+        run: habit-hooks --branch
+      - name: How to read these smells
+        if: failure() && steps.smells.outcome == 'failure'
+        run: |
+          {
+            echo "## 📖 Structural smells"
+            echo ""
+            echo "For C#, most structural checks are Roslyn analyzers in \`typecheck\`; habit-hooks here flags **oversized-file** (>300 lines) and, if enabled, **duplication** (jscpd)."
+            echo "| Smell | Fix toward |"
+            echo "|---|---|"
+            echo "| \`oversized-file\` | split by concern into cohesive units |"
+            echo "| \`duplication\` | extract one shared method/type |"
+            echo ""
+            echo "Findings are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"

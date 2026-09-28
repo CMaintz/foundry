@@ -1,7 +1,7 @@
 # Copy to <repo>/.habit-hooks/config.toml
-# There's no habit-hooks .NET sensor yet, so structural smells come from Roslyn
-# analyzers in `mise run lint` / the build (with -warnaserror). This preset runs
-# only the language-independent `generic` (jscpd) duplication check.
+# There's no habit-hooks .NET sensor yet, so structural analysis comes from Roslyn
+# analyzers in `typecheck` (`dotnet build -warnaserror`). habit-hooks contributes only
+# the language-independent `generic` plugin — file-length (below) and, opt-in, jscpd.
 plugins = ["generic"]
 
 # Tests are not smell-scanned (language-agnostic principle — see README).
@@ -13,3 +13,11 @@ files = ["**/*.cs", "!**/*Tests/**", "!**/*Tests.cs", "!**/*.Test.cs"]
 # are already excluded by the `files` globs; keep big prompts in their own resource file.
 [sensors.line-count]
 args = ["--max", "300"]
+
+# jscpd (the generic plugin's duplication detector) is a Node CLI. Disabled by default so
+# the habits job stays Node-free (it runs only the pure-Python line-count). To turn on C#
+# duplication detection: install Node + `npm i -g jscpd` in the smells job, copy
+# ../jscpd.json to <repo>/.jscpd.json (jscpd ignores the `files` list above), delete this
+# block, then re-seed the snooze baseline.
+[sensors.jscpd]
+disabled = true

@@ -72,12 +72,19 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+  dotnet:
+    if: inputs.stack == 'dotnet'
+    uses: ./.github/workflows/_dotnet.yml
+    with:
+      working_directory: ${{ inputs.working_directory }}
+      mise_version: ${{ inputs.mise_version }}
+      habit_hooks: ${{ inputs.habit_hooks }}
 
   # Stable required check: the dispatched stack passed (skipped stacks are fine), and the
   # `stack` value was actually one we handle (a typo must fail, not silently pass green).
   gate-ok:
     if: always()
-    needs: [java, ts, php]
+    needs: [java, ts, php, dotnet]
     runs-on: ubuntu-latest
     steps:
       - name: Verify the dispatched stack succeeded
@@ -86,14 +93,15 @@ jobs:
           R_JAVA: ${{ needs.java.result }}
           R_TS: ${{ needs.ts.result }}
           R_PHP: ${{ needs.php.result }}
+          R_DOTNET: ${{ needs.dotnet.result }}
         run: |
           set -euo pipefail
-          echo "stack=$STACK  java=$R_JAVA ts=$R_TS php=$R_PHP"
+          echo "stack=$STACK  java=$R_JAVA ts=$R_TS php=$R_PHP dotnet=$R_DOTNET"
           case "$STACK" in
-            java|ts|php) : ;;
-            *) echo "::error::unknown stack '$STACK' (expected java|ts|php)"; exit 1 ;;
+            java|ts|php|dotnet) : ;;
+            *) echo "::error::unknown stack '$STACK' (expected java|ts|php|dotnet)"; exit 1 ;;
           esac
-          for r in "$R_JAVA" "$R_TS" "$R_PHP"; do
+          for r in "$R_JAVA" "$R_TS" "$R_PHP" "$R_DOTNET"; do
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
               echo "::error::the $STACK gate did not pass"; exit 1
             fi

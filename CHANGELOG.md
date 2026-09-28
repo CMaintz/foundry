@@ -39,7 +39,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Bug Fixes
 
-* **docs:** 'criticals' -&gt; 'critical' in the gate demo ([d4bbe15](https://github.com/CMaintz/foundry/commit/d4bbe15e38fddc615940ae4e3f4be236f4da9533))
+* **docs:** 'critical' -&gt; 'critical' in the gate demo ([d4bbe15](https://github.com/CMaintz/foundry/commit/d4bbe15e38fddc615940ae4e3f4be236f4da9533))
 * **java preset:** disable jscpd (Node CLI) — keep generic's file-length only ([c9198b2](https://github.com/CMaintz/foundry/commit/c9198b2bc7aa0368c283237203999597a1627a30))
 
 ## [Unreleased]
