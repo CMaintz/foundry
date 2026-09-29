@@ -81,6 +81,13 @@ if [ "$STACK" = "java" ]; then
   done
 fi
 
+if [ "$STACK" = "ts" ]; then
+  # Ratcheted npm audit (the `audit` verb): fails on any critical not in
+  # .audit-allowlist.json + on stale entries. Behaves like plain `npm audit` until you
+  # need to accept a specific unfixable critical. The allowlist is created on first use.
+  fetch "scripts/npm-audit-ratchet.mjs" "scripts/npm-audit-ratchet.mjs"
+fi
+
 # On Windows, tasks only run under bash if this is in GLOBAL mise config — mise
 # refuses (and warns about) it in a project config for security. Set it once.
 case "$(uname -s)" in

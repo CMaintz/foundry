@@ -67,6 +67,7 @@ via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
 ## Scripts (`scripts/`)
 
 - `ruleset_guard.py` — per-entry, tightening-aware anti-gaming check.
+- `npm-audit-ratchet.mjs` — ratcheted `npm audit` for the ts `audit` verb: fails on any critical not in `.audit-allowlist.json` and on stale entries, so accepted CVE debt can only shrink (npm audit has no native per-advisory ignore). Degrades to plain `npm audit --audit-level=critical` with no allowlist. Reads the report from stdin.
 - `foundry-init.sh` — one-shot repo scaffold.
 - `setup-labels.sh` — create the GitHub labels the workflows + ticket state machine need (agent:ready/working/blocked, align, ruleset-change, autofix). Idempotent; run by `foundry-init`.
 
