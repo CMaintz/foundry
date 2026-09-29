@@ -29,13 +29,10 @@ on:
       habit_hooks:
         type: boolean
         default: true
-      # Java-only (ignored for other stacks):
+      # Java-only (ignored for other stacks): runs the `spotbugs` mise task.
       spotbugs:
         type: boolean
         default: false
-      spotbugs_task:
-        type: string
-        default: "spotbugsMain"
       osv_scanner_version:
         type: string
         default: "2.5.1"
@@ -55,7 +52,6 @@ jobs:
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
       spotbugs: ${{ inputs.spotbugs }}
-      spotbugs_task: ${{ inputs.spotbugs_task }}
       osv_scanner_version: ${{ inputs.osv_scanner_version }}
       pmd_version: ${{ inputs.pmd_version }}
   ts:

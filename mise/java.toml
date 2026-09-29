@@ -99,6 +99,16 @@ for f in $files; do set -- "$@" "-d=$f"; done
 pmd check "$@" -R config/pmd/no-var.xml -f text --no-progress --suppress-marker foundry-allow-var
 '''
 
+# SpotBugs bytecode analysis — auxiliary, opt-in, NOT one of the six contract verbs
+# and NOT in `gate` (like `novar`, `arch`, `setup:pmd`). The gate.yml facade runs this
+# via `mise run spotbugs` when called with `spotbugs: true`, so a repo controls the exact
+# Gradle call here: a single-project repo keeps the default; a root-Gradle monorepo
+# overrides it (e.g. `../gradlew :backend:spotbugsMain` from a package's mise.toml). The
+# ratchet (exclude.xml / @SuppressFBWarnings) lives in your Gradle SpotBugs config.
+[tasks.spotbugs]
+description = "SpotBugs bug-pattern analysis (opt-in; blocking in CI via the facade's spotbugs job)"
+run = "./gradlew spotbugsMain"
+
 [tasks.gate]
 description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
 # Each verb wrapped by `foundry-verb-wrap`: times it, appends a line to FOUNDRY_TELEMETRY,
