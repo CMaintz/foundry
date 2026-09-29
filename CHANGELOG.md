@@ -6,6 +6,22 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.3.0](https://github.com/CMaintz/foundry/compare/v2.2.0...v2.3.0) (2026-09-29)
+
+
+### Features
+
+* **ts:** ratcheted npm audit for the audit verb ([760c0e0](https://github.com/CMaintz/foundry/commit/760c0e027d7586016dadf2b9afacc8ee4eb9e229))
+* **ts:** ratcheted npm audit for the audit verb ([b5086d6](https://github.com/CMaintz/foundry/commit/b5086d6b70930de266fec5f3d14b9a3e562fe91f))
+* **ts:** typecheck requires a tsconfig and type-checks Deno code ([e28f777](https://github.com/CMaintz/foundry/commit/e28f7770d89afbf68e4079a648db5b89865780da))
+* **ts:** typecheck requires a tsconfig and type-checks Deno code ([c1a840c](https://github.com/CMaintz/foundry/commit/c1a840cf5186c6dba4c4f753aef483179b0922e7))
+
+
+### Bug Fixes
+
+* **ci:** security facade startup failure and ratchet-report on a new baseline ([ce67565](https://github.com/CMaintz/foundry/commit/ce67565314422fa22293141e3beabbc790826e31))
+* **ci:** security facade startup failure and ratchet-report on a new baseline ([5e16845](https://github.com/CMaintz/foundry/commit/5e16845f82440eddb408b7a20d3176db9f15fc55))
+
 ## [2.2.0](https://github.com/CMaintz/foundry/compare/v2.1.0...v2.2.0) (2026-09-28)
 
 
