@@ -330,6 +330,7 @@ on: { pull_request: {}, push: { branches: [main] } }
 jobs:
   security:
     uses: CMaintz/foundry/.github/workflows/security.yml@v2
+    permissions: { contents: read, pull-requests: read }   # the secret scan lists the PR's commits
     with:
       ruleset_paths: '^(mise\.toml|backend/\.habit-hooks/|frontend/\.habit-hooks/|\.github/workflows/)'
 ```

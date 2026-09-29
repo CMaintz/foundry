@@ -138,6 +138,7 @@ concurrency: { group: security-\${{ github.ref }}, cancel-in-progress: true }
 jobs:
   security:
     uses: $REPO/.github/workflows/security.yml@$REF   # facade: secret scan + ruleset-guard + SAST
+    permissions: { contents: read, pull-requests: read }   # the secret scan lists the PR's commits
 YAML
 
 write ".github/workflows/ratchet.yml" <<YAML
