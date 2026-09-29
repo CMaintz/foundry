@@ -77,8 +77,16 @@ exec vitest run --changed "$mb"
 '''
 
 [tasks.audit]
-description = "Dependency vulnerabilities. Local subset; CI Tier 0 adds gitleaks"
-run = "npm audit --audit-level=critical"
+description = "Dependency vulnerabilities. Local subset; CI security.yml adds gitleaks + SAST"
+# Ratcheted npm audit: fails on any critical NOT in .audit-allowlist.json, and on stale
+# allowlist entries — so accepted CVE debt can only shrink, exactly like eslint
+# suppressions or the habit-hooks snooze baseline. npm audit has no native per-advisory
+# ignore, so this is how you accept ONE genuinely-unfixable critical with justification
+# without silencing the whole check. With no allowlist file it behaves like plain
+# `npm audit --audit-level=critical` (fails on any critical). Prefer fixing (npm audit
+# fix, or a targeted `overrides` entry) over accepting. Script is on PATH via scripts/
+# (foundry-init installs it); the pipe hands it npm's JSON so `npm` resolves in the shell.
+run = "npm audit --json | node {{config_root}}/scripts/npm-audit-ratchet.mjs --level=critical --allowlist=.audit-allowlist.json"
 
 # Architecture fitness (opt-in, tier-c auxiliary until you adopt it). Enforces YOUR
 # layer map + no cycles via dependency-cruiser (needs `dependency-cruiser` installed).
