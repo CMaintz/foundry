@@ -34,13 +34,13 @@ on:
         type: string
         default: "habit-hooks-java"
       spotbugs:
-        description: Run SpotBugs (opt-in; requires the SpotBugs Gradle plugin).
+        description: >-
+          Run SpotBugs (opt-in). Invokes the `spotbugs` mise task, so the consumer
+          decides the exact Gradle call — the java template defaults it to
+          `./gradlew spotbugsMain`; a root-Gradle monorepo overrides it (e.g.
+          `../gradlew :backend:spotbugsMain`). Auxiliary, not a contract verb.
         type: boolean
         default: false
-      spotbugs_task:
-        description: Gradle task for SpotBugs.
-        type: string
-        default: "spotbugsMain"
       osv_scanner_version:
         type: string
         default: "2.5.1"
@@ -246,7 +246,11 @@ jobs:
         with:
           version: ${{ inputs.mise_version }}
       - uses: gradle/actions/setup-gradle@94bac82a5b62952e304b4f7a45a90e19c46c7e50 # v4
-      - run: ./gradlew ${{ inputs.spotbugs_task }}
+      # Runs the consumer's `spotbugs` mise task (java template default:
+      # `./gradlew spotbugsMain`), so a root-Gradle monorepo can point it at
+      # `../gradlew :backend:spotbugsMain` without foundry knowing the layout. The
+      # ratchet (exclude.xml / @SuppressFBWarnings) lives in the consumer's Gradle config.
+      - run: mise run spotbugs
 
   # no-`var` used to be a separate job here. It's now folded into `lint` (mise.toml),
   # so the deterministic gate enforces it in one place — locally and in CI — and it's
