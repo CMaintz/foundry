@@ -62,7 +62,10 @@ jobs:
           rows=""; moved=0
           for f in $BASELINES; do
             [ -z "$f" ] && continue
-            before=$(git show "$BASE:$f" 2>/dev/null | count); before=${before:-0}
+            # `|| true`: a baseline not on the base yet (the PR that adopts Foundry, or
+            # the first bootstrap seed) makes `git show` exit 128, which pipefail + -e
+            # would turn into a failed job instead of a "before: 0" row.
+            before=$( (git show "$BASE:$f" 2>/dev/null || true) | count); before=${before:-0}
             after=$([ -f "$f" ] && count < "$f" || echo 0)
             delta=$((after - before))
             if [ "$delta" -lt 0 ]; then icon="✅ −$(( -delta ))"; moved=1

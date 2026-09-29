@@ -5,6 +5,7 @@
 #   jobs:
 #     security:
 #       uses: CMaintz/foundry/.github/workflows/security.yml@v2
+#       permissions: { contents: read, pull-requests: read }   # the secret scan lists PR commits
 #       with: { ruleset_paths: '^(mise\.toml|backend/.habit-hooks/|…)' }
 #
 # Require the `security-ok` check in branch protection.
@@ -38,6 +39,14 @@ permissions:
 
 jobs:
   guards:
+    # A nested reusable workflow can use at most the permissions of the job that calls
+    # it. Without this, `guards` inherits the file-level `contents: read` and _guards'
+    # secret-scan job (which needs `pull-requests: read` to list the PR's commits) is
+    # rejected, and the whole run ends in `startup_failure`. The consumer's caller job
+    # must grant the same (see the usage example above).
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/_guards.yml
     with:
       ruleset_paths: ${{ inputs.ruleset_paths }}
