@@ -46,7 +46,11 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 (`fix`/`lint`/`typecheck`/`test`/`audit`/`gate`), gate sequential. `java` also pins
 **PMD** (which can't be a `[tools]` entry — JVM launcher + jars, no OS-tagged asset)
 via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
-`mise install` and on PATH, local and CI alike — no manual install.
+`mise install` and on PATH, local and CI alike — no manual install. `ts`'s `typecheck`
+fails when there is no `tsconfig.json` (a framework checker would otherwise pass having
+checked only its own file types), and type-checks Deno code (e.g. Supabase Edge
+Functions) with `deno check` over `FOUNDRY_DENO_PATHS`; Deno code found with that unset
+fails the verb instead of going unchecked.
 
 ## Presets (`presets/`)
 
@@ -56,6 +60,7 @@ via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
 | `habit-hooks/java/guides/*.md` | Per-smell coaching (oversized-function, high-complexity, too-many-parameters, deep-nesting) — concrete "how to fix + don't game it" text that renders inline per finding, in-loop and CI. Drop into a repo's `.habit-hooks/java/guides/`. |
 | `pmd/ruleset.xml` | Tuned Java ruleset (`ExcessiveParameterList` minimum 8). |
 | `pmd/no-var.xml` | The no-`var` rule (diff-scoped in CI). |
+| `typecheck/tsconfig.json` | Strict, check-only tsconfig for the `ts` stack, including src, scripts and tests; notes on extending a framework's strict preset and keeping Deno code out. Copied by `foundry-init`. |
 | `gitleaks.toml` | Secret-scan allowlist starting point. |
 | `renovate.json` | Dependency-update automation — the update path the pin-everything rule needs. |
 | `code-standards.md` | Agent-facing clean-code standard (functions do one thing / SRP), tied to the deterministic smells. `@`-include into AGENTS.md/CLAUDE.md. |

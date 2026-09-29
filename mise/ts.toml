@@ -3,6 +3,7 @@
 
 [tools]
 node = "22.14.0" # pin to whatever the repo actually uses
+# deno = "2.9.7"  # uncomment if the repo has Deno code (see FOUNDRY_DENO_PATHS below)
 
 [env]
 # Put local binaries on PATH so tasks call `eslint`, not `npx eslint`; and the repo's
@@ -13,6 +14,10 @@ _.path = ["./node_modules/.bin", "{{config_root}}/scripts"]
 # Gitignore `.foundry/`. Read it with `foundry-loop-report`. The gate calls
 # `foundry-verb-wrap` (installed by foundry-init, on PATH via scripts/ above).
 FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
+
+# Deno code to type-check with `deno check` in `typecheck` (space-separated dirs/files,
+# relative to this file), e.g. Supabase Edge Functions incl. their _shared/ modules.
+# FOUNDRY_DENO_PATHS = "supabase/functions"
 
 # ── FOUNDRY_SINCE — changed-scope for the fast placements ────────────────────
 # A git ref (empty ⇒ origin/main). When SET, the file-local verbs (`lint`, `test`)
@@ -56,10 +61,38 @@ printf '%s\n' "$files" | xargs -d '\n' eslint
 '''
 
 [tasks.typecheck]
-description = "Static types"
+description = "Static types (tsc over tsconfig.json; deno check over Deno code)"
 # Works as a pure check when the tsconfigs set noEmit. If yours emit, use
-# `tsc --noEmit -p tsconfig.json` instead.
-run = "tsc -b"
+# `tsc --noEmit -p tsconfig.json` instead. On a framework, swap `tsc -b` for its
+# checker (`astro check`, `vue-tsc --noEmit`, `svelte-check`), but keep the tsconfig
+# guard: without a tsconfig those checkers still exit 0 after checking only their own
+# file types, so plain .ts files and tests are never type-checked.
+# presets/typecheck/tsconfig.json is the starting point (foundry-init copies it).
+#
+# Deno code (Supabase Edge Functions, Deno scripts) is outside the tsconfig program:
+# it has Deno's globals and npm:/jsr:/URL imports. List its directories in
+# FOUNDRY_DENO_PATHS (see [env]) and pin `deno` in [tools]; it is checked with
+# `deno check`. If Deno code is found and FOUNDRY_DENO_PATHS is unset, the verb fails
+# rather than silently skipping it.
+run = '''
+set -eu
+if [ ! -f tsconfig.json ]; then
+  echo "typecheck: no tsconfig.json in $(pwd), so no TypeScript would be checked." >&2
+  echo "  Copy presets/typecheck/tsconfig.json from Foundry (or extend your framework's strict preset)." >&2
+  exit 1
+fi
+tsc -b
+if [ -n "${FOUNDRY_DENO_PATHS:-}" ]; then
+  # Unquoted on purpose: a space-separated list of directories/files.
+  exec deno check $FOUNDRY_DENO_PATHS
+fi
+deno_code=$(git ls-files -- 'supabase/functions/*.ts' '*deno.json' '*deno.jsonc' 2>/dev/null | head -n 1)
+if [ -n "$deno_code" ]; then
+  echo "typecheck: Deno code found ($deno_code) but FOUNDRY_DENO_PATHS is unset, so it is not type-checked." >&2
+  echo "  Set FOUNDRY_DENO_PATHS in mise.toml [env] (e.g. \"supabase/functions\") and pin deno in [tools]." >&2
+  exit 1
+fi
+'''
 
 [tasks.test]
 description = "Tests with coverage floor"

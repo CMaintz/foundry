@@ -67,6 +67,18 @@ elif ! grep -qxF '.foundry/' .gitignore 2>/dev/null; then
   printf '\n# Foundry loop telemetry (local observability)\n.foundry/\n' >> .gitignore
   echo "  updated: .gitignore (+.foundry/)"
 fi
+if [ "$STACK" = "ts" ]; then
+  # `typecheck` refuses to run without a tsconfig: framework checkers (astro check,
+  # vue-tsc) otherwise exit 0 after checking only their own file types. A repo that
+  # already has one keeps it (fetch never clobbers) — make sure its `include` covers
+  # scripts and tests too.
+  fetch "presets/typecheck/tsconfig.json" "$WD/tsconfig.json"
+  # Deno code (Supabase Edge Functions) is outside the tsconfig program; the template
+  # checks it with `deno check` once FOUNDRY_DENO_PATHS is set.
+  if [ -d supabase/functions ] || [ -d "$WD/supabase/functions" ]; then
+    echo "  NOTE: supabase/functions found — set FOUNDRY_DENO_PATHS and pin deno in mise.toml (see its typecheck task)"
+  fi
+fi
 if [ "$STACK" = "java" ]; then
   fetch "presets/lint/pmd/ruleset.xml" "$WD/pmd/ruleset.xml"
   fetch "presets/lint/pmd/no-var.xml" "$WD/config/pmd/no-var.xml"
