@@ -120,6 +120,19 @@ consumer pinning `@v1` rides non-breaking updates while `@v1.2.0` stays frozen.
 Pin by SHA for maximum reproducibility (Renovate bumps it) or by `@v1` for
 convenience. `CHANGELOG.md` records what each tag moved.
 
+Cut a release with one command from a clean `main`:
+
+```bash
+bash scripts/cut-release.sh minor      # or major | patch | X.Y.Z  (--dry-run to preview)
+```
+
+It reads the current version from the latest tag (the only source of truth), builds
+the `CHANGELOG` section from the conventional commits since that tag, tags + pushes,
+creates the GitHub release, and advances the `vX` alias — deterministically, in one
+auditable step. It **refuses** a non-major bump when it sees a breaking commit, so
+semver can't silently slip. (This replaced release-please, whose separate manifest
+state could desync from the tags.)
+
 ## Design
 
 Two ideas do most of the work:

@@ -73,6 +73,7 @@ fails the verb instead of going unchecked.
 
 - `ruleset_guard.py` — per-entry, tightening-aware anti-gaming check.
 - `npm-audit-ratchet.mjs` — ratcheted `npm audit` for the ts `audit` verb: fails on any critical not in `.audit-allowlist.json` and on stale entries, so accepted CVE debt can only shrink (npm audit has no native per-advisory ignore). Degrades to plain `npm audit --audit-level=critical` with no allowlist. Reads the report from stdin.
+- `cut-release.sh` — cut a release in one deterministic command (version from the latest tag → CHANGELOG from conventional commits since it → tag + push → GitHub release → advance the `vN` alias; refuses a non-major bump on a breaking commit). Replaced release-please. Run locally on a clean `main`.
 - `foundry-init.sh` — one-shot repo scaffold.
 - `setup-labels.sh` — create the GitHub labels the workflows + ticket state machine need (agent:ready/working/blocked, align, ruleset-change, autofix). Idempotent; run by `foundry-init`.
 
