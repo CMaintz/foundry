@@ -6,6 +6,20 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.4.0](https://github.com/CMaintz/foundry/compare/v2.3.0...v2.4.0) (2026-09-30)
+
+### Features
+
+* finish v0.1 - runnable review pre-filter + CI + precise guard (b5e6686)
+* advisory Jev layer v0.1 - shared client + routing core (1b5d144)
+* route the facade SpotBugs job through a `mise run spotbugs` verb (ea11c4a)
+
+### Bug Fixes
+
+* satisfy shellcheck (SC2294/SC2015/SC2086) (76ccdde)
+* generate block-style concurrency so gate.yml/security.yml are valid YAML (d72f438)
+* pin setup-gradle to a SHA that exists (v6.3.0) (e1ffbfe)
+
 ## [2.3.0](https://github.com/CMaintz/foundry/compare/v2.2.0...v2.3.0) (2026-09-29)
 
 
