@@ -24,11 +24,11 @@ DRY_RUN=false
 
 die()  { echo "cut-release: $*" >&2; exit 1; }
 step() { echo "== $* =="; }
-run()  { if $DRY_RUN; then echo "  [dry-run] $*"; else eval "$@"; fi; }
+run()  { if $DRY_RUN; then echo "  [dry-run] $*"; else eval "$*"; fi; }
 
 require_clean_main() {
   [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ] || die "not on main (checkout main first)"
-  git diff --quiet && git diff --cached --quiet || die "working tree not clean"
+  if ! git diff --quiet || ! git diff --cached --quiet; then die "working tree not clean"; fi
   git fetch -q origin main
   [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || die "main is not in sync with origin/main"
 }
@@ -36,7 +36,9 @@ require_clean_main() {
 current_version() { git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//'; }
 
 next_version() { # <current> <bump>
-  local bump="$2" IFS=. ; set -- $1 ; local maj=$1 min=$2 pat=$3
+  local bump="$2" IFS=.
+  # shellcheck disable=SC2086  # deliberate: split $1 on IFS=. into major/minor/patch
+  set -- $1 ; local maj=$1 min=$2 pat=$3
   case "$bump" in
     major) echo "$((maj+1)).0.0" ;;
     minor) echo "$maj.$((min+1)).0" ;;
