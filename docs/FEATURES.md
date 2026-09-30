@@ -76,6 +76,7 @@ fails the verb instead of going unchecked.
 - `cut-release.sh` — cut a release in one deterministic command (version from the latest tag → CHANGELOG from conventional commits since it → tag + push → GitHub release → advance the `vN` alias; refuses a non-major bump on a breaking commit). Replaced release-please. Run locally on a clean `main`.
 - `foundry-init.sh` — one-shot repo scaffold.
 - `setup-labels.sh` — create the GitHub labels the workflows + ticket state machine need (agent:ready/working/blocked, align, ruleset-change, autofix). Idempotent; run by `foundry-init`.
+- `jev/` — the **advisory** Jev layer: `client.mjs` (provider port lifted from jev-triage), `route.mjs` (pure routing/triage core), and `review.mjs` (runnable review pre-filter: `node scripts/jev/review.mjs [baseRef]` prints per-file `{review, lens, reason}` routing JSON). Near-free System-One decisions on the **proposer** side only: which diff hunks warrant deep review and on which lens. Opt-in via `JEV_API_KEY` (+ `JEV_PROVIDER`/`JEV_MODEL`/`TYPESAFE_AI_BASE_URL`); absent key ⇒ every caller fails open to current behavior (review all). **Never in the deterministic gate** — `boundary.test.mjs` reds the build if a gate workflow or mise verb references it; the `jev-scripts.yml` workflow runs the suite (`node --test scripts/jev/*.test.mjs`) on change.
 
 ## Agent half — `cmaintz-skills`
 
