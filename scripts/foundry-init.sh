@@ -7,6 +7,8 @@
 #   Env:
 #     FOUNDRY_REF   foundry ref to pin the reusable workflows to (default "main";
 #                   pass a tag or commit SHA to pin — recommended).
+#     FOUNDRY_RAW   base URL the templates are fetched from (default: raw GitHub at
+#                   FOUNDRY_REF). The CI smoke test points it at a local checkout (file://).
 #
 # Fetches the mise verb template, the habit-hooks config, the shared presets and
 # the ruleset-guard script, then generates the caller workflows and prints the
@@ -17,7 +19,7 @@ STACK="${1:?stack required: ts | java | php | kotlin | dotnet | python}"
 WD="${2:-.}"
 REF="${FOUNDRY_REF:-main}"
 REPO="CMaintz/foundry"
-RAW="https://raw.githubusercontent.com/$REPO/$REF"
+RAW="${FOUNDRY_RAW:-https://raw.githubusercontent.com/$REPO/$REF}"
 
 # HH = the habit-hooks preset basename (presets/habit-hooks/<HH>.toml). It tracks the
 # plugin/language name, so `ts` maps to `typescript` — the others match the stack.
