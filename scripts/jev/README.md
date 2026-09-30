@@ -38,6 +38,16 @@ const { review, lens, reason } = routeReview(answers);
 // review only the above-threshold hunks, on `lens`; log the rest (still get baseline review).
 ```
 
+Or run the ready-made review pre-filter over a diff and consume its routing JSON:
+
+```
+node scripts/jev/review.mjs [baseRef]          # baseRef defaults to origin/main
+JEV_REVIEW_MIN_FILES=8 node scripts/jev/review.mjs   # skip Jev on small diffs
+```
+
+It prints, per changed file, `{ review, lens, reason }`. No key (or a diff at/under the
+min-files gate) routes every file to review - Jev only ever narrows spend, never the net.
+
 ## Config
 
 Read from the environment (keys never in CI):
