@@ -2,6 +2,18 @@
 
 Reusable CI workflows, `mise` task templates and config presets behind a single six-verb interface, so the same rule set runs while an agent edits, before you push, and on the PR.
 
+## What problem this solves
+
+When an AI coding agent (or a person) changes code, the checks that decide "is this good enough?"
+usually live in several places that disagree: the editor, a pre-push hook, and CI each run
+different tools with different settings. The result is work that passes locally and fails on the
+pull request, and agents that fix one complaint only to trigger another.
+
+Foundry gives every repo the same small set of commands (`fix`, `lint`, `typecheck`, `test`,
+`audit`, `gate`) backed by one shared configuration, so the exact same checks run while code is
+being written, before it is pushed, and in CI. It also keeps existing technical debt from growing:
+known problems are recorded in a baseline that is allowed to shrink but not grow.
+
 ![mise run gate — lint, typecheck, test, audit — the one deterministic gate](docs/gate-demo.svg)
 
 Companion repo: **[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** — the agent half (skills, hooks). The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
