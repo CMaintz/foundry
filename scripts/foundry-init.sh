@@ -125,7 +125,9 @@ if [ -n "$CI" ]; then
   write ".github/workflows/gate.yml" <<YAML
 name: gate
 on: { pull_request: {}, push: { branches: [main] } }
-concurrency: { group: gate-\${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: gate-\${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   gate:
     uses: $REPO/.github/workflows/gate.yml@$REF   # the public facade — pin this, not the per-stack files
@@ -137,7 +139,9 @@ else
   write ".github/workflows/gate.yml" <<YAML
 name: gate
 on: { pull_request: {}, push: { branches: [main] } }
-concurrency: { group: gate-\${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: gate-\${{ github.ref }}
+  cancel-in-progress: true
 permissions: { contents: read }
 jobs:
   gate:
@@ -155,7 +159,9 @@ fi
 write ".github/workflows/security.yml" <<YAML
 name: security
 on: { pull_request: {}, push: { branches: [main] } }
-concurrency: { group: security-\${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: security-\${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   security:
     uses: $REPO/.github/workflows/security.yml@$REF   # facade: secret scan + ruleset-guard + SAST
