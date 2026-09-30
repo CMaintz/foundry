@@ -7,6 +7,8 @@
 #   Env:
 #     FOUNDRY_REF   foundry ref to pin the reusable workflows to (default "main";
 #                   pass a tag or commit SHA to pin — recommended).
+#     FOUNDRY_RAW   base URL the templates are fetched from (default: raw GitHub at
+#                   FOUNDRY_REF). The CI smoke test points it at a local checkout (file://).
 #
 # Fetches the mise verb template, the habit-hooks config, the shared presets and
 # the ruleset-guard script, then generates the caller workflows and prints the
@@ -17,7 +19,7 @@ STACK="${1:?stack required: ts | java | php | kotlin | dotnet | python}"
 WD="${2:-.}"
 REF="${FOUNDRY_REF:-main}"
 REPO="CMaintz/foundry"
-RAW="https://raw.githubusercontent.com/$REPO/$REF"
+RAW="${FOUNDRY_RAW:-https://raw.githubusercontent.com/$REPO/$REF}"
 
 # HH = the habit-hooks preset basename (presets/habit-hooks/<HH>.toml). It tracks the
 # plugin/language name, so `ts` maps to `typescript` — the others match the stack.
@@ -123,7 +125,9 @@ if [ -n "$CI" ]; then
   write ".github/workflows/gate.yml" <<YAML
 name: gate
 on: { pull_request: {}, push: { branches: [main] } }
-concurrency: { group: gate-\${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: gate-\${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   gate:
     uses: $REPO/.github/workflows/gate.yml@$REF   # the public facade — pin this, not the per-stack files
@@ -135,7 +139,9 @@ else
   write ".github/workflows/gate.yml" <<YAML
 name: gate
 on: { pull_request: {}, push: { branches: [main] } }
-concurrency: { group: gate-\${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: gate-\${{ github.ref }}
+  cancel-in-progress: true
 permissions: { contents: read }
 jobs:
   gate:
@@ -153,7 +159,9 @@ fi
 write ".github/workflows/security.yml" <<YAML
 name: security
 on: { pull_request: {}, push: { branches: [main] } }
-concurrency: { group: security-\${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: security-\${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   security:
     uses: $REPO/.github/workflows/security.yml@$REF   # facade: secret scan + ruleset-guard + SAST

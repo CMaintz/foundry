@@ -1,0 +1,43 @@
+# Tests for the code foundry ships to consumer repos:
+#   - pytest — scripts/ruleset_guard.py, the loosening check every consumer's security gate runs.
+#   - init-smoke — scripts/foundry-init.sh scaffolds a throwaway repo per stack from THIS
+#     checkout; asserts the files land, parse, pass actionlint, and a re-run changes nothing.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
+      - run: pip install --disable-pip-version-check pytest==8.4.2
+      - run: python -m pytest -q tests
+
+  init-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Install actionlint (checksum-verified)
+        env:
+          VERSION: "1.7.12"
+          SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
+          echo "${SHA256}  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+      - name: Scaffold every stack
+        env:
+          ACTIONLINT: ${{ runner.temp }}/actionlint
+        run: bash tests/init-smoke.sh
