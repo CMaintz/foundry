@@ -124,30 +124,49 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0 # --branch needs the base commit in history to diff against
+      # Skip gracefully (like _java/_php/_dotnet) if the repo hasn't run bootstrap yet:
+      # with no snooze.json, `habit-hooks --branch` hard-errors instead of no-op.
+      - name: Baseline present?
+        id: baseline
+        run: |
+          if [ -f .habit-hooks/snooze.json ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        if: steps.baseline.outputs.have == 'true'
         with:
           version: ${{ inputs.mise_version }}
+      # Pin Python like the other stacks, instead of the runner's default.
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          python-version: '3.12'
       # knip / ts-morph / jscpd come from node_modules; the sensors are Python.
-      # .habit-hooks/snooze.json holds the accepted baseline.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         id: node_modules
+        if: steps.baseline.outputs.have == 'true'
         with:
           path: ${{ inputs.working_directory }}/node_modules
           key: node-modules-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory)) }}
-      - if: steps.node_modules.outputs.cache-hit != 'true'
+      - if: steps.baseline.outputs.have == 'true' && steps.node_modules.outputs.cache-hit != 'true'
         run: npm ci
-      - run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+      - if: steps.baseline.outputs.have == 'true'
+        run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
       # `--branch` (below) diffs against `branchBase` (default `main`) to scan only what
       # this branch changed. A PR checkout is detached, so `main` has no local ref and
       # habit-hooks errors rather than guess — point a local `main` at the PR base
       # (in history from fetch-depth: 0). On push, `main` already resolves.
       - name: Make base ref resolvable for --branch
-        if: github.event_name == 'pull_request'
+        if: steps.baseline.outputs.have == 'true' && github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: git branch -f main "$BASE_SHA"
       - name: Smells (fails only on smells beyond the snooze baseline)
         id: smells
+        if: steps.baseline.outputs.have == 'true'
         # --branch: scan only files changed vs the base; unchanged files are already
         # covered by the snooze baseline, so re-scanning them every PR is wasted work.
         run: habit-hooks --branch
@@ -169,5 +188,5 @@ jobs:
             echo "| \`duplication\` | the same logic lives in two places | extract one shared function |"
             echo "| \`dead-code\` / unused export | nothing references it | delete it |"
             echo ""
-            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/code-standards.md\`. Clearing a smell is necessary, not sufficient — \"is this *one* thing?\" is still your call."
+            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`. Clearing a smell is necessary, not sufficient — \"is this *one* thing?\" is still your call."
           } >> "$GITHUB_STEP_SUMMARY"

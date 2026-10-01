@@ -57,10 +57,12 @@ fetch "presets/renovate.json" "renovate.json"
 fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
 
 # Loop telemetry: the verb wrapper (on PATH via the mise template's {{config_root}}/scripts)
-# and the offline summariser. See designs/loop-telemetry.md.
-fetch "scripts/foundry-verb-wrap" "scripts/foundry-verb-wrap"
-fetch "scripts/foundry-loop-report" "scripts/foundry-loop-report"
-chmod +x scripts/foundry-verb-wrap scripts/foundry-loop-report 2>/dev/null || true
+# and the offline summariser. These are consumed by the mise.toml, so they go in
+# $WD/scripts (= config_root/scripts), NOT repo-root scripts/ — otherwise a monorepo
+# package (WD=backend) can't find them and the gate breaks. See designs/loop-telemetry.md.
+fetch "scripts/foundry-verb-wrap" "$WD/scripts/foundry-verb-wrap"
+fetch "scripts/foundry-loop-report" "$WD/scripts/foundry-loop-report"
+chmod +x "$WD/scripts/foundry-verb-wrap" "$WD/scripts/foundry-loop-report" 2>/dev/null || true
 # The telemetry log is local-only observability, never committed.
 if [ ! -f .gitignore ]; then
   printf '# Foundry loop telemetry (local observability)\n.foundry/\n' > .gitignore
@@ -99,7 +101,10 @@ if [ "$STACK" = "ts" ]; then
   # Ratcheted npm audit (the `audit` verb): fails on any critical not in
   # .audit-allowlist.json + on stale entries. Behaves like plain `npm audit` until you
   # need to accept a specific unfixable critical. The allowlist is created on first use.
-  fetch "scripts/npm-audit-ratchet.mjs" "scripts/npm-audit-ratchet.mjs"
+  fetch "scripts/npm-audit-ratchet.mjs" "$WD/scripts/npm-audit-ratchet.mjs"
+  # foundry-flaky backs the opt-in `test:flaky` verb (on PATH via config_root/scripts).
+  fetch "scripts/foundry-flaky" "$WD/scripts/foundry-flaky"
+  chmod +x "$WD/scripts/foundry-flaky" 2>/dev/null || true
 fi
 
 # On Windows, tasks only run under bash if this is in GLOBAL mise config — mise

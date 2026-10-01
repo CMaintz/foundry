@@ -28,10 +28,18 @@ run = "dotnet test --no-build"
 
 [tasks.audit]
 description = "Dependency vulnerabilities"
-# `dotnet list --vulnerable` exits 0 even with findings, so fail explicitly when
-# the report names a vulnerable package. NuGetAudit (in the build above) is the
-# other half — it warns at restore, and -warnaserror makes that fail too.
-run = "! dotnet list package --vulnerable --include-transitive 2>&1 | grep -q 'has the following vulnerable'"
+# `dotnet list --vulnerable` exits 0 even with findings, so fail explicitly when the
+# report names a vulnerable package. But DON'T pipe `dotnet list` straight into a
+# negated grep: if `dotnet list` itself errors (no project/solution, restore failure)
+# the phrase is simply absent and the negation passes GREEN — a broken audit reporting
+# success. So capture it, fail on a non-zero `dotnet list`, THEN grep. NuGetAudit (in
+# the build above) is the other half — it warns at restore, and -warnaserror fails that.
+run = '''
+set -euo pipefail
+out=$(dotnet list package --vulnerable --include-transitive 2>&1) || { echo "$out"; echo "audit: 'dotnet list' failed"; exit 1; }
+echo "$out"
+if echo "$out" | grep -q 'has the following vulnerable'; then echo "audit: vulnerable packages found"; exit 1; fi
+'''
 
 [tasks.gate]
 description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
