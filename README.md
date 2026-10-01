@@ -11,7 +11,7 @@ pull request, and agents that fix one complaint only to trigger another.
 
 Foundry gives every repo the same small set of commands (`fix`, `lint`, `typecheck`, `test`,
 `audit`, `gate`) backed by one shared configuration, so the exact same checks run while code is
-being written, before it is pushed, and in CI. It also keeps existing technical debt from growing:
+being written, before it's pushed, and in CI. It also keeps existing technical debt from growing:
 known problems are recorded in a baseline that is allowed to shrink but not grow.
 
 ![mise run gate — lint, typecheck, test, audit — the one deterministic gate](docs/gate-demo.svg)
@@ -24,15 +24,15 @@ Companion repo: **[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** 
 
 ## The idea
 
-A CI pipeline and a set of agent habits are usually built as two separate things. They shouldn't be. They are **one rule set in three placements**:
+A CI pipeline and a set of agent habits usually get built as two separate things. I think they should be one rule set, placed in three spots:
 
 | Placement | When | Feedback to | Cost |
 |---|---|---|---|
-| In-loop | while the agent edits | the agent, mid-task | free — already in session |
+| In-loop | while the agent edits | the agent, mid-task | free, already in session |
 | Pre-push | before code leaves the machine | you | free |
 | CI | on pull request | the permanent record | free tier |
 
-Run different rules in each and you get "passes locally, fails in CI", plus a failure specific to agents: the agent fixes what the hook reported, CI complains about something else, the agent fixes that and regresses the first.
+Run different rules in each and you get "passes locally, fails in CI", plus a failure mode specific to agents: the agent fixes what the hook reported, CI complains about something else, the agent fixes that and regresses the first.
 
 ## The verbs
 
@@ -45,7 +45,7 @@ mise run audit      # vulnerabilities, secrets, SAST
 mise run gate       # all of the above, in order. The oracle.
 ```
 
-Callers invoke **verbs, never tools**. That is what lets one skill library serve a Kotlin repo and a React repo. Full rules in [CONTRACT.md](./CONTRACT.md).
+Callers invoke **verbs, never tools**. That's what lets one skill library serve a Kotlin repo and a React repo. Full rules in [CONTRACT.md](./CONTRACT.md).
 
 ## Using it in a repo
 
@@ -56,7 +56,7 @@ curl -fsSL https://raw.githubusercontent.com/CMaintz/foundry/main/scripts/foundr
 bash foundry-init.sh java        # stacks: ts | java | php | kotlin | dotnet | python
 ```
 
-Or wire it by hand — a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller that pins the **facades** and passes your stack:
+Or wire it by hand — a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller workflow that pins the **facades** and passes your stack:
 
 ```yaml
 # .github/workflows/gate.yml
@@ -82,7 +82,7 @@ Auxiliary reusables you call directly (not behind a facade):
 | Workflow | What it runs |
 |---|---|
 | `web.yml` | max-file-length gate for HTML/CSS |
-| `bootstrap.yml` | regenerate the habit-hooks snooze baseline on Linux, open a PR |
+| `bootstrap.yml` | regenerates the habit-hooks snooze baseline on Linux and opens a PR |
 | `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
 | `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
 
@@ -159,7 +159,7 @@ Full rationale: [DESIGN.md](./docs/DESIGN.md).
 
 ## Status
 
-TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot — Spring Boot + Angular + a browser extension). PHP, Kotlin, .NET and Python have verb templates + presets; PHP has a reusable workflow. See DESIGN.md §10 for the rollout and §11 for what's still open.
+TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot — Spring Boot + Angular + a browser extension). PHP and .NET also have gate workflows behind the facade. Kotlin and Python have verb templates and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
 
 ## Licence
 
