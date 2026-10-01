@@ -37,6 +37,12 @@ on:
         description: Language plugin package (e.g. habit-hooks-typescript, habit-hooks-java).
         type: string
         required: true
+      habit_hooks_version:
+        description: >-
+          habit-hooks release to install. The core and its language plugins ship in
+          lockstep, so the plugin is pinned to the same version. Renovate bumps this.
+        type: string
+        default: "1.5.0"
       mise_version:
         type: string
         default: "2026.9.2"
@@ -71,8 +77,9 @@ jobs:
       - run: if [ -f package-lock.json ]; then npm ci; fi
       - name: Install habit-hooks
         env:
+          HH_VERSION: ${{ inputs.habit_hooks_version }}
           PLUGIN: ${{ inputs.habit_hooks_plugin }}
-        run: pip install --disable-pip-version-check habit-hooks "$PLUGIN"
+        run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
       - name: Regenerate (prune to shrink; snooze only to create)
         id: regen
         run: |

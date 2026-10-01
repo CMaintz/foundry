@@ -27,6 +27,12 @@ on:
       habit_hooks_plugin:
         type: string
         default: "habit-hooks-php"
+      habit_hooks_version:
+        description: >-
+          habit-hooks release to install. The core and its language plugins ship in
+          lockstep, so the plugin is pinned to the same version. Renovate bumps this.
+        type: string
+        default: "1.5.0"
 
 permissions:
   contents: read
@@ -132,7 +138,10 @@ jobs:
       # (The optional `generic` jscpd plugin additionally needs Node on PATH.)
       - name: Install habit-hooks
         if: steps.baseline.outputs.have == 'true'
-        run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+        env:
+          HH_VERSION: ${{ inputs.habit_hooks_version }}
+          PLUGIN: ${{ inputs.habit_hooks_plugin }}
+        run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
       - name: Smells (fails only on smells beyond the snooze baseline)
         id: smells
         if: steps.baseline.outputs.have == 'true'
