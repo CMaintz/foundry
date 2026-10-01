@@ -156,7 +156,7 @@ Full rationale: [DESIGN.md](./docs/DESIGN.md).
 
 ## Status
 
-TypeScript and Java are the proven stacks (Java through my AutoApplicant project: Spring Boot, Angular and a browser extension). PHP and .NET also have gate workflows behind the facade. Kotlin and Python have verb templates and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
+TypeScript and Java are the proven stacks (Java through the AutoApplicant pilot: Spring Boot, Angular and a browser extension). PHP and .NET also have gate workflows behind the facade. Kotlin and Python have verb templates and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
 
 ## Licence
 
