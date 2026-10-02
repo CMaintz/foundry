@@ -141,7 +141,11 @@ jobs:
           if git diff --cached --quiet; then
             echo "baseline unchanged — nothing to do"; exit 0
           fi
-          branch="chore/refresh-habit-baseline-$RUN_ID"
+          # One branch per package, so a monorepo calling this once per package in the
+          # same run (backend + frontend) doesn't push two PRs to the same branch.
+          pkg="${WD#./}"; pkg="${pkg%/}"; pkg="${pkg//\//-}"
+          branch="chore/refresh-habit-baseline-$RUN_ID${pkg:+-$pkg}"
+          [ "$pkg" = "." ] && branch="chore/refresh-habit-baseline-$RUN_ID"
           if [ -n "$APP_SLUG" ]; then
             bot="$APP_SLUG[bot]"
             bot_id=$(gh api "/users/$bot" --jq .id)
