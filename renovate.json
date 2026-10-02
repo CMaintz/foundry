@@ -28,6 +28,14 @@
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "jdx/mise",
       "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "habit-hooks version pinned as a default in the reusable workflows (core and plugins release in lockstep)",
+      "fileMatch": ["^\\.github/workflows/.*\\.ya?ml$"],
+      "matchStrings": ["habit_hooks_version:[\\s\\S]*?default:\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "habit-hooks"
     }
   ]
 }

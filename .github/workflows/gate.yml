@@ -29,6 +29,9 @@ on:
       habit_hooks:
         type: boolean
         default: true
+      habit_hooks_version:
+        type: string
+        default: "1.5.0"
       # Java-only (ignored for other stacks): runs the `spotbugs` mise task.
       spotbugs:
         type: boolean
@@ -51,6 +54,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+      habit_hooks_version: ${{ inputs.habit_hooks_version }}
       spotbugs: ${{ inputs.spotbugs }}
       osv_scanner_version: ${{ inputs.osv_scanner_version }}
       pmd_version: ${{ inputs.pmd_version }}
@@ -61,6 +65,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+      habit_hooks_version: ${{ inputs.habit_hooks_version }}
   php:
     if: inputs.stack == 'php'
     uses: ./.github/workflows/_php.yml
@@ -68,6 +73,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+      habit_hooks_version: ${{ inputs.habit_hooks_version }}
   dotnet:
     if: inputs.stack == 'dotnet'
     uses: ./.github/workflows/_dotnet.yml
@@ -75,6 +81,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+      habit_hooks_version: ${{ inputs.habit_hooks_version }}
 
   # Stable required check: the dispatched stack passed (skipped stacks are fine), and the
   # `stack` value was actually one we handle (a typo must fail, not silently pass green).

@@ -34,6 +34,12 @@ on:
         description: Language plugin package for habit-hooks.
         type: string
         default: "habit-hooks-typescript"
+      habit_hooks_version:
+        description: >-
+          habit-hooks release to install. The core and its language plugins ship in
+          lockstep, so the plugin is pinned to the same version. Renovate bumps this.
+        type: string
+        default: "1.5.0"
 
 permissions:
   contents: read
@@ -136,7 +142,11 @@ jobs:
           key: node-modules-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory)) }}
       - if: steps.node_modules.outputs.cache-hit != 'true'
         run: npm ci
-      - run: pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+      - name: Install habit-hooks
+        env:
+          HH_VERSION: ${{ inputs.habit_hooks_version }}
+          PLUGIN: ${{ inputs.habit_hooks_plugin }}
+        run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
       # `--branch` (below) diffs against `branchBase` (default `main`) to scan only what
       # this branch changed. A PR checkout is detached, so `main` has no local ref and
       # habit-hooks errors rather than guess — point a local `main` at the PR base
