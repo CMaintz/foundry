@@ -33,6 +33,12 @@ on:
       habit_hooks_plugin:
         type: string
         default: "habit-hooks-java"
+      habit_hooks_version:
+        description: >-
+          habit-hooks release to install. The core and its language plugins ship in
+          lockstep, so the plugin is pinned to the same version. Renovate bumps this.
+        type: string
+        default: "1.5.0"
       spotbugs:
         description: >-
           Run SpotBugs (opt-in). Invokes the `spotbugs` mise task, so the consumer
@@ -186,6 +192,9 @@ jobs:
           key: pmd-${{ inputs.pmd_version }}
       - name: Install PMD + habit-hooks
         if: steps.baseline.outputs.have == 'true'
+        env:
+          HH_VERSION: ${{ inputs.habit_hooks_version }}
+          PLUGIN: ${{ inputs.habit_hooks_plugin }}
         run: |
           if [ ! -x "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin/pmd" ]; then
             mkdir -p "$HOME/.local/opt"
@@ -194,7 +203,7 @@ jobs:
             unzip -q /tmp/pmd.zip -d "$HOME/.local/opt"
           fi
           echo "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin" >> "$GITHUB_PATH"
-          pip install --disable-pip-version-check habit-hooks ${{ inputs.habit_hooks_plugin }}
+          pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
       # `--branch` (below) diffs the checked-out branch against `branchBase` (habit-hooks
       # default `main`) and scans ONLY what this branch changed — not the whole tree on
       # every PR (the full scan is a baseline-time job, see bootstrap.yml). A PR checkout
