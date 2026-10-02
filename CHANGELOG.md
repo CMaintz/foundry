@@ -6,6 +6,17 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.5.0](https://github.com/CMaintz/foundry/compare/v2.4.0...v2.5.0) (2026-10-02)
+
+### Features
+
+* open the prune PR as a GitHub App so its checks run (5844627)
+* reusable monorepo path classifier + monorepo docs (458bb45)
+
+### Bug Fixes
+
+* correctness pass across workflows, templates, and scripts (112a4bf)
+
 ## [2.4.0](https://github.com/CMaintz/foundry/compare/v2.3.0...v2.4.0) (2026-09-30)
 
 ### Features
