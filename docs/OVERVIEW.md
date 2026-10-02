@@ -395,6 +395,10 @@ can wedge branch protection (see below).
 - **A `workflow_dispatch`-only job never appears as a PR check** — so don't add
   `bootstrap` to required checks; it would block every PR waiting on a run that
   isn't coming.
+- **A PR opened with `GITHUB_TOKEN` waits for approval.** GitHub treats
+  `github-actions[bot]` as a first-time contributor, so the prune PR's checks sit at
+  "awaiting approval" and auto-merge never fires. Give `bootstrap.yml` a GitHub App
+  (`app_client_id` + `app_private_key`) and the PR is opened as the App instead.
 - **A job gated `if: github.event_name == 'pull_request'` is *skipped* on push.**
   That's fine for a required check (skipped ≠ failed on the branch it doesn't run
   on), but a job skipped on the *PR itself* (wrong `if`) counts as neither pass nor
