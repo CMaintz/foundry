@@ -219,5 +219,11 @@ cat <<'NEXT'
    must match EXACTLY (`gate / gate-ok`); do NOT require the `bootstrap` job; enable
    "require branches up to date".
 5. Commit, open a PR, and confirm the gate is green from a clean tree.
+
+Monorepo (more than one stack/package in this repo)? This scaffolds a single
+package. To add others, call gate.yml once per package in .github/workflows/gate.yml
+(each with its own stack + working_directory), wrap them in one gate-ok, and gate
+each on the changes.yml classifier so a package builds only when it changed. Copy
+the template from docs/FEATURES.md#monorepo-one-repo-many-stacks.
 NEXT
 echo "Done."
