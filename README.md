@@ -93,6 +93,41 @@ Auxiliary reusables you call directly (not behind a facade):
 
 Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./docs/OVERVIEW.md) §13).
 
+### Auto-merging the baseline prune PR
+
+`bootstrap.yml` opens a PR whenever a prune shrinks the snooze baseline, and arms auto-merge on it. Opened with `GITHUB_TOKEN`, though, GitHub treats `github-actions[bot]` as a first-time contributor: the PR's checks wait for someone to click **Approve**, so nothing merges on its own. To skip that, give it a GitHub App of your own to open the PR as:
+
+1. Create the App at <https://github.com/settings/apps/new> (or your org's settings):
+   - **Webhook:** untick **Active**.
+   - **Repository permissions:** Contents *Read and write*, Pull requests *Read and write*. Leave the rest at *No access*.
+   - **Where can this GitHub App be installed?** *Only on this account*. Every consumer makes their own; nobody else needs yours.
+2. On the App's page, copy the **Client ID** and **Generate a private key** (a `.pem` downloads).
+3. **Install App** → pick the repos that run `bootstrap.yml`.
+4. Give each repo the ID and key:
+
+   ```bash
+   gh variable set BOOTSTRAP_APP_CLIENT_ID -R <owner>/<repo> --body "<client id>"
+   gh secret set BOOTSTRAP_APP_PRIVATE_KEY -R <owner>/<repo> < path/to/key.pem
+   ```
+
+5. Pass them to the workflow:
+
+   ```yaml
+   jobs:
+     bootstrap:
+       uses: CMaintz/foundry/.github/workflows/bootstrap.yml@<sha> # vX.Y.Z
+       permissions:
+         contents: write
+         pull-requests: write
+       secrets:
+         app_private_key: ${{ secrets.BOOTSTRAP_APP_PRIVATE_KEY }}
+       with:
+         habit_hooks_plugin: habit-hooks-typescript
+         app_client_id: ${{ vars.BOOTSTRAP_APP_CLIENT_ID }}
+   ```
+
+Without the App it still works; the PR just says its checks need one approval. Repos also need **Allow auto-merge** on and required status checks on the base branch.
+
 ### Presets
 
 Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-include straight into your `AGENTS.md` / `CLAUDE.md`):
