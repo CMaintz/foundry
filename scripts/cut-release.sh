@@ -66,7 +66,9 @@ group() { # <lasttag> <regex> <title>
   local body
   body=$(git log "$1"..HEAD --no-merges --format='%h%x09%s' \
     | awk -F'\t' -v re="$2" '$2 ~ re { sub(/^[a-z]+([(].+[)])?!?: */, "", $2); print "* " $2 " (" $1 ")" }')
-  [ -n "$body" ] && printf '\n### %s\n\n%s\n' "$3" "$body"
+  # `if` (not `&& printf`): an empty section must still return 0, or a bare `group`
+  # call under `set -e` aborts the whole release on a patch with no feat commits.
+  if [ -n "$body" ]; then printf '\n### %s\n\n%s\n' "$3" "$body"; fi
 }
 
 build_changelog_section() { # <lasttag> <newver> <repo>

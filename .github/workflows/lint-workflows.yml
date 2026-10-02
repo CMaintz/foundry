@@ -42,7 +42,9 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       # shellcheck ships on GitHub's ubuntu runners — no install step needed.
       - name: shellcheck the shipped scripts
-        run: shellcheck scripts/*.sh tests/*.sh
+        # foundry-verb-wrap is an extensionless shell script that *.sh misses; add it
+        # explicitly. (foundry-flaky and foundry-loop-report are Python — not shellcheck's.)
+        run: shellcheck scripts/*.sh tests/*.sh scripts/foundry-verb-wrap
 
   typos:
     runs-on: ubuntu-latest

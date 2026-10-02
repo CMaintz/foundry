@@ -17,7 +17,7 @@ on:
   workflow_call:
     inputs:
       stack:
-        description: "java | ts | php — selects the per-stack gate."
+        description: "java | ts | php | dotnet — selects the per-stack gate."
         type: string
         required: true
       working_directory:
@@ -29,6 +29,10 @@ on:
       habit_hooks:
         type: boolean
         default: true
+      habit_hooks_plugin:
+        description: Override the habit-hooks language plugin (empty ⇒ the stack's own default).
+        type: string
+        default: ""
       habit_hooks_version:
         type: string
         default: "1.5.0"
@@ -54,6 +58,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+      habit_hooks_plugin: ${{ inputs.habit_hooks_plugin || 'habit-hooks-java' }}
       habit_hooks_version: ${{ inputs.habit_hooks_version }}
       spotbugs: ${{ inputs.spotbugs }}
       osv_scanner_version: ${{ inputs.osv_scanner_version }}
@@ -65,6 +70,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+      habit_hooks_plugin: ${{ inputs.habit_hooks_plugin || 'habit-hooks-typescript' }}
       habit_hooks_version: ${{ inputs.habit_hooks_version }}
   php:
     if: inputs.stack == 'php'
@@ -73,6 +79,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+      habit_hooks_plugin: ${{ inputs.habit_hooks_plugin || 'habit-hooks-php' }}
       habit_hooks_version: ${{ inputs.habit_hooks_version }}
   dotnet:
     if: inputs.stack == 'dotnet'
@@ -81,6 +88,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
+      habit_hooks_plugin: ${{ inputs.habit_hooks_plugin || 'habit-hooks-generic' }}
       habit_hooks_version: ${{ inputs.habit_hooks_version }}
 
   # Stable required check: the dispatched stack passed (skipped stacks are fine), and the

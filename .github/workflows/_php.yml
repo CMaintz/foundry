@@ -164,5 +164,5 @@ jobs:
             echo "| \`duplication\` | the same logic lives in two places | extract one shared function |"
             echo "| \`dead-code\` / unused export | nothing references it | delete it |"
             echo ""
-            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/code-standards.md\`. Clearing a smell is necessary, not sufficient — \"is this *one* thing?\" is still your call."
+            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`. Clearing a smell is necessary, not sufficient — \"is this *one* thing?\" is still your call."
           } >> "$GITHUB_STEP_SUMMARY"
