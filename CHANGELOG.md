@@ -6,6 +6,12 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.5.1](https://github.com/CMaintz/foundry/compare/v2.5.0...v2.5.1) (2026-10-02)
+
+### Bug Fixes
+
+* one PR branch per package (3736599)
+
 ## [2.5.0](https://github.com/CMaintz/foundry/compare/v2.4.0...v2.5.0) (2026-10-02)
 
 ### Features
