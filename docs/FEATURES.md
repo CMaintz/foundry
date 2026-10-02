@@ -38,7 +38,47 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 | `bootstrap.yml` | Regenerate the habit-hooks snooze baseline on Linux (`--prune` to shrink), open a PR. |
 | `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved. |
 | `autofix.yml` | Label a PR `autofix` → runs `mise run fix`, commits + pushes the result. |
+| `changes.yml` | Monorepo path classifier: given `packages` + `ignore_globs`, emits a JSON array of the packages a PR touched. Fail-safe (an unclassified path rebuilds everything; non-PR events build everything). See [Monorepo](#monorepo-one-repo-many-stacks). |
 | `lint-workflows.yml` | actionlint + shellcheck + typos over foundry's own repo (a trigger, not reusable). |
+
+## Monorepo: one repo, many stacks
+
+A single-stack repo is one `foundry-init` scaffold (`stack` + `working_directory: .`). A monorepo mixes stacks by calling the `gate.yml` facade once per package (each with its own `stack` + `working_directory`) and wrapping them in one aggregate `gate-ok`, optionally gated by `changes.yml` so a package builds only when it changed:
+
+```yaml
+name: gate
+on: { pull_request: {} }
+jobs:
+  changes:
+    uses: CMaintz/foundry/.github/workflows/changes.yml@v2
+    with:
+      packages: "backend frontend"
+      ignore_globs: |
+        *.md
+        docs/**
+        */.habit-hooks/snooze.json
+  backend:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.changes), 'backend')
+    uses: CMaintz/foundry/.github/workflows/gate.yml@v2
+    with: { stack: java, working_directory: backend, spotbugs: true }
+  frontend:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.changes), 'frontend')
+    uses: CMaintz/foundry/.github/workflows/gate.yml@v2
+    with: { stack: ts, working_directory: frontend }
+  gate-ok:   # the ONE required check for the whole repo (skipped packages are fine)
+    needs: [changes, backend, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for r in "${{ needs.changes.result }}" "${{ needs.backend.result }}" "${{ needs.frontend.result }}"; do
+            case "$r" in failure|cancelled) echo "a required job did not pass: $r"; exit 1 ;; esac
+          done
+```
+
+Branch protection requires a single `gate / gate-ok` regardless of how many packages or stacks the repo grows. Because a path-filtered package is *skipped* (not failed), `gate-ok`'s `if: always()` keeps it from stalling the merge. `foundry-init` scaffolds the single-stack case; the monorepo wiring is hand-assembled from this template by design (keeps the scaffolder single-purpose).
 
 ## mise verb templates (`mise/`)
 

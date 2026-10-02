@@ -1,0 +1,118 @@
+# Reusable monorepo path classifier - decides which packages a PR actually touches,
+# so a frontend-only change does not spin up the backend gate (and vice versa).
+#
+#   jobs:
+#     changes:
+#       uses: CMaintz/foundry/.github/workflows/changes.yml@v2
+#       with:
+#         packages: "backend frontend"
+#         ignore_globs: |
+#           *.md
+#           docs/**
+#     backend:
+#       needs: changes
+#       if: contains(fromJSON(needs.changes.outputs.changes), 'backend')
+#       uses: CMaintz/foundry/.github/workflows/gate.yml@v2
+#       with: { stack: java, working_directory: backend }
+#
+# FAIL-SAFE by design: a changed file that is neither inside a listed package nor
+# matched by `ignore_globs` is treated as a shared/root change and rebuilds EVERY
+# package. The classifier never silently skips a check it is unsure about - the only
+# things that build nothing are files you explicitly declared inert (docs, baselines).
+# On any non-`pull_request` event (push, workflow_dispatch) it also builds everything.
+#
+# Output `changes` is a single JSON array of package keys (reusable workflows cannot
+# declare one output per package); gate on it with `contains(fromJSON(...), 'name')`.
+name: changes
+
+on:
+  workflow_call:
+    inputs:
+      packages:
+        description: Space- or newline-separated top-level package dirs (e.g. "backend frontend").
+        type: string
+        required: true
+      ignore_globs:
+        description: >-
+          Newline-separated shell globs for files that affect NO package (docs,
+          tool-regenerated baselines). Matched against the path from the repo root.
+        type: string
+        default: ""
+    outputs:
+      changes:
+        description: JSON array of package keys to build (all of them on a shared change or a non-PR event).
+        value: ${{ jobs.changes.outputs.changes }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.classify.outputs.changes }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # the merge-base diff needs both sides in history
+      - name: Classify changed paths
+        id: classify
+        env:
+          PACKAGES: ${{ inputs.packages }}
+          IGNORE: ${{ inputs.ignore_globs }}
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Disable pathname expansion: `ignore_globs` patterns are used verbatim as
+          # `case` patterns (which are unaffected by `set -f`); without this, an
+          # unquoted `$IGNORE` in the `for` loop would expand `*.md` against the repo
+          # tree and mis-classify docs-only PRs as shared changes.
+          set -f
+          # JSON array of every package - the fail-safe / non-PR answer.
+          all_json() {
+            local out='[' sep=''
+            for p in $PACKAGES; do out="$out$sep\"$p\""; sep=','; done
+            printf '%s]' "$out"
+          }
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "event '$EVENT' is not a pull_request -> building all packages"
+            echo "changes=$(all_json)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base=$(git merge-base "$BASE" "$HEAD")
+          diff=$(git diff --name-only "$base" "$HEAD")
+          echo "Changed files:"; printf '%s\n' "$diff" | sed 's/^/  /'
+          matched=""   # space-padded set of hit package keys
+          shared=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            ignore=false
+            for pat in $IGNORE; do
+              # shellcheck disable=SC2254 # $pat is intentionally a glob pattern here
+              case "$f" in $pat) ignore=true; break ;; esac
+            done
+            [ "$ignore" = true ] && continue
+            hit=""
+            for p in $PACKAGES; do
+              case "$f" in "$p"/*) hit="$p"; break ;; esac
+            done
+            if [ -n "$hit" ]; then
+              case " $matched " in *" $hit "*) : ;; *) matched="$matched $hit" ;; esac
+            else
+              echo "  shared/unclassified '$f' -> building all packages (fail-safe)"
+              shared=true
+              break
+            fi
+          done < <(printf '%s\n' "$diff")
+          if [ "$shared" = true ]; then
+            result=$(all_json)
+          else
+            result='['; sep=''
+            for p in $matched; do result="$result$sep\"$p\""; sep=','; done
+            result="$result]"
+          fi
+          echo "result: $result"
+          echo "changes=$result" >> "$GITHUB_OUTPUT"

@@ -85,6 +85,9 @@ Auxiliary reusables you call directly (not behind a facade):
 | `bootstrap.yml` | regenerates the habit-hooks snooze baseline on Linux and opens a PR |
 | `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
 | `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
+| `changes.yml` | monorepo path classifier - builds only the packages a PR touched (fail-safe: an unclassified path rebuilds everything) |
+
+**Monorepo (many stacks in one repo):** call `gate.yml` once per package (each with its own `stack` + `working_directory`), wrap them in one `gate-ok`, and gate each on `changes.yml`. Branch protection still requires a single `gate / gate-ok`. Full template: [FEATURES.md](./docs/FEATURES.md#monorepo-one-repo-many-stacks).
 
 > Internals are `_`-prefixed (`_java.yml`, `_ts.yml`, `_php.yml`, `_dotnet.yml`, `_guards.yml`, `_semgrep.yml`) — the facades' implementation. Don't pin them directly; they can change between minor versions.
 
