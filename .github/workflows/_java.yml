@@ -27,7 +27,11 @@ on:
         type: string
         default: "."
       habit_hooks:
-        description: Run the structural-smell sensors (PMD). Needs a .habit-hooks/ dir.
+        description: >-
+          Run the dedicated structural-smell backstop job (PMD via habit-hooks). NOTE:
+          `lint` (in the gate job) now also enforces smells whenever
+          .habit-hooks/config.toml + snooze.json exist; this input only toggles the extra
+          backstop. To opt out entirely, remove the .habit-hooks/ directory.
         type: boolean
         default: true
       habit_hooks_plugin:

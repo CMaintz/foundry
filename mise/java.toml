@@ -146,7 +146,9 @@ bin="$dst/bin"; [ -d "$bin" ] || bin="$dst/Scripts"
 # habit-hooks isn't on PATH (a broken setup - run `mise install`).
 [tasks.smells]
 description = "Structural smells on changed files (habit-hooks --branch); folded into lint"
-depends = ["setup:habit-hooks"]
+# The Java sensor shells out to PMD, so provision both. (Via `lint` novar already pulls
+# setup:pmd first; naming it here keeps a direct `mise run smells` honest too.)
+depends = ["setup:pmd", "setup:habit-hooks"]
 run = '''
 set -eu
 dst="$HOME/.local/opt/$HABIT_HOOKS_PLUGIN-$HABIT_HOOKS_VERSION"
