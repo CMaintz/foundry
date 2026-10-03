@@ -10,6 +10,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACTIONLINT="${ACTIONLINT:-actionlint}"
 STACKS=("$@")
 [ ${#STACKS[@]} -gt 0 ] || STACKS=(ts java php kotlin dotnet python)
+# Point the scaffolder at THIS checkout. Exported once at top level so every per-test
+# subshell inherits it (a per-subshell export would trip shellcheck SC2030/SC2031).
+export FOUNDRY_RAW="file://$ROOT" FOUNDRY_REF="v0.0.0-smoke"
 
 fail() { echo "FAIL [$stack]: $*" >&2; exit 1; }
 
@@ -20,7 +23,6 @@ for stack in "${STACKS[@]}"; do
   (
     cd "$dir"
     git init -q
-    export FOUNDRY_RAW="file://$ROOT" FOUNDRY_REF="v0.0.0-smoke"
     bash "$ROOT/scripts/foundry-init.sh" "$stack" > first.log 2>&1 || { cat first.log; fail "init exited non-zero"; }
 
     expected=(mise.toml .habit-hooks/config.toml .gitleaks.toml renovate.json
@@ -64,7 +66,6 @@ dir="$(mktemp -d)"
 (
   cd "$dir"
   git init -q
-  export FOUNDRY_RAW="file://$ROOT" FOUNDRY_REF="v0.0.0-smoke"
   bash "$ROOT/scripts/foundry-init.sh" --mono java:backend ts:frontend > first.log 2>&1 \
     || { cat first.log; fail "mono init exited non-zero"; }
 

@@ -114,9 +114,9 @@ ensure_gitignore() { # the telemetry log is local-only observability, never comm
 set_windows_mise_shell() { # tasks only run under bash if this is in GLOBAL mise config
   case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-      if command -v mise >/dev/null 2>&1; then
-        mise settings set windows_default_inline_shell_args "bash -c" 2>/dev/null \
-          && echo "  set global mise: windows_default_inline_shell_args = bash -c" || true
+      if command -v mise >/dev/null 2>&1 \
+        && mise settings set windows_default_inline_shell_args "bash -c" 2>/dev/null; then
+        echo "  set global mise: windows_default_inline_shell_args = bash -c"
       fi ;;
   esac
 }
@@ -234,7 +234,9 @@ YAML
 gen_mono_gate_ok() { # <pair...> - the single required check, over every package job
   local pair needs="changes"
   for pair in "$@"; do needs+=", $(mono_jobid "${pair#*:}")"; done
-  printf '  gate-ok:   # the ONE required check for the whole repo (a bare `gate-ok`, no prefix)\n'
+  cat <<'YAML'
+  gate-ok:   # the ONE required check for the whole repo (a bare `gate-ok`, no prefix)
+YAML
   printf '    needs: [%s]\n' "$needs"
   cat <<'YAML'
     if: always()
