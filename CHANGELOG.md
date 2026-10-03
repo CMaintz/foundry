@@ -6,6 +6,12 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.6.0](https://github.com/CMaintz/foundry/compare/v2.5.1...v2.6.0) (2026-10-03)
+
+### Features
+
+* root input to size-check one folder (fe6b0fe)
+
 ## [2.5.1](https://github.com/CMaintz/foundry/compare/v2.5.0...v2.5.1) (2026-10-02)
 
 ### Bug Fixes
