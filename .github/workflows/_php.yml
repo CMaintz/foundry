@@ -46,6 +46,20 @@ jobs:
         working-directory: ${{ inputs.working_directory }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # `lint` now runs habit-hooks --branch, which diffs vs the PR base
+      # Python for the habit-hooks venv that mise's setup:habit-hooks postinstall builds -
+      # BEFORE mise-action so `mise install` can create it. The cache key reads the workflow
+      # input; the venv PATH in mise.toml reads HABIT_HOOKS_VERSION ([env]) - they default
+      # equal and are both Renovate-managed, so a mismatch is a cache miss, not a wrong version.
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
+      - name: Cache habit-hooks
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        with:
+          path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
+          key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: ${{ inputs.mise_version }}
@@ -63,6 +77,11 @@ jobs:
       # gets a targeted fix. Devs still run the composite `mise run gate` locally.
       - name: 'gate: lint'
         id: lint
+        # FOUNDRY_BASE_REF is the ratchet base for lint's folded structural-smell check
+        # (habit-hooks --branch): the PR base SHA on PRs, empty on dispatch ⇒ fall back to
+        # origin/main. The merge-base needs the history that fetch-depth: 0 (above) supplies.
+        env:
+          FOUNDRY_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: mise run lint
       - name: How to fix (lint)
         if: failure() && steps.lint.outcome == 'failure'

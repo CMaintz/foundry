@@ -76,6 +76,19 @@ jobs:
         with:
           path: ~/.local/opt/pmd-bin-${{ inputs.pmd_version }}
           key: pmd-${{ inputs.pmd_version }}
+      # `lint` now folds in the structural-smell check (habit-hooks --branch), a Python
+      # tool. Pin Python and restore its venv BEFORE mise-action, so the mise
+      # setup:habit-hooks postinstall no-ops on a hit. The cache key reads the workflow
+      # input; the venv PATH in mise.toml reads HABIT_HOOKS_VERSION ([env]) - they default
+      # equal and are both Renovate-managed, so a mismatch is a cache miss, not a wrong version.
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
+      - name: Cache habit-hooks
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        with:
+          path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
+          key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: ${{ inputs.mise_version }}
@@ -94,10 +107,10 @@ jobs:
       # gets a targeted fix. Devs still run the composite `mise run gate` locally.
       - name: 'gate: lint'
         id: lint
-        # FOUNDRY_BASE_REF is the ratchet base for lint's no-`var` check (see mise.toml):
-        # the PR base SHA on PRs (origin/main isn't a reliable ref in a PR checkout),
-        # empty on dispatch ⇒ novar falls back to origin/main. fetch-depth: 0 (above)
-        # supplies the history the merge-base needs.
+        # FOUNDRY_BASE_REF is the ratchet base for lint's no-`var` check AND its folded
+        # structural-smell check (habit-hooks --branch) - see mise.toml: the PR base SHA on
+        # PRs (origin/main isn't a reliable ref in a PR checkout), empty on dispatch ⇒ both
+        # fall back to origin/main. fetch-depth: 0 (above) supplies the merge-base history.
         env:
           FOUNDRY_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: mise run lint
@@ -112,7 +125,7 @@ jobs:
             echo "mise run fix        # = ./gradlew spotlessApply"
             echo '```'
             echo "**no-\`var\`** is not auto-fixable: replace \`var\` with the explicit type, or tag a justified use \`// foundry-allow-var: reason\`. It only flags \`var\` on files this PR changed."
-            echo "(Structural smells are a separate 'Structural smells' job, not this one.) The offending files are in the **gate: lint** step log above."
+            echo "**Structural smells** (PMD via habit-hooks) also run here, scoped to changed files; the dedicated 'Structural smells' job is an additional backstop. The offending files are in the **gate: lint** step log above."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: typecheck'
         id: typecheck
@@ -176,14 +189,15 @@ jobs:
             echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
             echo "have=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
-        if: steps.baseline.outputs.have == 'true'
-        with:
-          version: ${{ inputs.mise_version }}
+      # Python BEFORE mise-action so the mise setup:habit-hooks postinstall can build its venv.
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
         if: steps.baseline.outputs.have == 'true'
         with:
           python-version: '3.12'
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          version: ${{ inputs.mise_version }}
       - name: Cache PMD
         if: steps.baseline.outputs.have == 'true'
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
@@ -251,6 +265,12 @@ jobs:
         working-directory: ${{ inputs.working_directory }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      # Python before mise-action: `mise install` runs the setup:habit-hooks postinstall,
+      # which builds a venv even though SpotBugs doesn't use it. Giving it a venv-capable
+      # Python keeps that provisioning from failing the job.
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: ${{ inputs.mise_version }}

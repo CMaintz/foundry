@@ -98,6 +98,11 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           token: ${{ steps.app.outputs.token || github.token }}
+      # Python before mise-action: the repo's setup:habit-hooks postinstall (run by
+      # `mise install`) builds a venv, and the pip install below needs pip on PATH.
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
       # Toolchain (node, pmd, python, …) comes from the repo's mise.toml, so this
       # step is language-agnostic — whatever the six verbs need is what installs.
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3

@@ -53,6 +53,21 @@ jobs:
         working-directory: ${{ inputs.working_directory }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # `lint` now runs habit-hooks --branch, which diffs vs the PR base
+      # Python for the habit-hooks venv that mise's setup:habit-hooks postinstall builds -
+      # BEFORE mise-action so `mise install` can create it. (Same pin as the habits job.)
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
+      # Restore that venv so the postinstall no-ops on a hit. The key reads the workflow
+      # input; the venv PATH in mise.toml reads HABIT_HOOKS_VERSION ([env]). They default
+      # equal and are both Renovate-managed, so a mismatch is a cache miss, never a wrong
+      # version (same wart as the PMD cache).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
+          key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: ${{ inputs.mise_version }}
@@ -72,6 +87,12 @@ jobs:
       # gets a targeted fix. Devs still run the composite `mise run gate` locally.
       - name: 'gate: lint'
         id: lint
+        # FOUNDRY_BASE_REF is the ratchet base for lint's folded structural-smell check
+        # (habit-hooks --branch): the PR base SHA on PRs (origin/main isn't a reliable ref
+        # in a PR checkout), empty on dispatch => smells falls back to origin/main. The
+        # merge-base needs the history that fetch-depth: 0 (above) supplies.
+        env:
+          FOUNDRY_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: mise run lint
       - name: How to fix (lint)
         if: failure() && steps.lint.outcome == 'failure'
@@ -141,15 +162,16 @@ jobs:
             echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
             echo "have=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
-        if: steps.baseline.outputs.have == 'true'
-        with:
-          version: ${{ inputs.mise_version }}
-      # Pin Python like the other stacks, instead of the runner's default.
+      # Pin Python like the other stacks, instead of the runner's default. BEFORE
+      # mise-action so the mise setup:habit-hooks postinstall can build its venv with it.
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
         if: steps.baseline.outputs.have == 'true'
         with:
           python-version: '3.12'
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          version: ${{ inputs.mise_version }}
       # knip / ts-morph / jscpd come from node_modules; the sensors are Python.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         id: node_modules
