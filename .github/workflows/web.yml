@@ -5,6 +5,9 @@
 #       uses: CMaintz/foundry/.github/workflows/web.yml@<sha>
 #       with: { max_lines: 400 }
 #
+#   # Only one folder, and JS too (e.g. a browser extension):
+#       with: { root: extension, extensions: "js html css" }
+#
 # File-length limits apply to markup and styles too — a 2000-line stylesheet is a
 # cohesion problem like any other oversized file.
 name: web
@@ -20,6 +23,10 @@ on:
         description: Space-separated file extensions to size-check (no dots).
         type: string
         default: "html css scss"
+      root:
+        description: Directory to scan, relative to the repo root.
+        type: string
+        default: "."
 
 permissions:
   contents: read
@@ -34,6 +41,7 @@ jobs:
         env:
           MAX: ${{ inputs.max_lines }}
           EXTS: ${{ inputs.extensions }}
+          ROOT: ${{ inputs.root }}
         run: |
           set -euo pipefail
           name_expr=()
@@ -46,7 +54,7 @@ jobs:
               echo "::error file=$f::$f is $n lines (max $MAX)"
               fail=1
             fi
-          done < <(find . -type d \( -name node_modules -o -name dist -o -name .git \) -prune \
+          done < <(find "$ROOT" -type d \( -name node_modules -o -name dist -o -name .git \) -prune \
                     -o -type f \( "${name_expr[@]:1}" \) -print0)
 
           if [ "$fail" -ne 0 ]; then exit 1; fi
