@@ -51,6 +51,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0 # Spotless ratchetFrom origin/main needs history
+      # Python before mise-action: `mise install` runs the repo's setup:habit-hooks
+      # postinstall, which builds a venv. Give it a venv-capable Python so that
+      # provisioning can't fail this job (fix itself doesn't use habit-hooks).
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: '3.12'
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: ${{ inputs.mise_version }}

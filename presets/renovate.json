@@ -7,6 +7,16 @@
     ":semanticCommits"
   ],
   "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "habit-hooks pinned in mise.toml [env] (HABIT_HOOKS_VERSION); core and language plugin install in lockstep at this version. Matches the scaffolded repo's mise.toml and foundry's own mise/<stack>.toml templates.",
+      "fileMatch": ["(^|/)mise\\.toml$", "^mise/[^/]+\\.toml$"],
+      "matchStrings": ["HABIT_HOOKS_VERSION\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "habit-hooks"
+    }
+  ],
   "packageRules": [
     {
       "description": "The CONTRACT says pin everything; Renovate is the update path. Keep Actions pinned to a digest and bump the digest + the trailing # vN comment together.",
