@@ -31,12 +31,20 @@ for stack in "${STACKS[@]}"; do
     case "$stack" in
       ts) expected+=(tsconfig.json scripts/npm-audit-ratchet.mjs .github/workflows/bootstrap.yml) ;;
       java) expected+=(pmd/ruleset.xml config/pmd/no-var.xml .jscpd.json .github/workflows/bootstrap.yml) ;;
-      php | dotnet) expected+=(.github/workflows/bootstrap.yml) ;;
+      php | dotnet | python) expected+=(.github/workflows/bootstrap.yml) ;;
     esac
     for f in "${expected[@]}"; do [ -s "$f" ] || fail "missing or empty: $f"; done
     [ -x scripts/foundry-verb-wrap ] || fail "foundry-verb-wrap is not executable"
     grep -qxF '.foundry/' .gitignore || fail ".gitignore lacks .foundry/"
     grep -q '@v0.0.0-smoke' .github/workflows/security.yml || fail "workflows not pinned to FOUNDRY_REF"
+
+    # Facade stacks get a gate.yml that pins the gate.yml facade + passes `stack`; only
+    # kotlin (no reusable workflow yet) gets the inline `mise run gate`.
+    case "$stack" in
+      kotlin) grep -q 'mise run gate' .github/workflows/gate.yml || fail "kotlin gate.yml is not the inline gate" ;;
+      *) grep -q 'workflows/gate.yml@v0.0.0-smoke' .github/workflows/gate.yml || fail "$stack gate.yml does not pin the facade"
+         grep -q "stack: \"$stack\"" .github/workflows/gate.yml || fail "$stack gate.yml does not pass stack: $stack" ;;
+    esac
 
     python3 - <<'PY' || fail "a generated config does not parse"
 import json, tomllib

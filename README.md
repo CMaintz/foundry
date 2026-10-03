@@ -65,7 +65,7 @@ jobs:
   gate:
     uses: CMaintz/foundry/.github/workflows/gate.yml@v2
     with:
-      stack: java              # ts | java | php | dotnet
+      stack: java              # ts | java | php | dotnet | python
       working_directory: "."   # monorepo? call this job once per package
 ```
 
@@ -75,7 +75,7 @@ Pin **these**, whatever the stack. They dispatch internally to the per-stack wor
 
 | Facade | What it runs | Key inputs |
 |---|---|---|
-| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (six verbs, one-per-step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/java/php/dotnet), `working_directory`, `spotbugs` |
+| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (six verbs, one-per-step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/java/php/dotnet/python), `working_directory`, `spotbugs` |
 | [`security.yml`](./.github/workflows/security.yml) | language-agnostic: secret scan + `ruleset-guard` + diff-aware SAST | `ruleset_paths`, `source_paths`, … |
 
 Auxiliary reusables you call directly (not behind a facade):
@@ -90,7 +90,7 @@ Auxiliary reusables you call directly (not behind a facade):
 
 **Monorepo (many stacks in one repo):** call `gate.yml` once per package (each with its own `stack` + `working_directory`), wrap them in one `gate-ok`, and gate each on `changes.yml`. Branch protection requires a single check named `gate-ok` - a plain `gate-ok`, **not** the `gate / gate-ok` of the single-stack scaffold: that prefixed form only appears for a job reached through a reusable workflow, and here `gate-ok` is a top-level job in your own workflow. `foundry-init --mono java:backend ts:frontend` generates all of it. Full template: [FEATURES.md](./docs/FEATURES.md#monorepo-one-repo-many-stacks).
 
-> Internals are `_`-prefixed (`_java.yml`, `_ts.yml`, `_php.yml`, `_dotnet.yml`, `_guards.yml`, `_semgrep.yml`) — the facades' implementation. Don't pin them directly; they can change between minor versions.
+> Internals are `_`-prefixed (`_java.yml`, `_ts.yml`, `_php.yml`, `_dotnet.yml`, `_python.yml`, `_guards.yml`, `_semgrep.yml`) - the facades' implementation. Don't pin them directly; they can change between minor versions.
 
 Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./docs/OVERVIEW.md) §13).
 
@@ -198,7 +198,7 @@ Full rationale: [DESIGN.md](./docs/DESIGN.md).
 
 ## Status
 
-TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot — Spring Boot + Angular + a browser extension). PHP and .NET also have gate workflows behind the facade. Kotlin and Python have verb templates and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
+TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot - Spring Boot + Angular + a browser extension). PHP, .NET and Python also have gate workflows behind the facade. Kotlin has a verb template and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
 
 ## Licence
 

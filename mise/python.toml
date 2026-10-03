@@ -1,9 +1,71 @@
-# Foundry verb interface — Python template. See CONTRACT.md.
-# Commands assume ruff (lint + format) + mypy + pytest + pip-audit, installed as
-# the project's dev dependencies. Adjust for poetry/uv/pdm as needed.
+# Foundry verb interface - Python template. See CONTRACT.md.
+# Six verbs on ruff (lint + format) + mypy + pytest + pip-audit. Proven on jev-rerank;
+# this is that gate made reusable. Adjust for poetry/uv/pdm as needed.
+#
+# Pinning: ruff is a standalone binary, so it is a clean [tools] entry. mypy, pytest
+# and pip-audit are NOT [tools] entries on purpose - pytest must import the project and
+# its dependencies, mypy needs the project's packages for stubs, and pip-audit must
+# audit THIS project's environment; an isolated tool install would check the wrong
+# place and pass green. So they are pinned here and installed into a project .venv by
+# the setup:pytools task - the same "pin via a setup task + postinstall" mechanism the
+# java template uses for PMD. mise-action runs `mise install` in CI, which fires the
+# postinstall hook, so local and CI resolve the SAME versions.
+#
+# Gitignore `.venv/` (the project venv, a build artifact); foundry-init seeds `.foundry/`.
 
 [tools]
 python = "3.12"
+ruff = "0.14.0" # lint + format; standalone binary, no project deps -> clean pin
+
+[env]
+# Pinned into the project .venv by setup:pytools (see the header note). Bump them
+# together, and with ruff above - like the java template's PMD_VERSION, these mise.toml
+# pins are not auto-tracked by Renovate (only workflow-input defaults are).
+MYPY_VERSION = "1.18.2"
+PYTEST_VERSION = "8.4.2"
+PYTEST_COV_VERSION = "7.0.0"
+PIP_AUDIT_VERSION = "2.9.0"
+# Coverage floor for `test`. Override per repo (a legacy repo can start lower and
+# ratchet up); CI inherits whatever you set here.
+FOUNDRY_COV_MIN = "90"
+# The project .venv first (so mypy/pytest/pip-audit resolve to the pinned ones), then
+# the repo's scripts/ so the gate can call `foundry-verb-wrap` by name. Both venv bin
+# layouts are listed (bin on Linux/macOS, Scripts on Windows); the absent one is ignored.
+_.path = ["{{config_root}}/.venv/bin", "{{config_root}}/.venv/Scripts", "{{config_root}}/scripts"]
+# Loop telemetry: each gate verb appends one JSONL line here (see designs/loop-telemetry.md).
+# Read it with `foundry-loop-report`. foundry-init installs the wrapper.
+FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
+
+[hooks]
+postinstall = "mise run setup:pytools"
+
+[tasks."setup:pytools"]
+description = "Create the project .venv and install the pinned mypy/pytest/pip-audit (+ the project's own deps)"
+# dir = config_root so the postinstall hook writes the .venv next to THIS mise.toml even
+# when `mise install` runs from the repo root (a monorepo package, where config_root is
+# the package dir). Without it, bare relative paths would seed .venv in the wrong place.
+dir = "{{config_root}}"
+# Idempotent: a version-stamped marker skips reinstall when nothing changed, so
+# `mise install` (local and via mise-action) stays fast on a warm checkout.
+run = '''
+set -eu
+stamp=".venv/.foundry-pytools"
+want="$MYPY_VERSION $PYTEST_VERSION $PYTEST_COV_VERSION $PIP_AUDIT_VERSION"
+if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ]; then exit 0; fi
+python -m venv .venv
+py=".venv/bin/python"; [ -x "$py" ] || py=".venv/Scripts/python.exe"  # Scripts on Windows
+"$py" -m pip install --disable-pip-version-check --quiet --upgrade pip
+"$py" -m pip install --disable-pip-version-check --quiet \
+  "mypy==$MYPY_VERSION" "pytest==$PYTEST_VERSION" "pytest-cov==$PYTEST_COV_VERSION" "pip-audit==$PIP_AUDIT_VERSION"
+# Make the project importable so pytest/mypy see its code and deps. Editable if it is a
+# package; its declared runtime deps otherwise. Harmless no-op when there is neither.
+if [ -f pyproject.toml ] || [ -f setup.py ] || [ -f setup.cfg ]; then
+  "$py" -m pip install --disable-pip-version-check --quiet -e . || true
+elif [ -f requirements.txt ]; then
+  "$py" -m pip install --disable-pip-version-check --quiet -r requirements.txt || true
+fi
+echo "$want" > "$stamp"
+'''
 
 [tasks.fix]
 description = "Auto-fix lint + format (ruff)"
@@ -11,22 +73,37 @@ run = ["ruff check --fix .", "ruff format ."]
 
 [tasks.lint]
 description = "Lint and structural smells (ruff)"
-# ruff subsumes flake8/isort/pyupgrade/etc.; enable the rule sets you want in
-# ruff.toml. This is both the style check and the smell detector for Python.
+# ruff subsumes flake8/isort/pyupgrade/etc.; enable the rule sets you want in ruff.toml
+# (incl. mccabe `C90` for complexity). This is both the style check and the Python smell
+# detector - the structural-smells signal for Python lives here, not in a habit-hooks
+# language sensor. ruff ignores .venv by default.
 run = ["ruff check .", "ruff format --check ."]
 
 [tasks.typecheck]
 description = "Static types (mypy)"
-run = "mypy ."
+# Exclude the project .venv from the directory walk (mypy, unlike ruff/pytest, does not
+# skip it by default). Scope tighter (e.g. `mypy src tests`) via [tool.mypy] if you like.
+run = "mypy --exclude '(^|/)\\.venv/' ."
 
 [tasks.test]
-description = "Tests with coverage floor"
-run = "pytest --cov --cov-fail-under=0" # set your floor in place of 0
+description = "Tests with a coverage floor (default 90; override FOUNDRY_COV_MIN)"
+# pytest skips .venv by default (norecursedirs covers dot-dirs).
+run = "pytest --cov --cov-fail-under=${FOUNDRY_COV_MIN:-90}"
 
 [tasks.audit]
-description = "Dependency vulnerabilities (pip-audit)"
-run = "pip-audit"
+description = "Dependency vulnerabilities (pip-audit over the project .venv)"
+# --skip-editable: do not audit the editable project itself (it has no release to match);
+# runtime + dev deps installed in the .venv are audited.
+run = "pip-audit --skip-editable"
 
 [tasks.gate]
-description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
-run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]
+description = "The oracle. Sequential - mise `depends` runs in parallel with no ordering."
+# Each verb wrapped by `foundry-verb-wrap`: times it, appends a line to FOUNDRY_TELEMETRY,
+# propagates the exit code unchanged (a failing verb still stops the sequence). Wrapper on
+# PATH via scripts/ ([env]); foundry-init installs it. Not part of the six-verb contract.
+run = [
+    "foundry-verb-wrap lint      -- mise run lint",
+    "foundry-verb-wrap typecheck -- mise run typecheck",
+    "foundry-verb-wrap test      -- mise run test",
+    "foundry-verb-wrap audit     -- mise run audit",
+]
