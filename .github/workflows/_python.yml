@@ -1,0 +1,177 @@
+# Reusable Python gate - INTERNAL. Call it via the `gate.yml` facade
+# (`uses: CMaintz/foundry/.github/workflows/gate.yml@v2` with `stack: python`), not directly.
+#
+# Runs the same six verbs a developer runs locally (`mise run gate`). If this and
+# `mise run gate` on a laptop ever disagree, that is a bug in the setup, not the code.
+# Toolchain (python + ruff) and the pinned mypy/pytest/pip-audit (installed into a
+# project .venv by the mise template's setup:pytools task) all come from the repo's
+# mise.toml, so local and CI resolve the SAME versions. There is no habit-hooks Python
+# sensor: structural smells for Python come from ruff in `lint`; the habits job below
+# runs only the language-independent `generic` plugin (file-length).
+#
+# Input names are snake_case (kebab parses as a subtraction and fails at startup).
+name: python
+
+on:
+  workflow_call:
+    inputs:
+      mise_version:
+        description: >-
+          Pin mise itself, not just the action. Left unpinned, mise-action asks
+          mise.jdx.dev/VERSION for "latest", which can advertise a version whose
+          GitHub release assets are not published yet.
+        type: string
+        default: "2026.9.2"
+      working_directory:
+        description: Directory containing mise.toml and the Python project + .habit-hooks/.
+        type: string
+        default: "."
+      habit_hooks:
+        description: Run the structural-smell sensors (file-length). Needs a .habit-hooks/ dir.
+        type: boolean
+        default: true
+      habit_hooks_plugin:
+        type: string
+        default: "habit-hooks-generic"
+      habit_hooks_version:
+        description: >-
+          habit-hooks release to install. The core and its language plugins ship in
+          lockstep, so the plugin is pinned to the same version. Renovate bumps this.
+        type: string
+        default: "1.5.0"
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Deterministic gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise_version }}
+          cache: true
+      # Create the project .venv and install the pinned mypy/pytest/pip-audit (+ the
+      # project's own deps) BEFORE the verbs. `mise install` already fires this via the
+      # postinstall hook; running it explicitly keeps the gate robust if a cache hit
+      # skips postinstall, and makes the dependency obvious in the log.
+      - name: 'setup: Python tools + project (pinned .venv)'
+        run: mise run setup:pytools
+      # This IS `mise run gate` (lint -> typecheck -> test -> audit, in order), split one
+      # verb per step so a failure reddens the exact verb in the UI and gets a targeted
+      # fix. Devs still run the composite `mise run gate` locally.
+      - name: 'gate: lint'
+        id: lint
+        run: mise run lint
+      - name: How to fix (lint)
+        if: failure() && steps.lint.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`lint\` - formatting / style / smells (ruff)"
+            echo ""
+            echo "Most of this is **mechanically auto-fixable**. Run it, commit, push:"
+            echo '```'
+            echo "mise run fix"
+            echo '```'
+            echo "Whatever \`fix\` leaves behind is a real style/smell issue (incl. mccabe complexity) - the rule, file and line are in the **gate: lint** step log above."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: typecheck'
+        id: typecheck
+        run: mise run typecheck
+      - name: How to fix (typecheck)
+        if: failure() && steps.typecheck.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`typecheck\` - mypy"
+            echo ""
+            echo "Type errors - not auto-fixable. The file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: test'
+        id: test
+        run: mise run test
+      - name: How to fix (test)
+        if: failure() && steps.test.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`test\`"
+            echo ""
+            echo "A test failed or coverage fell below the floor (\`--cov-fail-under\`, default 90; override via FOUNDRY_COV_MIN in mise.toml). Reproduce with \`mise run test\`; the failing test and assertion are in the **gate: test** step log above."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 'gate: audit'
+        id: audit
+        run: mise run audit
+      - name: How to fix (audit)
+        if: failure() && steps.audit.outcome == 'failure'
+        run: |
+          {
+            echo "## ❌ Gate failed at \`audit\` - vulnerable dependency (pip-audit)"
+            echo ""
+            echo "Bump the flagged dependency to a patched version. If it is a false positive or unfixable now, accept that **specific** advisory with justification (pip-audit's \`--ignore-vuln\`) - never silence the whole check."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  habits:
+    name: Structural smells
+    if: inputs.habit_hooks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # --branch needs the base commit in history to diff against
+      # Skip gracefully (like the other stacks) if the repo has not run bootstrap yet:
+      # with no snooze.json, `habit-hooks --branch` hard-errors instead of no-op.
+      - name: Baseline present?
+        id: baseline
+        run: |
+          if [ -f .habit-hooks/snooze.json ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No .habit-hooks/snooze.json yet - run bootstrap.yml once. Skipping."
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+      # The generic plugin's file-length sensor is pure Python (jscpd is disabled in the
+      # python preset), so this job needs only Python - no Node, like the dotnet stack.
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        if: steps.baseline.outputs.have == 'true'
+        with:
+          python-version: '3.12'
+      - name: Install habit-hooks
+        if: steps.baseline.outputs.have == 'true'
+        env:
+          HH_VERSION: ${{ inputs.habit_hooks_version }}
+          PLUGIN: ${{ inputs.habit_hooks_plugin }}
+        run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
+      # --branch diffs against `main`; a PR checkout is detached, so point a local `main`
+      # at the PR base (in history from fetch-depth: 0). habit-hooks errors loudly if the
+      # base ref is missing - never a silent pass. On push, `main` already resolves.
+      - name: Make base ref resolvable for --branch
+        if: steps.baseline.outputs.have == 'true' && github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git branch -f main "$BASE_SHA"
+      - name: Smells (fails only on smells beyond the snooze baseline)
+        id: smells
+        if: steps.baseline.outputs.have == 'true'
+        # --branch: scan only files changed vs the base; unchanged files are already
+        # covered by the snooze baseline, so re-scanning them every PR is wasted work.
+        run: habit-hooks --branch
+      - name: How to read these smells
+        if: failure() && steps.smells.outcome == 'failure'
+        run: |
+          {
+            echo "## 📖 Structural smells"
+            echo ""
+            echo "For Python, most structural checks (complexity, long functions) are ruff rules in \`lint\`; habit-hooks here flags **oversized-file** (>300 lines)."
+            echo "| Smell | Fix toward |"
+            echo "|---|---|"
+            echo "| \`oversized-file\` | split by concern into cohesive units |"
+            echo ""
+            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -45,7 +45,8 @@ resolve_stack() {
     java)   R_PLUGIN="habit-hooks-java";       R_CI="java.yml";   R_HH="java" ;;
     php)    R_PLUGIN="habit-hooks-php";         R_CI="php.yml";    R_HH="php" ;;
     dotnet) R_PLUGIN="habit-hooks-generic";     R_CI="dotnet.yml"; R_HH="dotnet" ;;
-    kotlin|python) R_PLUGIN=""; R_CI=""; R_HH="$1" ;;  # mise template only; inline gate
+    python) R_PLUGIN="habit-hooks-generic";     R_CI="python.yml"; R_HH="python" ;;  # facade gate
+    kotlin) R_PLUGIN=""; R_CI=""; R_HH="kotlin" ;;  # mise template only; inline gate
     *) echo "unknown stack: $1" >&2; exit 2 ;;
   esac
 }
@@ -163,7 +164,7 @@ jobs:
 YAML
 }
 
-emit_single_gate() { # <stack> <wd> - facade call, or inline gate for kotlin/python
+emit_single_gate() { # <stack> <wd> - facade call, or inline gate for kotlin
   local stack="$1" wd="$2"
   if [ -n "$R_CI" ]; then
     write ".github/workflows/gate.yml" <<YAML
@@ -312,7 +313,8 @@ validate_mono_pairs() { # <pair...> - each arg must be <facade-stack>:<subdir>
     stack="${pair%%:*}"; dir="${pair#*:}"
     case "$stack" in
       ts|java|php|dotnet) : ;;
-      kotlin|python) echo "--mono does not support '$stack' (no reusable gate yet); use ts|java|php|dotnet" >&2; exit 2 ;;
+      kotlin) echo "--mono does not support 'kotlin' (no reusable gate yet); use ts|java|php|dotnet" >&2; exit 2 ;;
+      python) echo "--mono does not support 'python' yet (facade exists, mono wiring not generated); use ts|java|php|dotnet" >&2; exit 2 ;;
       *) echo "unknown stack '$stack' in '$pair'" >&2; exit 2 ;;
     esac
     if [ -z "$dir" ] || [ "$dir" = "." ]; then
@@ -375,7 +377,7 @@ else
   if [ -n "$R_CI" ]; then
     print_next_steps "gate / gate-ok"
   else
-    # kotlin/python run an inline top-level job named "Deterministic gate", so its
+    # kotlin runs an inline top-level job named "Deterministic gate", so its
     # check context is that name, NOT `gate / gate-ok` (which needs a reusable call).
     print_next_steps "Deterministic gate"
   fi
