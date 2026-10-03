@@ -43,7 +43,7 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 
 ## Monorepo: one repo, many stacks
 
-A single-stack repo is one `foundry-init` scaffold (`stack` + `working_directory: .`). A monorepo mixes stacks by calling the `gate.yml` facade once per package (each with its own `stack` + `working_directory`) and wrapping them in one aggregate `gate-ok`, optionally gated by `changes.yml` so a package builds only when it changed:
+A single-stack repo is one `foundry-init <stack>` scaffold. A monorepo is `foundry-init --mono <stack>:<dir> ...` (e.g. `--mono java:backend ts:frontend`): it scaffolds each package and generates exactly the workflow below - the `gate.yml` facade called once per package (each with its own `stack` + `working_directory`), gated by the `changes.yml` path classifier so a package builds only when it changed, and wrapped in one aggregate `gate-ok`. The template is here so you can read what it emits or hand-assemble it if you prefer:
 
 ```yaml
 name: gate
@@ -67,18 +67,24 @@ jobs:
     if: contains(fromJSON(needs.changes.outputs.changes), 'frontend')
     uses: CMaintz/foundry/.github/workflows/gate.yml@v2
     with: { stack: ts, working_directory: frontend }
-  gate-ok:   # the ONE required check for the whole repo (skipped packages are fine)
+  gate-ok:   # the ONE required check for the whole repo (a bare `gate-ok`, no prefix)
     needs: [changes, backend, frontend]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          for r in "${{ needs.changes.result }}" "${{ needs.backend.result }}" "${{ needs.frontend.result }}"; do
-            case "$r" in failure|cancelled) echo "a required job did not pass: $r"; exit 1 ;; esac
-          done
+      - name: Require every gate job to have passed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          # Iterate over the needs context itself, so adding a package can't slip the
+          # gate - every job in needs is checked. Skipped (path-filtered) is fine.
+          bad="$(printf '%s' "$RESULTS" | jq -r 'to_entries[] | select(.value.result=="failure" or .value.result=="cancelled") | .key')"
+          if [ -n "$bad" ]; then echo "::error::gate job(s) did not pass: $bad"; exit 1; fi
+          echo "all gate jobs passed or were skipped"
 ```
 
-Branch protection requires a single `gate / gate-ok` regardless of how many packages or stacks the repo grows. Because a path-filtered package is *skipped* (not failed), `gate-ok`'s `if: always()` keeps it from stalling the merge. `foundry-init` scaffolds the single-stack case; the monorepo wiring is hand-assembled from this template by design (keeps the scaffolder single-purpose).
+Branch protection requires a single check named `gate-ok`, regardless of how many packages or stacks the repo grows. Note the name differs from the single-stack scaffold's `gate / gate-ok`: that prefixed form is how GitHub names a job reached *through* a reusable workflow (caller job `gate` -> nested `gate-ok`), whereas here `gate-ok` is a top-level job in your own workflow, so its check is the bare `gate-ok`. Require that, not the per-package `backend / gate-ok` / `frontend / gate-ok` the facade calls emit. Because a path-filtered package is *skipped* (not failed), `gate-ok`'s `if: always()` keeps it from stalling the merge, and because the aggregator iterates over the `needs` context itself (rather than a hand-listed set), a package added to `needs` can never silently escape the gate. `foundry-init --mono` generates all of this; to change the package set later, delete the generated `gate.yml` + `bootstrap.yml` (the scaffold never clobbers) and re-run `--mono` with the full set of pairs.
 
 ## mise verb templates (`mise/`)
 
