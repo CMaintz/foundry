@@ -67,7 +67,8 @@ jobs:
     if: contains(fromJSON(needs.changes.outputs.changes), 'frontend')
     uses: CMaintz/foundry/.github/workflows/gate.yml@v2
     with: { stack: ts, working_directory: frontend }
-  gate-ok:   # the ONE required check for the whole repo (skipped packages are fine)
+  gate-ok:   # the ONE required check for the whole repo (skipped packages are fine).
+             # Top-level job -> its check name is a plain `gate-ok`, no `caller /` prefix.
     needs: [changes, backend, frontend]
     if: always()
     runs-on: ubuntu-latest
@@ -78,7 +79,7 @@ jobs:
           done
 ```
 
-Branch protection requires a single `gate / gate-ok` regardless of how many packages or stacks the repo grows. Because a path-filtered package is *skipped* (not failed), `gate-ok`'s `if: always()` keeps it from stalling the merge. `foundry-init` scaffolds the single-stack case; the monorepo wiring is hand-assembled from this template by design (keeps the scaffolder single-purpose).
+Branch protection requires a single check named `gate-ok`, regardless of how many packages or stacks the repo grows. Note the name differs from the single-stack scaffold's `gate / gate-ok`: that prefixed form is how GitHub names a job reached *through* a reusable workflow (caller job `gate` -> nested `gate-ok`), whereas here `gate-ok` is a top-level job in your own workflow, so its check is the bare `gate-ok`. Require that, not the per-package `backend / gate-ok` / `frontend / gate-ok` the facade calls emit. Because a path-filtered package is *skipped* (not failed), `gate-ok`'s `if: always()` keeps it from stalling the merge. `foundry-init` scaffolds the single-stack case; the monorepo wiring is hand-assembled from this template by design (keeps the scaffolder single-purpose).
 
 ## mise verb templates (`mise/`)
 

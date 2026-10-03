@@ -87,7 +87,7 @@ Auxiliary reusables you call directly (not behind a facade):
 | `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
 | `changes.yml` | monorepo path classifier - builds only the packages a PR touched (fail-safe: an unclassified path rebuilds everything) |
 
-**Monorepo (many stacks in one repo):** call `gate.yml` once per package (each with its own `stack` + `working_directory`), wrap them in one `gate-ok`, and gate each on `changes.yml`. Branch protection still requires a single `gate / gate-ok`. Full template: [FEATURES.md](./docs/FEATURES.md#monorepo-one-repo-many-stacks).
+**Monorepo (many stacks in one repo):** call `gate.yml` once per package (each with its own `stack` + `working_directory`), wrap them in one `gate-ok`, and gate each on `changes.yml`. Branch protection requires a single check named `gate-ok` - a plain `gate-ok`, **not** the `gate / gate-ok` of the single-stack scaffold: that prefixed form only appears for a job reached through a reusable workflow, and here `gate-ok` is a top-level job in your own workflow. Full template: [FEATURES.md](./docs/FEATURES.md#monorepo-one-repo-many-stacks).
 
 > Internals are `_`-prefixed (`_java.yml`, `_ts.yml`, `_php.yml`, `_dotnet.yml`, `_guards.yml`, `_semgrep.yml`) — the facades' implementation. Don't pin them directly; they can change between minor versions.
 
