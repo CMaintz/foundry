@@ -53,7 +53,15 @@ min-files gate) routes every file to review - Jev only ever narrows spend, never
 Read from the environment (keys never in CI):
 `JEV_API_KEY`, `JEV_PROVIDER` (`typesafe` | `cloudflare`), `JEV_MODEL`
 (defaults to `jev-latest`), `CLOUDFLARE_ACCOUNT_ID`, and `TYPESAFE_AI_BASE_URL`
-(point the direct call at a self-host, proxy, or mock).
+(point the direct call at a self-host, proxy, or mock). `review.mjs` also reads
+`JEV_REVIEW_MIN_FILES`.
+
+The non-secret knobs have a commented, opt-in home in each mise template's
+`[env]` block (the "Jev (advisory layer)" group), so a repo centralizes them in
+one place instead of scattering exports. Note the reach: a mise `[env]` value
+only lands in processes started via `mise run` / `mise exec` or a mise-activated
+shell, so a Claude Code hook picks it up only when the editor was launched from
+such a shell. The key is never committed; export `JEV_API_KEY` in the shell.
 
 ## Tests
 

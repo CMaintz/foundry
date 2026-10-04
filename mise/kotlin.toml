@@ -5,6 +5,25 @@
 [tools]
 java = "21" # Kotlin compiles on the JVM; pin to what the repo targets
 
+[env]
+# -- Jev (advisory layer; opt-in, OFF unless set) --------------------------
+# Foundry's near-free System One layer (see docs/FEATURES.md, the "jev/" entry):
+# it only routes review and triages turns on the proposer side, never the gate.
+# All of it stays off unless a key is present, so this whole block is optional.
+#
+# The key is NEVER committed: export JEV_API_KEY in your shell, not here. The
+# lines below are the safe, non-secret knobs at their defaults; uncomment to
+# change one. mise [env] reaches only processes under `mise run`/`mise exec` or
+# a mise-activated shell, so a Claude Code hook sees these only when the editor
+# was launched from such a shell.
+#
+# JEV_PROVIDER = "typesafe"           # or "cloudflare" (then set CLOUDFLARE_ACCOUNT_ID)
+# JEV_MODEL = "jev-latest"            # pin to a version to freeze behavior
+# TYPESAFE_AI_BASE_URL = "https://api.typesafe.ai/v1"   # a self-host, proxy, or mock
+# JEV_REVIEW_MIN_FILES = "0"          # skip review routing on diffs at or under N files
+# JEV_TOOLCALL_TRIAGE = "0"           # 1 warns on risky tool calls (repos with that hook)
+# JEV_FEATURE_PRECHECK = "0"          # 1 pre-checks a feature ticket (repos with that hook)
+
 [tasks.fix]
 description = "Auto-format (ktlint)"
 run = "./gradlew ktlintFormat"
