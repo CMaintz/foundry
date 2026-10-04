@@ -6,6 +6,23 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.7.0](https://github.com/CMaintz/foundry/compare/v2.6.0...v2.7.0) (2026-10-04)
+
+### Features
+
+* centralize the advisory layer toggles in each mise [env] block (5404f9b)
+* add minimumReleaseAge to the shared preset, exempt security fixes (0c1cae2)
+* add foundry-pr-report, a non-blocking PR check reporter (ec58497)
+* first-class Python stack behind the gate.yml facade (8e69506)
+* pin habit-hooks via mise and fold structural smells into lint (5c689cf)
+* generate monorepo wiring with `--mono stack:dir` pairs (6e468d8)
+
+### Bug Fixes
+
+* fold habit-hooks smells into lint and wire the gate job (26e0a81)
+* add TS smell-sensor devDeps, surface smell-skip, cover mise drift (a7823a6)
+* clear shellcheck findings (SC2015/SC2016/SC2030) (a7cd098)
+
 ## [2.6.0](https://github.com/CMaintz/foundry/compare/v2.5.1...v2.6.0) (2026-10-03)
 
 ### Features
