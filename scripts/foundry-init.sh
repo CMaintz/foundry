@@ -65,7 +65,35 @@ fetch_package_core() { # <stack> <wd> - verbs, smells config, loop telemetry scr
   chmod +x "$wd/scripts/foundry-verb-wrap" "$wd/scripts/foundry-loop-report" 2>/dev/null || true
 }
 
-fetch_ts_extras() { # <wd> - strict tsconfig + the ratcheted npm-audit + flaky helper
+# ensure_ts_devdeps <wd> - add the structural-smell sensor tools to the consumer's
+# devDependencies if absent, so the habit-hooks typescript (knip, ts-morph) and generic
+# (jscpd) sensors seed against real findings instead of a missing-tool error. Caret-pinned;
+# Renovate bumps them. Never overwrites an existing pin; no-ops with a NOTE when there's no
+# package.json yet (bootstrap also `npm ci`s + PATHs node_modules/.bin before seeding).
+ensure_ts_devdeps() {
+  local wd="$1" nv name have
+  if [ ! -f "$wd/package.json" ]; then
+    echo "  NOTE: no $wd/package.json - add knip, ts-morph, jscpd to devDependencies so the TS smell sensors run"
+    return 0
+  fi
+  if ! command -v npm > /dev/null 2>&1; then
+    echo "  NOTE: npm not on PATH - add knip, ts-morph, jscpd to devDependencies so the TS smell sensors run"
+    return 0
+  fi
+  for nv in "knip@^6.39.0" "ts-morph@^28.0.0" "jscpd@^5.4.0"; do
+    name="${nv%@*}"
+    have="$( (cd "$wd" && npm pkg get "devDependencies.$name") 2>/dev/null || true)"
+    case "$have" in
+      ''|'{}'|'undefined')
+        if ( cd "$wd" && npm pkg set "devDependencies.$name=${nv#*@}" ); then
+          echo "  devDep: $name ${nv#*@}"
+        else echo "  WARN: could not add devDep $name (add it manually)"; fi ;;
+      *) echo "  skip devDep (present): $name" ;;
+    esac
+  done
+}
+
+fetch_ts_extras() { # <wd> - strict tsconfig + ratcheted npm-audit + jscpd ignores + smell devDeps
   local wd="$1"
   # `typecheck` refuses to run without a tsconfig: framework checkers (astro check,
   # vue-tsc) otherwise exit 0 having checked only their own file types. A repo that
@@ -77,6 +105,9 @@ fetch_ts_extras() { # <wd> - strict tsconfig + the ratcheted npm-audit + flaky h
   fetch "scripts/npm-audit-ratchet.mjs" "$wd/scripts/npm-audit-ratchet.mjs"
   fetch "scripts/foundry-flaky" "$wd/scripts/foundry-flaky"
   chmod +x "$wd/scripts/foundry-flaky" 2>/dev/null || true
+  # jscpd duplication (generic sensor) reads .jscpd.json; pre-place it like the Java path.
+  fetch "presets/habit-hooks/jscpd.json" "$wd/.jscpd.json"
+  ensure_ts_devdeps "$wd"
 }
 
 fetch_java_extras() { # <wd> - PMD ruleset, jscpd ignore list, per-smell coaching guides

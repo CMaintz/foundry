@@ -23,17 +23,25 @@ for stack in "${STACKS[@]}"; do
   (
     cd "$dir"
     git init -q
+    # A TS repo onboarding already has a package.json; seed one so init can inject the
+    # structural-smell sensor devDeps (knip/ts-morph/jscpd) into it.
+    if [ "$stack" = ts ]; then printf '{"name":"smoke","version":"0.0.0","private":true}\n' > package.json; fi
     bash "$ROOT/scripts/foundry-init.sh" "$stack" > first.log 2>&1 || { cat first.log; fail "init exited non-zero"; }
 
     expected=(mise.toml .habit-hooks/config.toml .gitleaks.toml renovate.json
       scripts/ruleset_guard.py scripts/foundry-verb-wrap scripts/foundry-loop-report
       .github/workflows/gate.yml .github/workflows/security.yml .github/workflows/ratchet.yml)
     case "$stack" in
-      ts) expected+=(tsconfig.json scripts/npm-audit-ratchet.mjs .github/workflows/bootstrap.yml) ;;
+      ts) expected+=(tsconfig.json .jscpd.json scripts/npm-audit-ratchet.mjs .github/workflows/bootstrap.yml) ;;
       java) expected+=(pmd/ruleset.xml config/pmd/no-var.xml .jscpd.json .github/workflows/bootstrap.yml) ;;
       php | dotnet) expected+=(.github/workflows/bootstrap.yml) ;;
     esac
     for f in "${expected[@]}"; do [ -s "$f" ] || fail "missing or empty: $f"; done
+    if [ "$stack" = ts ]; then
+      for d in knip ts-morph jscpd; do
+        grep -q "\"$d\"" package.json || fail "package.json missing structural-smell devDep: $d"
+      done
+    fi
     [ -x scripts/foundry-verb-wrap ] || fail "foundry-verb-wrap is not executable"
     grep -qxF '.foundry/' .gitignore || fail ".gitignore lacks .foundry/"
     grep -q '@v0.0.0-smoke' .github/workflows/security.yml || fail "workflows not pinned to FOUNDRY_REF"

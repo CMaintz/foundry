@@ -141,7 +141,7 @@ jobs:
           {
             echo "## ❌ Gate failed at \`audit\` — vulnerable dependency"
             echo ""
-            echo "Bump the flagged dependency to a patched version. If it's a false positive or unfixable now, accept that **specific** CVE with justification (osv-scanner.toml / the tool's ignore file) — never silence the whole check."
+            echo "Bump the flagged dependency to a patched version. If it's a false positive or unfixable now, accept that **specific** advisory with justification in \`.audit-allowlist.json\` (the npm-audit ratchet allowlist); never silence the whole check."
           } >> "$GITHUB_STEP_SUMMARY"
 
   habits:
