@@ -4,6 +4,7 @@
     "config:recommended",
     "helpers:pinGitHubActionDigests",
     ":dependencyDashboard",
+    ":dependencyDashboardApproval",
     ":semanticCommits"
   ],
   "labels": ["dependencies"],
