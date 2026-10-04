@@ -25,7 +25,7 @@ on:
         default: "."
       mise_version:
         type: string
-        default: "2026.9.2"
+        default: "2026.9.3"
       habit_hooks:
         description: >-
           Run the dedicated structural-smell backstop job. `lint` (in the gate job) now

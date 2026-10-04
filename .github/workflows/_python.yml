@@ -22,7 +22,7 @@ on:
           mise.jdx.dev/VERSION for "latest", which can advertise a version whose
           GitHub release assets are not published yet.
         type: string
-        default: "2026.9.2"
+        default: "2026.9.3"
       working_directory:
         description: Directory containing mise.toml and the Python project + .habit-hooks/.
         type: string

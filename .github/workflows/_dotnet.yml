@@ -14,7 +14,7 @@ on:
     inputs:
       mise_version:
         type: string
-        default: "2026.9.2"
+        default: "2026.9.3"
       working_directory:
         description: Directory containing mise.toml and the solution/project + .habit-hooks/.
         type: string
