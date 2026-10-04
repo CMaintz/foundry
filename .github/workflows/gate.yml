@@ -46,7 +46,7 @@ on:
         default: false
       osv_scanner_version:
         type: string
-        default: "2.5.1"
+        default: "2.6.0"
       pmd_version:
         type: string
         default: "7.27.0"
