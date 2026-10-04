@@ -19,6 +19,11 @@
   ],
   "packageRules": [
     {
+      "description": "Let a release settle before proposing it, to dodge just-published broken or compromised versions (supply-chain hygiene). Security fixes are exempted in the vulnerability rule below so they still land fast.",
+      "matchPackageNames": ["*"],
+      "minimumReleaseAge": "3 days"
+    },
+    {
       "description": "The CONTRACT says pin everything; Renovate is the update path. Keep Actions pinned to a digest and bump the digest + the trailing # vN comment together.",
       "matchManagers": ["github-actions"],
       "groupName": "github-actions",
@@ -30,11 +35,12 @@
       "groupName": "mise toolchain"
     },
     {
-      "description": "Security fixes land fast and on their own, labelled.",
+      "description": "Security fixes land fast and on their own, labelled; exempt from minimumReleaseAge so a patched release is never held back.",
       "matchPackageNames": ["*"],
       "isVulnerabilityAlert": true,
       "labels": ["security"],
-      "prPriority": 10
+      "prPriority": 10,
+      "minimumReleaseAge": "0 seconds"
     }
   ],
   "lockFileMaintenance": { "enabled": true },
