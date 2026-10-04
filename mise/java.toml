@@ -154,7 +154,7 @@ set -eu
 dst="$HOME/.local/opt/$HABIT_HOOKS_PLUGIN-$HABIT_HOOKS_VERSION"
 hh="$dst/bin/habit-hooks"; [ -x "$hh" ] || hh="$dst/Scripts/habit-hooks.exe"
 if [ ! -f .habit-hooks/config.toml ]; then echo "smells: no .habit-hooks/config.toml; skipping"; exit 0; fi
-if [ ! -f .habit-hooks/snooze.json ]; then echo "smells: no snooze baseline yet (run bootstrap); skipping"; exit 0; fi
+if [ ! -f .habit-hooks/snooze.json ]; then m="smells: no snooze baseline yet (run bootstrap); structural smells are NOT being checked"; echo "$m"; if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::warning::$m"; fi; exit 0; fi
 mb=$(git merge-base "${FOUNDRY_BASE_REF:-origin/main}" HEAD 2>/dev/null || true)
 if [ -z "$mb" ]; then echo "smells: cannot resolve base '${FOUNDRY_BASE_REF:-origin/main}'; skipping"; exit 0; fi
 [ -x "$hh" ] || { echo "smells: pinned habit-hooks not found at $dst (run 'mise install')" >&2; exit 1; }

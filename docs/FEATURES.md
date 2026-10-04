@@ -102,7 +102,8 @@ fails the verb instead of going unchecked.
 
 | Preset | Purpose |
 |---|---|
-| `habit-hooks/{ts,java,php,kotlin,dotnet,python}.toml` | Structural-smell config per stack; tests excluded; Java names its tuned ruleset via `-R`. |
+| `habit-hooks/{ts,java,php,kotlin,dotnet,python}.toml` | Structural-smell config per stack; tests excluded; Java names its tuned ruleset via `-R`. The TS sensors shell out to `knip`, `ts-morph` and `jscpd`, so `foundry-init` adds those to the repo's `devDependencies` (caret-pinned, Renovate-bumped); seeding a baseline before they are installed captures a missing-tool error instead of real findings. |
+| `habit-hooks/jscpd.json` | jscpd duplication-ignore list (the language-independent `generic` sensor reads it). Copied by `foundry-init` for the `ts` and `java` stacks. |
 | `habit-hooks/java/guides/*.md` | Per-smell coaching (oversized-function, high-complexity, too-many-parameters, deep-nesting) — concrete "how to fix + don't game it" text that renders inline per finding, in-loop and CI. Drop into a repo's `.habit-hooks/java/guides/`. |
 | `pmd/ruleset.xml` | Tuned Java ruleset (`ExcessiveParameterList` minimum 8). |
 | `pmd/no-var.xml` | The no-`var` rule (diff-scoped in CI). |

@@ -36,6 +36,14 @@
       "matchStrings": ["habit_hooks_version:[\\s\\S]*?default:\\s*\"(?<currentValue>[^\"]+)\""],
       "datasourceTemplate": "pypi",
       "depNameTemplate": "habit-hooks"
+    },
+    {
+      "customType": "regex",
+      "description": "habit-hooks version pinned in the mise templates / consumer mise.toml (HABIT_HOOKS_VERSION); core + plugin release in lockstep, so one bump covers both",
+      "fileMatch": ["(^|/)mise.*\\.toml$"],
+      "matchStrings": ["HABIT_HOOKS_VERSION\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "habit-hooks"
     }
   ]
 }
