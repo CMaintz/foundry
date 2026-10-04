@@ -23,6 +23,7 @@ Kinds:
 
 Usage: ruleset_guard.py <eslint|snooze|lines|coverage> <base-ref> <head-ref> <path>
 """
+
 import json
 import subprocess
 import sys
@@ -70,7 +71,7 @@ def coverage_counts(text):
     """prompt-eval manifest.json: multiset of the `fixtures` list (the coverage surface)."""
     d = json.loads(text) if text.strip() else {}
     c = Counter()
-    for item in (d.get("fixtures") or []):
+    for item in d.get("fixtures") or []:
         c[item] += 1
     return c
 
