@@ -166,7 +166,14 @@ setup_labels() { # the GitHub labels the workflows + ticket state machine need
 repo_level_once() { # shared presets + repo-wide setup that runs once, not per package
   echo "- shared presets"
   fetch "presets/security/gitleaks.toml" ".gitleaks.toml"
-  fetch "presets/renovate.json" "renovate.json"
+  # Extend the shared foundry renovate preset instead of vendoring its full config, so the
+  # update policy stays a single source of truth in foundry and never drifts per repo.
+  write "renovate.json" <<'JSON'
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["local>CMaintz/foundry//presets/renovate"]
+}
+JSON
   fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
   # One-shot, non-blocking PR check reporter the pr-ci-watch flow calls once CI has
   # finished. Repo-scoped (gh pr checks on the branch's PR), so it lands once at repo
