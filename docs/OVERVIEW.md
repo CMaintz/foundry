@@ -345,8 +345,12 @@ can wedge branch protection (see below).
 
 - **`concurrency` lives in the caller, not the reusable** (a reusable workflow
   can't set it for you). Give each caller file
-  `concurrency: { group: <name>-${{ github.ref }}, cancel-in-progress: true }` so a
-  new push cancels the in-flight run for that branch instead of paying for both.
+  ```yaml
+  concurrency:
+    group: <name>-${{ github.ref }}
+    cancel-in-progress: true
+  ```
+  so a new push cancels the in-flight run for that branch instead of paying for both.
 - **Path-filter what genuinely can't be affected - but mind the required-check
   trap.** A docs-only PR doesn't need the TS gate. The naive fix
   (`on: pull_request: paths:`) backfires: a *required* check that's path-filtered
