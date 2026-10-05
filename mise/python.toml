@@ -22,7 +22,7 @@ ruff = "0.14.0" # lint + format; standalone binary, no project deps -> clean pin
 # together, and with ruff above - like the java template's PMD_VERSION, these mise.toml
 # pins are not auto-tracked by Renovate (only workflow-input defaults are).
 MYPY_VERSION = "1.18.2"
-PYTEST_VERSION = "8.4.2"
+PYTEST_VERSION = "9.0.3" # 8.4.2 fails pip-audit: PYSEC-2026-1845, fixed in 9.0.3
 PYTEST_COV_VERSION = "7.0.0"
 PIP_AUDIT_VERSION = "2.9.0"
 # habit-hooks (the structural-smell detector) is a pinned, mise-managed pip tool,
@@ -160,9 +160,21 @@ run = ["ruff check .", "ruff format --check .", "mise run smells"]
 
 [tasks.typecheck]
 description = "Static types (mypy)"
-# Exclude the project .venv from the directory walk (mypy, unlike ruff/pytest, does not
-# skip it by default). Scope tighter (e.g. `mypy src tests`) via [tool.mypy] if you like.
-run = "mypy --exclude '(^|/)\\.venv/' ."
+# Scope: a `files` list under [tool.mypy] (pyproject.toml) or [mypy] (mypy.ini /
+# .mypy.ini / setup.cfg) wins - e.g. files = ["src", "tests"] - so bare `mypy` runs. An
+# explicit `.` would override that list, so it is passed only when none is configured.
+# The fallback walk excludes the project .venv (mypy, unlike ruff/pytest, does not skip it)
+# and the vendored scripts/ruleset_guard.py, which is untyped and fails `strict = true`.
+run = '''
+set -eu
+has_files() { [ -f "$1" ] && awk -v sec="$2" '/^\[/ { s = ($0 == sec) } s && /^[[:space:]]*files[[:space:]]*=/ { f = 1 } END { exit !f }' "$1"; }
+if has_files pyproject.toml '[tool.mypy]' || has_files mypy.ini '[mypy]' || has_files .mypy.ini '[mypy]' || has_files setup.cfg '[mypy]'; then
+  mypy
+else
+  # `.` stands in for the path separator: mypy matches native paths (backslashes on Windows).
+  mypy --exclude '(^|.)(\.venv.|scripts.ruleset_guard\.py$)' .
+fi
+'''
 
 [tasks.test]
 description = "Tests with a coverage floor (default 90; override FOUNDRY_COV_MIN)"
