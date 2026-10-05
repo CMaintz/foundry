@@ -3,12 +3,14 @@
 #
 # Runs the same six verbs a developer runs locally (`mise run gate`). If this and
 # `mise run gate` on a laptop ever disagree, that is a bug in the setup, not the code.
-# Toolchain (python + ruff) and the pinned mypy/pytest/pip-audit (installed into a
+# Toolchain (python + ruff) and the pinned mypy/pytest/pip-audit/deptry (installed into a
 # project .venv by the mise template's setup:pytools task) all come from the repo's
-# mise.toml, so local and CI resolve the SAME versions. There is no habit-hooks Python
-# sensor: Python-specific smells (complexity, long functions) come from ruff in `lint`,
-# while the language-independent `generic` plugin (file-length) runs both folded into
-# `lint` (via `mise run smells`) and in the dedicated habits job below.
+# mise.toml, so local and CI resolve the SAME versions. Structural smells come from the
+# habit-hooks `python` sensor (ruff: complexity, too-many-parameters, oversized-function,
+# swallowed-exception, plus unused imports/vars), deptry (unused-dependency) and the bundled
+# `generic` sensor (file-length) - ratcheted against the snooze baseline and run both folded
+# into `lint` (via `mise run smells`) and in the dedicated habits job below. ruff in `lint`
+# stays the hard style/correctness/format gate.
 #
 # Input names are snake_case (kebab parses as a subtraction and fails at startup).
 name: python
@@ -29,15 +31,15 @@ on:
         default: "."
       habit_hooks:
         description: >-
-          Run the dedicated structural-smell backstop job (file-length + opt-in
-          duplication). NOTE: `lint` (in the gate job) now also enforces smells whenever
+          Run the dedicated structural-smell backstop job (ruff-based smells + deptry +
+          file-length). NOTE: `lint` (in the gate job) now also enforces smells whenever
           .habit-hooks/config.toml + snooze.json exist; this input only toggles the extra
           backstop. To opt out entirely, remove the .habit-hooks/ directory.
         type: boolean
         default: true
       habit_hooks_plugin:
         type: string
-        default: "habit-hooks-generic"
+        default: "habit-hooks-python"
       habit_hooks_version:
         description: >-
           habit-hooks release to install. The core and its language plugins ship in
@@ -100,9 +102,9 @@ jobs:
             echo '```'
             echo "mise run fix"
             echo '```'
-            echo "Whatever \`fix\` leaves behind is a real style/smell issue (incl. mccabe complexity) - the rule, file and line are in the **gate: lint** step log above."
+            echo "Whatever \`fix\` leaves behind is a real style/correctness/format issue - the rule, file and line are in the **gate: lint** step log above."
             echo ""
-            echo "An **oversized-file** (or **duplication**) finding is habit-hooks, not ruff - structural smells folded into \`lint\`. Split the file or extract the shared code; the **Structural smells** job has the fix legend."
+            echo "A structural smell (**high-complexity**, **too-many-parameters**, **oversized-function**, **swallowed-exception**, **unused-import/variable**, **unused-dependency**, **oversized-file**) is habit-hooks, not ruff's hard gate - ratcheted smells folded into \`lint\`. Refactor toward the finding; the **Structural smells** job has the full fix legend."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: typecheck'
         id: typecheck
@@ -148,53 +150,48 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          fetch-depth: 0 # --branch needs the base commit in history to diff against
-      # Skip gracefully (like the other stacks) if the repo has not run bootstrap yet:
-      # with no snooze.json, `habit-hooks --branch` hard-errors instead of no-op.
-      - name: Baseline present?
-        id: baseline
-        run: |
-          if [ -f .habit-hooks/snooze.json ]; then
-            echo "have=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::No .habit-hooks/snooze.json yet - run bootstrap.yml once. Skipping."
-            echo "have=false" >> "$GITHUB_OUTPUT"
-          fi
-      # The generic plugin's file-length sensor is pure Python (jscpd is disabled in the
-      # python preset), so this job needs only Python - no Node, like the dotnet stack.
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
-        if: steps.baseline.outputs.have == 'true'
+          fetch-depth: 0 # `mise run smells` resolves the merge-base vs the PR base itself
+      # Mirror the gate job's environment exactly so this backstop runs the SAME tool
+      # versions a developer runs locally: the python sensor shells out to ruff ([tools])
+      # and deptry (.venv), so both must be on PATH - setup-python + a bare pip install
+      # would leave the sensor erroring (and could seed a blind baseline). Cache the
+      # habit-hooks venv on the same key as the gate job so it doesn't rebuild each run.
+      - name: Cache habit-hooks
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
         with:
-          python-version: '3.12'
-      - name: Install habit-hooks
-        if: steps.baseline.outputs.have == 'true'
-        env:
-          HH_VERSION: ${{ inputs.habit_hooks_version }}
-          PLUGIN: ${{ inputs.habit_hooks_plugin }}
-        run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
-      # --branch diffs against `main`; a PR checkout is detached, so point a local `main`
-      # at the PR base (in history from fetch-depth: 0). habit-hooks errors loudly if the
-      # base ref is missing - never a silent pass. On push, `main` already resolves.
-      - name: Make base ref resolvable for --branch
-        if: steps.baseline.outputs.have == 'true' && github.event_name == 'pull_request'
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: git branch -f main "$BASE_SHA"
+          path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
+          key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: ${{ inputs.mise_version }}
+          cache: true
+      # Installs deptry + the project into the pinned .venv (and fires setup:habit-hooks),
+      # so ruff + deptry + the habit-hooks venv are all on PATH when `smells` runs.
+      - name: 'setup: Python tools + project (pinned .venv)'
+        run: mise run setup:pytools
       - name: Smells (fails only on smells beyond the snooze baseline)
         id: smells
-        if: steps.baseline.outputs.have == 'true'
-        # --branch: scan only files changed vs the base; unchanged files are already
-        # covered by the snooze baseline, so re-scanning them every PR is wasted work.
-        run: habit-hooks --branch
+        # `mise run smells` resolves the merge-base vs FOUNDRY_BASE_REF and scans only the
+        # changed files (unchanged files are covered by the snooze baseline). It skips
+        # gracefully when there is no .habit-hooks config or no snooze baseline yet.
+        env:
+          FOUNDRY_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: mise run smells
       - name: How to read these smells
         if: failure() && steps.smells.outcome == 'failure'
         run: |
           {
             echo "## 📖 Structural smells"
             echo ""
-            echo "For Python, most structural checks (complexity, long functions) are ruff rules in \`lint\`; habit-hooks here flags **oversized-file** (>300 lines)."
+            echo "These are ratcheted habit-hooks smells (snooze baseline), separate from ruff's hard style/correctness gate in \`lint\`. The python sensor (ruff) owns the structural ones; deptry adds unused-dependency; the generic sensor adds file-length."
             echo "| Smell | Fix toward |"
             echo "|---|---|"
+            echo "| \`high-complexity\` | split the branchy logic into smaller functions |"
+            echo "| \`too-many-parameters\` | group related args into a dataclass/object |"
+            echo "| \`oversized-function\` | extract cohesive steps into named helpers |"
+            echo "| \`swallowed-exception\` | handle, re-raise, or log with context - don't pass |"
+            echo "| \`unused-import\` / \`unused-variable\` | delete the dead name |"
+            echo "| \`unused-dependency\` | drop it from the dependency declaration (deptry) |"
             echo "| \`oversized-file\` | split by concern into cohesive units |"
             echo ""
             echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`."

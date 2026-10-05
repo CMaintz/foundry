@@ -45,7 +45,7 @@ resolve_stack() {
     java)   R_PLUGIN="habit-hooks-java";       R_CI="java.yml";   R_HH="java" ;;
     php)    R_PLUGIN="habit-hooks-php";         R_CI="php.yml";    R_HH="php" ;;
     dotnet) R_PLUGIN="habit-hooks-generic";     R_CI="dotnet.yml"; R_HH="dotnet" ;;
-    python) R_PLUGIN="habit-hooks-generic";     R_CI="python.yml"; R_HH="python" ;;  # facade gate
+    python) R_PLUGIN="habit-hooks-python";      R_CI="python.yml"; R_HH="python" ;;  # facade gate
     kotlin) R_PLUGIN=""; R_CI=""; R_HH="kotlin" ;;  # mise template only; inline gate
     *) echo "unknown stack: $1" >&2; exit 2 ;;
   esac

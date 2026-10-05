@@ -111,6 +111,13 @@ jobs:
       # TS/Node sensors (knip/ts-morph/jscpd) resolve from node_modules; install
       # them when this is a Node package. Skipped (not masked) otherwise.
       - run: if [ -f package-lock.json ]; then npm ci; fi
+      # Python sensor backing tools (ruff + deptry) must be present when the baseline is
+      # seeded, or habit-sensors bakes the "tool not installed" error string into
+      # snooze.json instead of real findings. `mise install` fires setup:pytools via
+      # postinstall, but a mise-action cache hit can skip that, so provision explicitly.
+      # Guarded on the task existing, so non-Python stacks skip it (not masked).
+      - name: 'Python: provision pinned .venv tools (ruff + deptry) for seeding'
+        run: if mise tasks ls 2>/dev/null | grep -q 'setup:pytools'; then mise run setup:pytools; fi
       - name: Install habit-hooks
         env:
           HH_VERSION: ${{ inputs.habit_hooks_version }}

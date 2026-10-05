@@ -101,7 +101,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
-      habit_hooks_plugin: ${{ inputs.habit_hooks_plugin || 'habit-hooks-generic' }}
+      habit_hooks_plugin: ${{ inputs.habit_hooks_plugin || 'habit-hooks-python' }}
       habit_hooks_version: ${{ inputs.habit_hooks_version }}
 
   # Stable required check: the dispatched stack passed (skipped stacks are fine), and the
