@@ -1,4 +1,4 @@
-# Collaboration — how agents share a repo
+# Collaboration - how agents share a repo
 
 Copy the relevant lines into your repo's `AGENTS.md` / `CLAUDE.md`, or `@`-include
 this file. Language-agnostic. This is about *working discipline*, not code style
@@ -7,7 +7,7 @@ this file. Language-agnostic. This is about *working discipline*, not code style
 ## Branch hygiene (parallel sessions)
 
 Multiple agent sessions run against the same working copy at once. Whatever branch
-happens to be checked out is **not yours** — another session may have put it there
+happens to be checked out is **not yours** - another session may have put it there
 mid-task. So, before doing any work:
 
 ```sh
@@ -16,17 +16,17 @@ git switch -c <type>/<short-desc> origin/main   # feat/… fix/… chore/… doc
 ```
 
 - **Start from `origin/main`, on your own fresh branch.** Never commit onto whatever
-  branch is currently checked out — you'll interleave your commits with another
+  branch is currently checked out - you'll interleave your commits with another
   session's and poison both PRs.
 - **One branch → one PR → one concern.** If the work splits into two concerns, cut
   a second branch off `origin/main`; don't pile them onto one branch.
 - **Don't retarget or stack onto a branch you didn't create.** If you must build on
   unmerged work, confirm it's actually merged first (a squash-merge leaves the
-  source branch's commits orphaned — the branch looks "ahead", but its work is in).
+  source branch's commits orphaned - the branch looks "ahead", but its work is in).
 - **Rebase, don't merge main in.** When your branch falls behind, `git rebase
-  origin/main` — keep history linear and the PR diff honest.
+  origin/main` - keep history linear and the PR diff honest.
 
-## Delegate to sub-agents — don't do everything in one thread
+## Delegate to sub-agents - don't do everything in one thread
 
 Default to spinning up sub-agents for work that is independent, read-heavy, or
 parallelisable. Most agents under-use this and grind through it serially.
