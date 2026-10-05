@@ -129,6 +129,14 @@ jobs:
             habit-sensors --all --no-snooze | habit-snooze --snooze
             echo "pruned=false" >> "$GITHUB_OUTPUT"  # first-time seed → human-reviewed
           fi
+      # habit-snooze's JSON layout isn't Prettier's, and a ts repo's lint runs
+      # `prettier --check .`; format the baseline so its PR doesn't turn main red.
+      # Repos without Prettier (other stacks) keep the file as written.
+      - name: Format the baseline
+        run: |
+          if [ -x node_modules/.bin/prettier ]; then
+            node_modules/.bin/prettier --write .habit-hooks/snooze.json
+          fi
       - name: Open a PR with the refreshed baseline
         working-directory: .
         # github/inputs context via env, never inline in run: (shell-injection).
