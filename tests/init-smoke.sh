@@ -34,7 +34,8 @@ for stack in "${STACKS[@]}"; do
     case "$stack" in
       ts) expected+=(tsconfig.json .jscpd.json scripts/npm-audit-ratchet.mjs .github/workflows/bootstrap.yml) ;;
       java) expected+=(pmd/ruleset.xml config/pmd/no-var.xml .jscpd.json .github/workflows/bootstrap.yml) ;;
-      php | dotnet | python) expected+=(.github/workflows/bootstrap.yml) ;;
+      dotnet) expected+=(Directory.Build.props .editorconfig .github/workflows/bootstrap.yml) ;;
+      php | python) expected+=(.github/workflows/bootstrap.yml) ;;
     esac
     for f in "${expected[@]}"; do [ -s "$f" ] || fail "missing or empty: $f"; done
     if [ "$stack" = ts ]; then

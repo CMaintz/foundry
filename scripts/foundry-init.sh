@@ -125,12 +125,26 @@ fetch_java_extras() { # <wd> - PMD ruleset, jscpd ignore list, per-smell coachin
   done
 }
 
+fetch_dotnet_extras() { # <wd> - Roslyn/Sonar structural analyzers as a scaffolded default
+  local wd="$1"
+  # There's no habit-hooks .NET sensor, so structural smells come from analyzers in the
+  # build. Directory.Build.props enables the built-in .NET analyzers + SonarAnalyzer.CSharp;
+  # .editorconfig promotes the structural-smell rules to `warning` (hard failures under
+  # `typecheck`'s -warnaserror). MSBuild walks up from each .csproj, so dropping these at
+  # $wd covers the whole package (and works under --mono). fetch never clobbers, so a repo
+  # with its own Directory.Build.props/.editorconfig keeps it - merge the Foundry bits in by
+  # hand there.
+  fetch "presets/dotnet/Directory.Build.props" "$wd/Directory.Build.props"
+  fetch "presets/dotnet/.editorconfig" "$wd/.editorconfig"
+}
+
 scaffold_package() { # <stack> <wd> - everything one package needs (not repo-level)
   local stack="$1" wd="$2"
   echo "- package: $stack @ $wd"
   fetch_package_core "$stack" "$wd"
   if [ "$stack" = ts ]; then fetch_ts_extras "$wd"; fi
   if [ "$stack" = java ]; then fetch_java_extras "$wd"; fi
+  if [ "$stack" = dotnet ]; then fetch_dotnet_extras "$wd"; fi
 }
 
 ensure_gitignore() { # the telemetry log is local-only observability, never committed

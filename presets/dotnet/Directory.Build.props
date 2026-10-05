@@ -1,0 +1,22 @@
+<Project>
+  <!-- Foundry .NET structural-analysis scaffold. foundry-init copies this to the
+       consumer repo root; MSBuild auto-imports the nearest Directory.Build.props
+       walking up from each .csproj, so every project in the solution inherits it.
+
+       This is what makes `typecheck` (`dotnet build -warnaserror`) a real structural
+       gate: the built-in .NET analyzers plus SonarAnalyzer.CSharp (the best structural-
+       smell analog to PMD - method length, cyclomatic/cognitive complexity, too many
+       parameters, class size). A consumer tunes WHICH rules are warnings (and so, under
+       -warnaserror, hard failures) in the sibling .editorconfig, not here. -->
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Pinned; Renovate's nuget manager tracks this PackageReference. PrivateAssets=all
+         keeps the analyzer a build-time dev dependency - it never flows to consumers of
+         the built package. -->
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
