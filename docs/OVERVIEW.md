@@ -1,4 +1,4 @@
-# Foundry — how the whole thing works
+# Foundry - how the whole thing works
 
 A narrative tour of the system: the harness engineering, the gates, the habit
 sensors, the skills, and the loop that lets an agent get better at a codebase
@@ -30,12 +30,12 @@ thing. One rule set, three placements, no drift.
 
 The system is three moving parts, deliberately separated by who consumes them:
 
-- **`foundry`** (this repo) — the CI half. Reusable GitHub Actions workflows,
+- **`foundry`** (this repo) - the CI half. Reusable GitHub Actions workflows,
   `mise` task templates, config presets. Consumed by *repositories*.
-- **`cmaintz-skills`** — the agent half. Claude Code skills and hooks
+- **`cmaintz-skills`** - the agent half. Claude Code skills and hooks
   (`ship`, the habit-hooks Stop hook). Consumed by *Claude Code* as an installed
   plugin.
-- **`habit-hooks`** — a third-party tool (installed via `uv`), not written by
+- **`habit-hooks`** - a third-party tool (installed via `uv`), not written by
   us. It's the structural-smell sensor layer, and Foundry borrows its
   tool-independent smell vocabulary as a backbone.
 
@@ -43,7 +43,7 @@ The seam between `foundry` and `cmaintz-skills` is [CONTRACT.md](../CONTRACT.md)
 copied verbatim into both. If those two copies ever need to differ, the split
 was wrong.
 
-## 3. The verb interface — the thing that makes it polyglot
+## 3. The verb interface - the thing that makes it polyglot
 
 Every repo, whatever language, exposes the **same six verbs** through `mise`:
 
@@ -56,7 +56,7 @@ mise run audit      # vulnerabilities, secrets, SAST
 mise run gate       # all of the above, in order. THE ORACLE.
 ```
 
-Everything else in the system — CI, the git hooks, the `ship` skill — calls
+Everything else in the system - CI, the git hooks, the `ship` skill - calls
 **verbs, never tools**. A skill says `mise run lint`; it never says `eslint` or
 `phpstan`. That indirection is the entire reason one skill library can serve a
 React repo and a Kotlin repo: the smell vocabulary is language-independent, only
@@ -65,7 +65,7 @@ the tool behind each verb changes.
 `mise` also pins the toolchain (`node = "22.14.0"`), which kills
 "works-on-my-machine" between a laptop and the CI runner at the same time.
 
-## 4. Deterministic vs probabilistic — who is allowed to decide
+## 4. Deterministic vs probabilistic - who is allowed to decide
 
 This is the load-bearing distinction in the whole design.
 
@@ -74,35 +74,35 @@ This is the load-bearing distinction in the whole design.
   offline-capable. **These decide pass/fail. Nothing else does.**
 - **Probabilistic layer = a proposer, never an authority.** An LLM's output is a
   *patch*. A patch is accepted only if the deterministic gate then passes from a
-  clean tree. A model's *claim* that it fixed something is not evidence — the
+  clean tree. A model's *claim* that it fixed something is not evidence - the
   exit code is.
 
 Concretely: an agent may run `mise run fix`, may act on habit-hooks' coaching,
-may write code — but "done" is defined solely as a green `mise run gate`. The
+may write code - but "done" is defined solely as a green `mise run gate`. The
 agent proposes; the gate disposes.
 
 Three probabilistic *roles* are kept deliberately separate (people mush them):
 
-1. **Fixer** — given a failure + coaching, produce a patch. Bounded.
-2. **Reviewer** — the things a linter genuinely can't judge: naming, domain
+1. **Fixer** - given a failure + coaching, produce a patch. Bounded.
+2. **Reviewer** - the things a linter genuinely can't judge: naming, domain
    drift, "is this the right seam", spec compliance. **Advisory, never blocking.**
-3. **Triager** — flaky vs real, dedupe, route to a ticket.
+3. **Triager** - flaky vs real, dedupe, route to a ticket.
 
 ## 5. The gate, job by job
 
 The CI gate (`gate.yml`, or foundry's reusable `ts.yml` + `_guards.yml`) is four
-jobs. CI is **100% deterministic on purpose** — no model, no API key, no secrets
+jobs. CI is **100% deterministic on purpose** - no model, no API key, no secrets
 beyond the default token.
 
-- **`gate` (Deterministic gate)** — runs `mise run gate`: the exact verb a
+- **`gate` (Deterministic gate)** - runs `mise run gate`: the exact verb a
   developer runs locally. If this and a laptop ever disagree, that's a bug in the
   setup, not the code.
-- **`habits` (Structural smells)** — runs `habit-hooks`. Fails on *new* smells
+- **`habits` (Structural smells)** - runs `habit-hooks`. Fails on *new* smells
   beyond the snoozed baseline (see §6).
-- **`secrets` (Secret scan)** — gitleaks over full history.
-- **`ruleset-guard`** — the anti-gaming control (see §7).
+- **`secrets` (Secret scan)** - gitleaks over full history.
+- **`ruleset-guard`** - the anti-gaming control (see §7).
 
-## 6. habit-hooks — coaching, not just failing
+## 6. habit-hooks - coaching, not just failing
 
 `habit-hooks` is the reflex layer. It wraps detectors (eslint, knip, ts-morph,
 jscpd, PMD, phpmd, ruff…) and maps their findings onto **tool-independent
@@ -111,7 +111,7 @@ smells**: `oversized-file`, `oversized-function`, `too-many-parameters`,
 thing in Kotlin and PHP; only the detector differs.
 
 What makes it more than a linter: when it fails, it emits **coaching** aimed at
-the agent, and that coaching argues *against* mechanical compliance —
+the agent, and that coaching argues *against* mechanical compliance -
 "splitting a file at line 200 into `foo-1.ts` and `foo-2.ts` satisfies the
 threshold while leaving the real problem in place." That anti-gaming framing is
 why it's used to *teach* an agent rather than just gate it.
@@ -119,10 +119,10 @@ why it's used to *teach* an agent rather than just gate it.
 It runs in two placements:
 
 - **In-loop:** a global **Stop hook** (`~/.claude/settings.json`) fires
-  `habit-hooks-guard.ps1` when the agent is about to finish — but only in repos
+  `habit-hooks-guard.ps1` when the agent is about to finish - but only in repos
   that opted in by having a `.habit-hooks/` directory, so it's silent everywhere
   else and safe to install globally. It's a *Stop* hook, not *PostToolUse*,
-  because habit-hooks costs ~25s cold (~6s warm) — far too slow to fire after
+  because habit-hooks costs ~25s cold (~6s warm) - far too slow to fire after
   every edit, and it matches habit-hooks' own guidance: "run before considering
   work complete."
 - **CI:** the `habits` job.
@@ -134,7 +134,7 @@ Config lives in **two** places, and it matters which:
   plugins are on, and the accepted-baseline of existing smells. Committed with
   the code.
 
-## 7. Ratchets, not walls — and the guard that protects them
+## 7. Ratchets, not walls - and the guard that protects them
 
 Retrofitting linters onto a real codebase makes *everything* red on day one, and
 you abandon it in week two. So Foundry never gates on absolute cleanliness; it
@@ -149,21 +149,21 @@ Each baseline is committed and may **only ever shrink**. Fix an `any`, and
 `--prune-suppressions` removes it from the baseline permanently.
 
 The obvious attack on any ratchet is to weaken the rule instead of fixing the
-code — the cheapest fix for `high-complexity` is `// eslint-disable`. So
+code - the cheapest fix for `high-complexity` is `// eslint-disable`. So
 **`ruleset-guard`** enforces mechanically: a PR that changes a ruleset file
 (configs, thresholds, suppression baselines) *and* production source is blocked
 unless a human applies the `ruleset-change` label.
 
-The guard is **tightening-aware** — the risk is one-directional. *Loosening*
+The guard is **tightening-aware** - the risk is one-directional. *Loosening*
 needs a human; *tightening*, or a change with no semantic effect, never does. So
 a bundled ruleset+source PR passes without a label when every ruleset file it
 touches is proven not to loosen the gate: a suppression baseline whose count only
 shrank, a snooze list that only got shorter, or a pure CRLF/LF flip. This is what
 lets `mise run fix` prune the baseline and ship that in the same PR as the fix.
 
-### What counts as a gate-defining file — and who watches it
+### What counts as a gate-defining file - and who watches it
 
-Governance is split across three enforcement points by *when* they run — a
+Governance is split across three enforcement points by *when* they run - a
 client-side hook (cmaintz-skills), the CI guard (`_guards.yml`), and the regenerator
 (`bootstrap.yml`). This table is the single map of what's protected and how:
 
@@ -171,15 +171,15 @@ client-side hook (cmaintz-skills), the CI guard (`_guards.yml`), and the regener
 |---|---|---|
 | `snooze.json` | structural-smell baseline | **hook** blocks hand-edits (incl. Bash writes) · **ruleset-guard** blocks growth without the label · **bootstrap** regenerates (prune only shrinks) |
 | `eslint-suppressions.json` | lint baseline | same three |
-| `.jscpd.json` | which paths the duplication sensor scans | **ruleset-guard** — widening the ignore list alongside source needs the label |
-| `pmd/ruleset.xml`, thresholds, `mise.toml`, workflows | rule definitions / gate wiring | **ruleset-guard** — direction can't be proven, so any change alongside source needs the label |
-| `ruleset_paths` regex | *which* files ruleset-guard treats as gate-defining (this table's first column) | the `guards` input default, or a consumer's override — **keep it in sync when you add a guarded file** |
+| `.jscpd.json` | which paths the duplication sensor scans | **ruleset-guard** - widening the ignore list alongside source needs the label |
+| `pmd/ruleset.xml`, thresholds, `mise.toml`, workflows | rule definitions / gate wiring | **ruleset-guard** - direction can't be proven, so any change alongside source needs the label |
+| `ruleset_paths` regex | *which* files ruleset-guard treats as gate-defining (this table's first column) | the `guards` input default, or a consumer's override - **keep it in sync when you add a guarded file** |
 
 The recurring failure mode: a *new* gate-defining file (like `.jscpd.json`) isn't
 added to `ruleset_paths`, so widening it slips past the guard. When you introduce
 one, add it to the regex in the same change.
 
-## 8. The skills ecosystem — and how it touches the gate
+## 8. The skills ecosystem - and how it touches the gate
 
 Foundry's own skill layer is deliberately thin, because most of the *practice*
 layer is already written well by others. They're installed as plugins (not
@@ -200,15 +200,15 @@ Three layers, cleanly divided:
   (`CLAUDE.md` is a one-line include of `AGENTS.md`, so Codex/Gemini/Cursor read
   the same source.)
 
-### `ship` — the local orchestrator
+### `ship` - the local orchestrator
 
 `/ship` is where a change goes from working tree to PR, running the gate before
 the PR exists (which is what keeps CI free of API keys):
 
-1. `mise run fix` — mechanical fixes land silently
-2. `habit-hooks` — coaching → the agent fixes the smells
-3. **`mise run gate` — must be green.** The oracle, not the agent's opinion.
-4. **Review in a fresh context** — a sub-agent that sees only the diff and the
+1. `mise run fix` - mechanical fixes land silently
+2. `habit-hooks` - coaching → the agent fixes the smells
+3. **`mise run gate` - must be green.** The oracle, not the agent's opinion.
+4. **Review in a fresh context** - a sub-agent that sees only the diff and the
    spec, never the conversation that wrote the code (an agent reviewing its own
    work reviews its *intent*, not its *diff*). Uses a repo-local
    `build-project-review` skill if present, else `mattpocock-skills:code-review`.
@@ -221,22 +221,22 @@ most-specific first: a repo-local `build-project-review` skill → Matt's
 `code-review` (Standards + Spec) → the built-in `/code-review` (fast manual bug
 hunt). They namespace as `plugin:skill`, so nothing actually collides.
 
-## 9. The self-improving loop — `learn`
+## 9. The self-improving loop - `learn`
 
 This is what makes the system get *better* rather than just stay clean. Ivett's
 `learn` skill reflects on a session and routes each lesson to the store that will
 actually **enforce** it, in priority order:
 
-1. **a deterministic hook / check** — enforcement, so the mistake becomes
+1. **a deterministic hook / check** - enforcement, so the mistake becomes
    impossible
-2. **`AGENTS.md` / `CLAUDE.md`** — standing context
-3. **a new skill** — a reusable procedure
-4. **auto-memory** — last resort
+2. **`AGENTS.md` / `CLAUDE.md`** - standing context
+3. **a new skill** - a reusable procedure
+4. **auto-memory** - last resort
 
 That ordering *is* the project's thesis expressed as a skill: prefer the
 placement that makes a mistake impossible over the one that merely reminds you
 not to make it. A one-off fix in this session becomes a rule the next session
-can't skip. Unlike habit-hooks, `learn` is a *model-invoked* skill (not a hook) —
+can't skip. Unlike habit-hooks, `learn` is a *model-invoked* skill (not a hook) -
 it can't auto-fire, so the practice is to run `/learn` at session boundaries,
 before anything gets written to memory.
 
@@ -248,7 +248,7 @@ work → habit-hooks flags a smell → agent fixes it → /learn decides:
   → next time, the gate catches it before a human ever sees it
 ```
 
-## 10. Language coverage — where it actually is
+## 10. Language coverage - where it actually is
 
 Proven and built out: **TypeScript / Node** (`mise/ts.toml`, `ts.yml`, eslint +
 tsc + vitest + habit-hooks-typescript).
@@ -281,7 +281,7 @@ foundry/                        # reusable workflows, mise templates, this doc
 cmaintz-skills/                 # ship skill + the hook, as an installable plugin
 ```
 
-## 12. Monorepos — lessons from a Java/Spring + Angular pilot
+## 12. Monorepos - lessons from a Java/Spring + Angular pilot
 
 Applying Foundry to a real polyglot monorepo (a Spring Boot backend + Angular
 frontend + a browser extension) surfaced patterns worth codifying:
@@ -298,7 +298,7 @@ frontend + a browser extension) surfaced patterns worth codifying:
   `workflow_dispatch` job generates each `snooze.json` on Linux and commits it.
   The per-package smell jobs soft-pass until their baseline exists.
 - **In-loop scope is `--branch`, not `--all`.** The Stop hook checks only the
-  changeset — correct for "flag what you touched", and it dodges the Windows
+  changeset - correct for "flag what you touched", and it dodges the Windows
   limit.
 - **Dependency audit needs a lockfile, generated on demand.** osv-scanner reads a
   `gradle.lockfile`; enable Gradle dependency locking but keep the lockfile
@@ -307,7 +307,7 @@ frontend + a browser extension) surfaced patterns worth codifying:
 - **Ratchet by diff where a baseline file is overkill.** Spotless
   (`ratchetFrom origin/main`), Semgrep (`--baseline-commit`) and the no-`var` PMD
   rule (CI checks only changed files) all enforce on new code while leaving
-  legacy untouched — the ratchet, without a committed baseline.
+  legacy untouched - the ratchet, without a committed baseline.
 - **Integrate, don't replace, existing CI.** The pilot kept its Docker
   image-publish job verbatim and only added Foundry's gate + guard jobs alongside.
 
@@ -318,13 +318,13 @@ radius* into separate workflow files, each composing foundry's reusable pieces:
 
 | File | Calls (facade) | Trigger |
 |---|---|---|
-| `gate.yml` | `gate.yml` facade — `with: { stack, working_directory }`, once per package; includes structural smells | PR + push |
-| `security.yml` | `security.yml` facade — secrets + ruleset-guard + SAST in one call | PR + push |
-| `bootstrap.yml` | `bootstrap.yml` — baseline refresh | `workflow_dispatch` |
-| `deploy.yml` | image publish / release — **push-to-main only** | push |
+| `gate.yml` | `gate.yml` facade - `with: { stack, working_directory }`, once per package; includes structural smells | PR + push |
+| `security.yml` | `security.yml` facade - secrets + ruleset-guard + SAST in one call | PR + push |
+| `bootstrap.yml` | `bootstrap.yml` - baseline refresh | `workflow_dispatch` |
+| `deploy.yml` | image publish / release - **push-to-main only** | push |
 
 ```yaml
-# .github/workflows/security.yml — pin the facade; it runs secrets + ruleset-guard + SAST
+# .github/workflows/security.yml - pin the facade; it runs secrets + ruleset-guard + SAST
 name: security
 on: { pull_request: {}, push: { branches: [main] } }
 jobs:
@@ -337,7 +337,7 @@ jobs:
 
 Why split, not one file: `needs:` can't cross workflow files, so unrelated jobs
 don't serialise; a slow `quality` run doesn't gate a fast `security` result; and
-each file has one obvious trigger. **Keep `deploy` push-only** — a deploy job
+each file has one obvious trigger. **Keep `deploy` push-only** - a deploy job
 under `pull_request` shows up as a permanently *skipped* check, which is noise and
 can wedge branch protection (see below).
 
@@ -347,7 +347,7 @@ can wedge branch protection (see below).
   can't set it for you). Give each caller file
   `concurrency: { group: <name>-${{ github.ref }}, cancel-in-progress: true }` so a
   new push cancels the in-flight run for that branch instead of paying for both.
-- **Path-filter what genuinely can't be affected — but mind the required-check
+- **Path-filter what genuinely can't be affected - but mind the required-check
   trap.** A docs-only PR doesn't need the TS gate. The naive fix
   (`on: pull_request: paths:`) backfires: a *required* check that's path-filtered
   out is reported as `Expected` and never arrives, so the PR can't merge. The
@@ -368,31 +368,31 @@ can wedge branch protection (see below).
 
   Require `gate-ok`, never the heavy job directly. Skipped ≠ failed, so a docs PR
   goes green without running the gate, and a real failure still blocks.
-- **Consider dropping the `push:main` run entirely — it's usually redundant.** The
+- **Consider dropping the `push:main` run entirely - it's usually redundant.** The
   tempting rationale for keeping it is a post-merge *integration* check: with strict
   mode off, a PR can merge behind main, so only a main run sees the merged result.
-  But that gap is self-healing — the **next PR's gate** runs `mise run gate` against
+  But that gap is self-healing - the **next PR's gate** runs `mise run gate` against
   current main (its merge-base includes the integrated result), so any real break
   surfaces there, one PR later. With rebase-merge the merged commit is also the same
   code the PR gated. So on a minute-constrained repo, run the gate suite on
   `pull_request` only (keep `workflow_dispatch` as a manual full-run for after a
   genuinely risky merge); leave `push:main` for `deploy`/`bootstrap`. Measure before
-  assuming value: `gh run list --branch main --event push` — if no main run has ever
+  assuming value: `gh run list --branch main --event push` - if no main run has ever
   caught what a PR missed, it's pure cost.
   *If* you do keep `push:main` (e.g. you can't rely on rebase-merge), at least scope
   it: the naive classifier emits "run everything" off-PR, re-running the whole suite
-  unfiltered on every merge. Give the `changes` job an event-aware range — PR →
+  unfiltered on every merge. Give the `changes` job an event-aware range - PR →
   `merge-base..head`; `push` → `github.event.before..github.sha`; dispatch/first/
-  force-push → run everything (fail-safe) — so a backend-only merge skips frontend.
+  force-push → run everything (fail-safe) - so a backend-only merge skips frontend.
 
-### Branch protection — the gotchas that cost a pilot a day
+### Branch protection - the gotchas that cost a pilot a day
 
 - **Required check names must match the job's `name:` string *exactly*.** Protection
   matches on the rendered check name, not the job id. Rename a job (e.g.
   `SpotBugs (backend)` → `SpotBugs (backend, report-only)`) and the old required
-  check never reports — PRs hang "Expected" forever. Update protection and the job
+  check never reports - PRs hang "Expected" forever. Update protection and the job
   name in the same change.
-- **A `workflow_dispatch`-only job never appears as a PR check** — so don't add
+- **A `workflow_dispatch`-only job never appears as a PR check** - so don't add
   `bootstrap` to required checks; it would block every PR waiting on a run that
   isn't coming.
 - **A PR opened with `GITHUB_TOKEN` waits for approval.** GitHub treats
@@ -404,6 +404,6 @@ can wedge branch protection (see below).
   on), but a job skipped on the *PR itself* (wrong `if`) counts as neither pass nor
   fail and can stall the merge. Gate on the event, not by accident.
 - **Enable "require branches to be up to date" (strict mode)** so a PR is re-tested
-  against the latest main before merge — this, plus the guard diffing from the
+  against the latest main before merge - this, plus the guard diffing from the
   merge-base, is what stops a stale base from either sneaking a regression in or
   false-flagging an untouched file.

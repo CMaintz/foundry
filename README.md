@@ -14,13 +14,13 @@ Foundry gives every repo the same small set of commands (`fix`, `lint`, `typeche
 being written, before it's pushed, and in CI. It also keeps existing technical debt from growing:
 known problems are recorded in a baseline that is allowed to shrink but not grow.
 
-![mise run gate — lint, typecheck, test, audit — the one deterministic gate](docs/gate-demo.svg)
+![mise run gate - lint, typecheck, test, audit - the one deterministic gate](docs/gate-demo.svg)
 
-Companion repo: **[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** — the agent half (skills, hooks). The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
+Companion repo: **[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** - the agent half (skills, hooks). The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
 
-> **New here? Read [OVERVIEW.md](./docs/OVERVIEW.md)** — the full narrative tour of how the gates, habit sensors, skills, and the self-improving `learn` loop fit together.
+> **New here? Read [OVERVIEW.md](./docs/OVERVIEW.md)** - the full narrative tour of how the gates, habit sensors, skills, and the self-improving `learn` loop fit together.
 >
-> **[FEATURES.md](./docs/FEATURES.md)** is the canonical inventory of everything Foundry provides — and the backport checklist: anything non-language-specific built in a consumer repo comes back here.
+> **[FEATURES.md](./docs/FEATURES.md)** is the canonical inventory of everything Foundry provides - and the backport checklist: anything non-language-specific built in a consumer repo comes back here.
 
 ## The idea
 
@@ -49,7 +49,7 @@ Callers invoke **verbs, never tools**. That's what lets one skill library serve 
 
 ## Using it in a repo
 
-Fastest path — the scaffold copies the templates + presets and generates the caller workflows, then prints the branch-protection checklist:
+Fastest path - the scaffold copies the templates + presets and generates the caller workflows, then prints the branch-protection checklist:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CMaintz/foundry/main/scripts/foundry-init.sh -o foundry-init.sh
@@ -57,7 +57,7 @@ bash foundry-init.sh java                             # single stack: ts | java 
 bash foundry-init.sh --mono java:backend ts:frontend  # monorepo: one stack:dir pair per package (ts|java|php|dotnet)
 ```
 
-Or wire it by hand — a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller workflow that pins the **facades** and passes your stack:
+Or wire it by hand - a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller workflow that pins the **facades** and passes your stack:
 
 ```yaml
 # .github/workflows/gate.yml
@@ -69,7 +69,7 @@ jobs:
       working_directory: "."   # monorepo? call this job once per package
 ```
 
-### The public API — two facades
+### The public API - two facades
 
 Pin **these**, whatever the stack. They dispatch internally to the per-stack workflows, so the files you pin never change when a stack is added or an internal is renamed. Require their `*-ok` aggregate checks in branch protection.
 
@@ -135,37 +135,37 @@ Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-i
 
 | Preset | What |
 |---|---|
-| [`habit-hooks/<stack>.toml`](./presets/habit-hooks/) | structural-smell config per stack — tests excluded, the language-independent `generic` duplication check everywhere ([details](./presets/habit-hooks/README.md)) |
-| [`habit-hooks/java/guides/`](./presets/habit-hooks/java/guides/) | per-smell coaching for the Java sensor — concrete "fix toward this", rendered inline in-loop *and* in CI |
+| [`habit-hooks/<stack>.toml`](./presets/habit-hooks/) | structural-smell config per stack - tests excluded, the language-independent `generic` duplication check everywhere ([details](./presets/habit-hooks/README.md)) |
+| [`habit-hooks/java/guides/`](./presets/habit-hooks/java/guides/) | per-smell coaching for the Java sensor - concrete "fix toward this", rendered inline in-loop *and* in CI |
 | [`pmd/ruleset.xml`](./presets/lint/pmd/) · `pmd/no-var.xml` | tuned Java ruleset (`ExcessiveParameterList` ≥ 8) + the no-`var` rule |
 | [`typecheck/tsconfig.json`](./presets/typecheck/tsconfig.json) | strict, check-only tsconfig for the `ts` stack, covering src, scripts and tests. The `ts` template's `typecheck` refuses to run without a tsconfig, and checks Deno code (Supabase Edge Functions) with `deno check` via `FOUNDRY_DENO_PATHS` |
 | [`gitleaks.toml`](./presets/security/gitleaks.toml) · [`renovate.json`](./presets/renovate.json) | secret-scan allowlist starting point + the dependency-update path the "pin everything" rule needs |
-| [`code-standards.md`](./presets/agent/code-standards.md) · [`collaboration.md`](./presets/agent/collaboration.md) · [`agent-loop.md`](./presets/agent/agent-loop.md) | agent-facing standing docs — clean code (functions do one thing / SRP), working discipline (branch hygiene + sub-agents), and the self-correcting loop (observe → fix the cause → verify → repeat until green *and* honest) |
-| [`ticket-schema.md`](./presets/tickets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) | the GitHub-Issue ticket the `/feature` driver works — intent, an acceptance-criteria checklist, scope, pointers. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
+| [`code-standards.md`](./presets/agent/code-standards.md) · [`collaboration.md`](./presets/agent/collaboration.md) · [`agent-loop.md`](./presets/agent/agent-loop.md) | agent-facing standing docs - clean code (functions do one thing / SRP), working discipline (branch hygiene + sub-agents), and the self-correcting loop (observe → fix the cause → verify → repeat until green *and* honest) |
+| [`ticket-schema.md`](./presets/tickets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) | the GitHub-Issue ticket the `/feature` driver works - intent, an acceptance-criteria checklist, scope, pointers. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
 
-### From ticket to PR — the `/feature` driver
+### From ticket to PR - the `/feature` driver
 
-Foundry answers *"when is a change done?"* — a green gate. The **`/feature`** driver is the thing in front of that — **ticket in, PR out** — the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./docs/designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above); the driver:
+Foundry answers *"when is a change done?"* - a green gate. The **`/feature`** driver is the thing in front of that - **ticket in, PR out** - the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./docs/designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above); the driver:
 
-1. **Claim** an `agent:ready` ticket — a GitHub Issue on the [`agent-feature`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) form ([schema](./presets/tickets/ticket-schema.md)) — flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`.
-2. **Loop to the gate** — implement → `mise run gate` → act on the failure + habit-hooks coaching → retry, *bounded* (≤ 5 cycles; bail early on no progress, posting the stuck state to the issue thread and flipping `agent:blocked`).
-3. **Verify** the result against the ticket's acceptance-criteria checklist — green ≠ correct.
-4. **Hand to `/ship`** — which re-gates, runs a fresh-context review against the linked issue, commits, and opens the PR. The driver never opens a PR itself, so there's one trusted path to `main`.
+1. **Claim** an `agent:ready` ticket - a GitHub Issue on the [`agent-feature`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) form ([schema](./presets/tickets/ticket-schema.md)) - flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`.
+2. **Loop to the gate** - implement → `mise run gate` → act on the failure + habit-hooks coaching → retry, *bounded* (≤ 5 cycles; bail early on no progress, posting the stuck state to the issue thread and flipping `agent:blocked`).
+3. **Verify** the result against the ticket's acceptance-criteria checklist - green ≠ correct.
+4. **Hand to `/ship`** - which re-gates, runs a fresh-context review against the linked issue, commits, and opens the PR. The driver never opens a PR itself, so there's one trusted path to `main`.
 
-It re-implements none of the standards: the gate is the oracle, `ruleset-guard` + habit-hooks stop the loop gaming the metric, `/ship` is the handoff. Run it supervised — `/feature <ref>` — or as a backlog puller — `/loop <interval> /feature`.
+It re-implements none of the standards: the gate is the oracle, `ruleset-guard` + habit-hooks stop the loop gaming the metric, `/ship` is the handoff. Run it supervised - `/feature <ref>` - or as a backlog puller - `/loop <interval> /feature`.
 
 ### Versioning
 
 Foundry follows semver on the reusable-workflow **interface** (workflow inputs and
-the six-verb contract — not the internal steps):
+the six-verb contract - not the internal steps):
 
-- **patch** (`v1.0.1`) — a fix with no interface change.
-- **minor** (`v1.1.0`) — a backward-compatible addition (a new workflow, a new
+- **patch** (`v1.0.1`) - a fix with no interface change.
+- **minor** (`v1.1.0`) - a backward-compatible addition (a new workflow, a new
   optional input, a feedback improvement).
-- **major** (`v2.0.0`) — a breaking change: an input renamed/removed, a verb's
+- **major** (`v2.0.0`) - a breaking change: an input renamed/removed, a verb's
   meaning changed, a workflow dropped. Only then must a consumer act.
 
-Tag at **milestones** — a batch of merged PRs — not every commit; per-commit tags
+Tag at **milestones** - a batch of merged PRs - not every commit; per-commit tags
 are noise. Cut an immutable `vX.Y.Z` tag, then **move the `vX` alias** to it, so a
 consumer pinning `@v1` rides non-breaking updates while `@v1.2.0` stays frozen.
 Pin by SHA for maximum reproducibility (Renovate bumps it) or by `@v1` for
@@ -179,7 +179,7 @@ bash scripts/cut-release.sh minor      # or major | patch | X.Y.Z  (--dry-run to
 
 It reads the current version from the latest tag (the only source of truth), builds
 the `CHANGELOG` section from the conventional commits since that tag, tags + pushes,
-creates the GitHub release, and advances the `vX` alias — deterministically, in one
+creates the GitHub release, and advances the `vX` alias - deterministically, in one
 auditable step. It **refuses** a non-major bump when it sees a breaking commit, so
 semver can't silently slip. (This replaced release-please, whose separate manifest
 state could desync from the tags.)
@@ -188,9 +188,9 @@ state could desync from the tags.)
 
 Two ideas do most of the work:
 
-**Deterministic is the oracle; probabilistic only proposes.** Linters, types, tests and scanners decide pass/fail. A model produces a *patch*, which is accepted only if the deterministic gate then passes. A model's claim that it fixed something is not evidence — the exit code is.
+**Deterministic is the oracle; probabilistic only proposes.** Linters, types, tests and scanners decide pass/fail. A model produces a *patch*, which is accepted only if the deterministic gate then passes. A model's claim that it fixed something is not evidence - the exit code is.
 
-**Ratchet, don't gate.** Retrofitting linters onto a real codebase means everything is red on day one, and you abandon it in week two. Record the existing violations as an accepted baseline that may only ever shrink. ESLint 9.24+ (`--suppress-all` / `--prune-suppressions`) and habit-hooks (`habit-snooze`) both have this built in — don't hand-roll it.
+**Ratchet, don't gate.** Retrofitting linters onto a real codebase means everything is red on day one, and you abandon it in week two. Record the existing violations as an accepted baseline that may only ever shrink. ESLint 9.24+ (`--suppress-all` / `--prune-suppressions`) and habit-hooks (`habit-snooze`) both have this built in - don't hand-roll it.
 
 The corollary is enforced rather than requested: a PR that changes the ruleset *and* production source fails `ruleset-guard` unless a human labels it `ruleset-change`. Otherwise the cheapest fix for `high-complexity` is `// eslint-disable-next-line`.
 
