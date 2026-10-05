@@ -168,6 +168,11 @@ repo_level_once() { # shared presets + repo-wide setup that runs once, not per p
   fetch "presets/security/gitleaks.toml" ".gitleaks.toml"
   fetch "presets/renovate.json" "renovate.json"
   fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
+  # One-shot, non-blocking PR check reporter the pr-ci-watch flow calls once CI has
+  # finished. Repo-scoped (gh pr checks on the branch's PR), so it lands once at repo
+  # root, not per package.
+  fetch "scripts/foundry-pr-report" "scripts/foundry-pr-report"
+  chmod +x scripts/foundry-pr-report 2>/dev/null || true
   ensure_gitignore
   set_windows_mise_shell
   setup_labels
