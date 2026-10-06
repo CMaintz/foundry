@@ -1,0 +1,43 @@
+# Foundry .NET structural-smell defaults. foundry-init copies this to the consumer
+# repo root alongside Directory.Build.props. Override per-project by editing this file.
+#
+# Severities ONLY. `lint` runs `dotnet format --verify-no-changes`, which also reads
+# .editorconfig, so adding any formatting option here (indent_style, end_of_line,
+# csharp_* style rules) would turn into an instant lint failure in every consumer.
+# Keep style preferences in a separate, consumer-owned .editorconfig section.
+#
+# How this is shaped: the bulk line below dials the whole analyzer set (SonarAnalyzer
+# + the built-in CA/IDE rules) down to `suggestion` so the default gate is focused, not
+# a flood, then the per-rule lines below promote only the structural smells back to
+# `warning`. Per-rule severity wins over the bulk line regardless of order.
+#
+# CAVEAT - no ratchet. `typecheck` uses a blanket `-warnaserror`, so every `warning`
+# rule here is a HARD gate failure with no snooze (Roslyn has no habit-hooks-style
+# baseline). That is deliberate for a fresh scaffold. A legacy repo adopting Foundry
+# can lower a noisy rule to `suggestion` here, or set <WarningsNotAsErrors> in
+# Directory.Build.props, while it cleans up - then tighten back once clean.
+#
+# NOTE: the bulk `suggestion` line covers only analyzer diagnostics. Compiler warnings
+# (CS8xxx nullable) and NuGetAudit (NU19xx vulnerability) warnings are NOT analyzer
+# diagnostics, so they keep their teeth under -warnaserror regardless of this file.
+# Smell thresholds (S138 ~80 lines, S107 7 params, S3776 cognitive 15, S1541
+# cyclomatic 10, S104 1000 lines/file) use SonarAnalyzer's defaults; they are not tunable
+# from .editorconfig - a SonarLint.xml AdditionalFile would be needed to change them.
+#
+# NOTE on class size: S1448 ("too many methods") is a Java-only Sonar rule; sonar-dotnet
+# ships no C# equivalent, so it is a silent no-op in a C# build. S104 (too many lines in a
+# file) is the nearest C# class-size smell - in idiomatic one-type-per-file C# a too-large
+# file is a too-large type - so it stands in for class size here.
+
+root = true
+
+[*.cs]
+# Everything defaults to a non-blocking suggestion ...
+dotnet_analyzer_diagnostic.severity = suggestion
+
+# ... except the structural smells, which are the focused default gate:
+dotnet_diagnostic.S138.severity = warning   # method/function too long
+dotnet_diagnostic.S1541.severity = warning  # cyclomatic complexity too high
+dotnet_diagnostic.S3776.severity = warning  # cognitive complexity too high
+dotnet_diagnostic.S107.severity = warning   # too many parameters
+dotnet_diagnostic.S104.severity = warning   # too many lines in a file (class-size proxy)

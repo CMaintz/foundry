@@ -1,4 +1,4 @@
-# Foundry verb interface — .NET (C#) template. See CONTRACT.md.
+# Foundry verb interface - .NET (C#) template. See CONTRACT.md.
 # Commands assume `dotnet format` + Roslyn analyzers + NuGetAudit + the built-in
 # test runner. Adjust for your solution layout.
 
@@ -13,7 +13,9 @@ dotnet = "8.0"
 # PATH below - so the SAME version runs in-loop, pre-push (`gate`) and in CI (mirrors how
 # java.toml pins PMD). There's no habit-hooks C# sensor, so the plugin is the language-
 # independent `generic` (file-length + opt-in jscpd); structural analysis otherwise comes
-# from Roslyn analyzers in `typecheck`. Core + plugin ship in lockstep, so both pin to this
+# from Roslyn analyzers in `typecheck` - foundry-init scaffolds Directory.Build.props
+# (built-in .NET analyzers + SonarAnalyzer.CSharp) and .editorconfig (structural-smell
+# rules promoted to warning) into the repo root. Core + plugin ship in lockstep, so both pin to this
 # one version. Renovate bumps it (presets/renovate.json); keep it == the reusable workflow's
 # `habit_hooks_version` default (1.5.0).
 HABIT_HOOKS_VERSION = "1.5.0"
@@ -95,8 +97,9 @@ run = "dotnet format"
 
 [tasks.lint]
 description = "Format check + analyzers + structural smells (habit-hooks)"
-# `dotnet format --verify-no-changes` is the style check; Roslyn analyzers run in
-# the build below with -warnaserror, which is where structural issues surface.
+# `dotnet format --verify-no-changes` is the style check; Roslyn analyzers (built-in +
+# SonarAnalyzer.CSharp, wired by the scaffolded Directory.Build.props + .editorconfig)
+# run in the build below with -warnaserror, which is where structural smells surface.
 # `mise run smells` runs habit-hooks (file-length/jscpd) - the same smell scan CI runs -
 # so `gate` is the same oracle locally and in CI.
 run = ["dotnet format --verify-no-changes", "mise run smells"]
@@ -115,9 +118,9 @@ description = "Dependency vulnerabilities"
 # `dotnet list --vulnerable` exits 0 even with findings, so fail explicitly when the
 # report names a vulnerable package. But DON'T pipe `dotnet list` straight into a
 # negated grep: if `dotnet list` itself errors (no project/solution, restore failure)
-# the phrase is simply absent and the negation passes GREEN — a broken audit reporting
+# the phrase is simply absent and the negation passes GREEN - a broken audit reporting
 # success. So capture it, fail on a non-zero `dotnet list`, THEN grep. NuGetAudit (in
-# the build above) is the other half — it warns at restore, and -warnaserror fails that.
+# the build above) is the other half - it warns at restore, and -warnaserror fails that.
 run = '''
 set -euo pipefail
 out=$(dotnet list package --vulnerable --include-transitive 2>&1) || { echo "$out"; echo "audit: 'dotnet list' failed"; exit 1; }
@@ -126,5 +129,5 @@ if echo "$out" | grep -q 'has the following vulnerable'; then echo "audit: vulne
 '''
 
 [tasks.gate]
-description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+description = "The oracle. Sequential - mise `depends` runs in parallel with no ordering."
 run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]
