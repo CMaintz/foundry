@@ -67,7 +67,7 @@ jobs:
       # mismatch is a cache miss, not a wrong version). Python itself comes from mise here, so
       # setup:habit-hooks finds it - no separate setup-python step (unlike the dotnet stack).
       - name: Cache habit-hooks
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
@@ -157,7 +157,7 @@ jobs:
       # would leave the sensor erroring (and could seed a blind baseline). Cache the
       # habit-hooks venv on the same key as the gate job so it doesn't rebuild each run.
       - name: Cache habit-hooks
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}

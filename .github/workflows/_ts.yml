@@ -61,7 +61,7 @@ jobs:
           fetch-depth: 0 # `lint` now runs habit-hooks --branch, which diffs vs the PR base
       # Python for the habit-hooks venv that mise's setup:habit-hooks postinstall builds -
       # BEFORE mise-action so `mise install` can create it. (Same pin as the habits job.)
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
       # Restore that venv so the postinstall no-ops on a hit. The key reads the workflow
@@ -168,7 +168,7 @@ jobs:
           fi
       # Pin Python like the other stacks, instead of the runner's default. BEFORE
       # mise-action so the mise setup:habit-hooks postinstall can build its venv with it.
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         if: steps.baseline.outputs.have == 'true'
         with:
           python-version: '3.12'
