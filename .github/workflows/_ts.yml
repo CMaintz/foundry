@@ -56,12 +56,12 @@ jobs:
       run:
         working-directory: ${{ inputs.working_directory }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0 # `lint` now runs habit-hooks --branch, which diffs vs the PR base
       # Python for the habit-hooks venv that mise's setup:habit-hooks postinstall builds -
       # BEFORE mise-action so `mise install` can create it. (Same pin as the habits job.)
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
       # Restore that venv so the postinstall no-ops on a hit. The key reads the workflow
@@ -72,7 +72,7 @@ jobs:
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
-      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
           version: ${{ inputs.mise_version }}
       # Cache node_modules keyed on the lockfile and skip npm ci on a hit. npm ci
@@ -152,7 +152,7 @@ jobs:
       run:
         working-directory: ${{ inputs.working_directory }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0 # --branch needs the base commit in history to diff against
       # Skip gracefully (like _java/_php/_dotnet) if the repo hasn't run bootstrap yet:
@@ -168,11 +168,11 @@ jobs:
           fi
       # Pin Python like the other stacks, instead of the runner's default. BEFORE
       # mise-action so the mise setup:habit-hooks postinstall can build its venv with it.
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         if: steps.baseline.outputs.have == 'true'
         with:
           python-version: '3.12'
-      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         if: steps.baseline.outputs.have == 'true'
         with:
           version: ${{ inputs.mise_version }}
