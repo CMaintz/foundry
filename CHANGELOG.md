@@ -6,6 +6,22 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.8.0](https://github.com/CMaintz/foundry/compare/v2.7.0...v2.8.0) (2026-10-06)
+
+### Features
+
+* scaffold roslyn/sonar structural analyzers as a default (fff217b)
+* switch habit-hooks to the dedicated python sensor (ruff smells + deptry) (50fd543)
+* extend the shared renovate preset in scaffolded repos (691bbd0)
+* fetch foundry-pr-report into scaffolded repos (266b108)
+
+### Bug Fixes
+
+* hold 7 days and exempt security with null so the preset passes SAST (f47b953)
+* ruff-format ruleset_guard.py so scaffolded repos pass lint (3537f84)
+* pin pytest 9.0.3 and scope mypy so strict repos pass (0e9f46e)
+* format the baseline with the repo's Prettier before opening its PR (9aee5d3)
+
 ## [2.7.0](https://github.com/CMaintz/foundry/compare/v2.6.0...v2.7.0) (2026-10-04)
 
 ### Features
