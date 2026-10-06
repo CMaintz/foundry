@@ -109,7 +109,7 @@ fails the verb instead of going unchecked.
 | `pmd/no-var.xml` | The no-`var` rule (diff-scoped in CI). |
 | `typecheck/tsconfig.json` | Strict, check-only tsconfig for the `ts` stack, including src, scripts and tests; notes on extending a framework's strict preset and keeping Deno code out. Copied by `foundry-init`. |
 | `gitleaks.toml` | Secret-scan allowlist starting point. |
-| `renovate.json` | Dependency-update automation - the update path the pin-everything rule needs. |
+| `renovate.json` | Dependency-update automation - the update path the pin-everything rule needs. `foundry-init` scaffolds a two-line repo config that extends this preset, so the policy stays a single source of truth here. |
 | `code-standards.md` | Agent-facing clean-code standard (functions do one thing / SRP), tied to the deterministic smells. `@`-include into AGENTS.md/CLAUDE.md. |
 | `collaboration.md` | Agent-facing working discipline - branch hygiene for parallel sessions (own branch off `origin/main`, one branch→one PR, rebase not merge). `@`-include into AGENTS.md/CLAUDE.md. |
 | `agent-loop.md` | Agent-facing working *loop* - observe (run the oracle) → diagnose the real cause → act → verify/self-critique → repeat until green *and* honest; tiered in-loop/pre-push/CI; never game the metric. `@`-include into AGENTS.md/CLAUDE.md. |
