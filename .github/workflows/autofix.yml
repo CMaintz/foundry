@@ -47,17 +47,17 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0 # Spotless ratchetFrom origin/main needs history
       # Python before mise-action: `mise install` runs the repo's setup:habit-hooks
       # postinstall, which builds a venv. Give it a venv-capable Python so that
       # provisioning can't fail this job (fix itself doesn't use habit-hooks).
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
           version: ${{ inputs.mise_version }}
       # fix shells out to project formatters/linters, which need deps installed.
