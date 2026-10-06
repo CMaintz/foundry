@@ -1,4 +1,4 @@
-# Foundry verb interface — TypeScript / Node template.
+# Foundry verb interface - TypeScript / Node template.
 # Copy to a repo's mise.toml and adjust the tool versions. See CONTRACT.md.
 
 [tools]
@@ -35,12 +35,12 @@ FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
 # relative to this file), e.g. Supabase Edge Functions incl. their _shared/ modules.
 # FOUNDRY_DENO_PATHS = "supabase/functions"
 
-# ── FOUNDRY_SINCE — changed-scope for the fast placements ────────────────────
+# ── FOUNDRY_SINCE - changed-scope for the fast placements ────────────────────
 # A git ref (empty ⇒ origin/main). When SET, the file-local verbs (`lint`, `test`)
-# restrict work to files changed since its merge-base with HEAD — for the in-loop
+# restrict work to files changed since its merge-base with HEAD - for the in-loop
 # Stop hook and pre-push, where speed matters. When UNSET (CI, and the final
 # `/ship` gate), they run whole-tree. Whole-program checks (`typecheck`) ignore it
-# and always run whole-tree — a changed file can break an unchanged one. This is
+# and always run whole-tree - a changed file can break an unchanged one. This is
 # execute-scope, safe only because whole-tree CI is the authoritative backstop.
 # See designs/changed-scope-gate.md. An unresolvable ref falls back to whole-tree
 # (never skips). The signal is opt-in per verb; callers MUST NOT require it.
@@ -130,7 +130,7 @@ echo "smells: $("$hh" --version) --branch base=$mb"
 [tasks.lint]
 description = "Style and smells; non-mutating"
 # Fails on new violations AND on stale suppressions, so the baseline cannot rot.
-# eslint-suppressions.json holds the accepted debt — it is committed, and it may
+# eslint-suppressions.json holds the accepted debt - it is committed, and it may
 # only ever shrink. Never add to it by hand; never delete it to make lint pass.
 # Honours FOUNDRY_SINCE (see [env]): scoped to changed files at the fast placements,
 # whole-tree in CI. eslint findings are file-local, so scoping is safe; the
@@ -187,9 +187,9 @@ fi
 
 [tasks.test]
 description = "Tests with coverage floor"
-# FOUNDRY_SINCE unset (CI / final gate): full suite + coverage floor — the oracle.
+# FOUNDRY_SINCE unset (CI / final gate): full suite + coverage floor - the oracle.
 # FOUNDRY_SINCE set (in-loop / pre-push): only tests affected by the changeset, via
-# vitest's module graph, and WITHOUT the coverage floor — coverage is a whole-tree
+# vitest's module graph, and WITHOUT the coverage floor - coverage is a whole-tree
 # property, so it's enforced on the unset path only. Unresolvable ref ⇒ full suite.
 run = '''
 set -eu
@@ -203,7 +203,7 @@ exec vitest run --changed "$mb"
 [tasks.audit]
 description = "Dependency vulnerabilities. Local subset; CI security.yml adds gitleaks + SAST"
 # Ratcheted npm audit: fails on any critical NOT in .audit-allowlist.json, and on stale
-# allowlist entries — so accepted CVE debt can only shrink, exactly like eslint
+# allowlist entries - so accepted CVE debt can only shrink, exactly like eslint
 # suppressions or the habit-hooks snooze baseline. npm audit has no native per-advisory
 # ignore, so this is how you accept ONE genuinely-unfixable critical with justification
 # without silencing the whole check. With no allowlist file it behaves like plain
@@ -214,17 +214,17 @@ run = "npm audit --json | node {{config_root}}/scripts/npm-audit-ratchet.mjs --l
 
 # Architecture fitness (opt-in, tier-c auxiliary until you adopt it). Enforces YOUR
 # layer map + no cycles via dependency-cruiser (needs `dependency-cruiser` installed).
-# Whole-graph, so NOT changed-scoped — a cycle can be formed by an unrelated edge.
+# Whole-graph, so NOT changed-scoped - a cycle can be formed by an unrelated edge.
 # To adopt: fill the layer map in .dependency-cruiser.cjs (from presets/arch/), generate
 # the shrink-only baseline once, then fold `mise run arch` into `lint`. See
-# designs/arch-fitness.md. Architecture-agnostic — hexagonal is just the default map.
+# designs/arch-fitness.md. Architecture-agnostic - hexagonal is just the default map.
 [tasks.arch]
 description = "Architecture fitness: no cross-layer imports, no cycles (dependency-cruiser)"
 run = '''
 set -eu
 cfg=".dependency-cruiser.cjs"
 base=".dependency-cruiser-known-violations.json"
-if [ ! -f "$cfg" ]; then echo "arch: no $cfg yet — copy presets/arch/ and fill your layer map"; exit 0; fi
+if [ ! -f "$cfg" ]; then echo "arch: no $cfg yet - copy presets/arch/ and fill your layer map"; exit 0; fi
 if [ -f "$base" ]; then
   exec depcruise src --config "$cfg" --ignore-known "$base"
 fi
@@ -233,7 +233,7 @@ exec depcruise src --config "$cfg"
 
 # Flaky-test triage (opt-in, tier-c auxiliary). Runs tests emitting a machine report,
 # then lets `foundry-flaky` drop QUARANTINED flakes (flaky-baseline.json) from the gate
-# decision while still printing them — a real failure still fails. Fold into `test` when
+# decision while still printing them - a real failure still fails. Fold into `test` when
 # adopted; keep coverage on the main `test`. See designs/flake-triager.md. `foundry-flaky`
 # is on PATH via scripts/ (foundry-init installs it).
 [tasks."test:flaky"]
@@ -247,15 +247,15 @@ foundry-flaky gate "$rep" flaky-baseline.json
 '''
 
 [tasks.gate]
-description = "The authoritative composite — the oracle. Nothing merges without this green."
+description = "The authoritative composite - the oracle. Nothing merges without this green."
 # Array form runs sequentially. Do NOT use `depends`: mise runs dependencies in
 # parallel with no ordering guarantee, which makes gate output unreadable and
 # hides which check failed first.
 # Each verb is wrapped by `foundry-verb-wrap`, which times it, appends one JSONL line
-# to FOUNDRY_TELEMETRY, then propagates the verb's exit code unchanged — telemetry
+# to FOUNDRY_TELEMETRY, then propagates the verb's exit code unchanged - telemetry
 # never changes the outcome, and a failing verb still stops the sequence. Read the log
 # with `foundry-loop-report`. The wrapper is required (foundry-init installs it, on
-# PATH via scripts/ — see [env]); it is NOT on the six-verb contract.
+# PATH via scripts/ - see [env]); it is NOT on the six-verb contract.
 run = [
     "foundry-verb-wrap lint      -- mise run lint",
     "foundry-verb-wrap typecheck -- mise run typecheck",

@@ -8,7 +8,7 @@
 #   # Only one folder, and JS too (e.g. a browser extension):
 #       with: { root: extension, extensions: "js html css" }
 #
-# File-length limits apply to markup and styles too — a 2000-line stylesheet is a
+# File-length limits apply to markup and styles too - a 2000-line stylesheet is a
 # cohesion problem like any other oversized file.
 name: web
 

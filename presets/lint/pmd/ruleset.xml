@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Project PMD ruleset for habit-hooks' Java sensor. Copy to <repo>/pmd/ruleset.xml.
      The Java sensor prefers a project ruleset (pmd/ruleset.xml) over its bundled one
-     and still maps findings to smells BY PMD RULE NAME — so this is a faithful copy
+     and still maps findings to smells BY PMD RULE NAME - so this is a faithful copy
      of the bundled ruleset with ONE deliberate change:
 
        ExcessiveParameterList minimum: 4 -> 8
 
      Rationale: at 4 the rule fires on ordinary Spring DI constructors and Java
-     records (data carriers) — noise. At 8 it still catches a genuine god-class
+     records (data carriers) - noise. At 8 it still catches a genuine god-class
      (e.g. an 11-dependency service), which is the real "this class does too much"
-     signal — corroborated by high-complexity / oversized-function on the same class.
+     signal - corroborated by high-complexity / oversized-function on the same class.
 
      UnnecessaryImport is retained here for name-mapping but is disabled via
      `[smells.unused-import] disabled` in .habit-hooks/config.toml (a formatter

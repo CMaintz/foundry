@@ -6,7 +6,7 @@
 #
 # CodeQL is the GitHub-native alternative but is free only on PUBLIC repos;
 # Semgrep is free and works on private repos too, so it's the portable default.
-# Diff-aware: --baseline-commit means only findings the PR *introduces* fail —
+# Diff-aware: --baseline-commit means only findings the PR *introduces* fail -
 # the ratchet, applied by diff rather than a baseline file.
 name: semgrep
 
@@ -19,7 +19,7 @@ on:
         default: "p/ci"
       semgrep_version:
         description: >-
-          Pin semgrep (recommended — the contract says pin everything). Empty
+          Pin semgrep (recommended - the contract says pin everything). Empty
           installs latest.
         type: string
         default: ""
@@ -51,5 +51,5 @@ jobs:
           CONFIG: ${{ inputs.config }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          # CONFIG unquoted on purpose — space-separated ruleset slugs.
+          # CONFIG unquoted on purpose - space-separated ruleset slugs.
           semgrep scan --config $CONFIG --baseline-commit "$BASE_SHA" --error

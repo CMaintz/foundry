@@ -76,7 +76,7 @@ jobs:
         with:
           version: ${{ inputs.mise_version }}
       # Cache node_modules keyed on the lockfile and skip npm ci on a hit. npm ci
-      # otherwise wipes and rebuilds node_modules every run — often the job's long
+      # otherwise wipes and rebuilds node_modules every run - often the job's long
       # pole (a mise/setup-node npm cache only restores ~/.npm, not node_modules).
       # Shared with the habits job via the same key.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -102,13 +102,13 @@ jobs:
         if: failure() && steps.lint.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed at \`lint\` — formatting / style / smells"
+            echo "## ❌ Gate failed at \`lint\` - formatting / style / smells"
             echo ""
             echo "Most of this is **mechanically auto-fixable**. Run it, commit, push:"
             echo '```'
             echo "mise run fix"
             echo '```'
-            echo "Whatever \`fix\` leaves behind is a real style/smell issue — the rule, file and line are in the **gate: lint** step log above."
+            echo "Whatever \`fix\` leaves behind is a real style/smell issue - the rule, file and line are in the **gate: lint** step log above."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: typecheck'
         id: typecheck
@@ -119,7 +119,7 @@ jobs:
           {
             echo "## ❌ Gate failed at \`typecheck\`"
             echo ""
-            echo "Type / compilation errors — not auto-fixable. The file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
+            echo "Type / compilation errors - not auto-fixable. The file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: test'
         id: test
@@ -139,7 +139,7 @@ jobs:
         if: failure() && steps.audit.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed at \`audit\` — vulnerable dependency"
+            echo "## ❌ Gate failed at \`audit\` - vulnerable dependency"
             echo ""
             echo "Bump the flagged dependency to a patched version. If it's a false positive or unfixable now, accept that **specific** advisory with justification in \`.audit-allowlist.json\` (the npm-audit ratchet allowlist); never silence the whole check."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -163,7 +163,7 @@ jobs:
           if [ -f .habit-hooks/snooze.json ]; then
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
+            echo "::notice::No .habit-hooks/snooze.json yet - run bootstrap.yml once. Skipping."
             echo "have=false" >> "$GITHUB_OUTPUT"
           fi
       # Pin Python like the other stacks, instead of the runner's default. BEFORE
@@ -193,7 +193,7 @@ jobs:
         run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
       # `--branch` (below) diffs against `branchBase` (default `main`) to scan only what
       # this branch changed. A PR checkout is detached, so `main` has no local ref and
-      # habit-hooks errors rather than guess — point a local `main` at the PR base
+      # habit-hooks errors rather than guess - point a local `main` at the PR base
       # (in history from fetch-depth: 0). On push, `main` already resolves.
       - name: Make base ref resolvable for --branch
         if: steps.baseline.outputs.have == 'true' && github.event_name == 'pull_request'
@@ -210,9 +210,9 @@ jobs:
         if: failure() && steps.smells.outcome == 'failure'
         run: |
           {
-            echo "## 📖 Structural smells — what each one means"
+            echo "## 📖 Structural smells - what each one means"
             echo ""
-            echo "Each smell is a machine-checkable shadow of a function or file doing **more than one thing**. Fix toward the missing abstraction (a value object, a strategy, a named step) — never by splitting to a line count."
+            echo "Each smell is a machine-checkable shadow of a function or file doing **more than one thing**. Fix toward the missing abstraction (a value object, a strategy, a named step) - never by splitting to a line count."
             echo ""
             echo "| Smell | What it's telling you | Fix toward |"
             echo "|---|---|---|"
@@ -224,5 +224,5 @@ jobs:
             echo "| \`duplication\` | the same logic lives in two places | extract one shared function |"
             echo "| \`dead-code\` / unused export | nothing references it | delete it |"
             echo ""
-            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`. Clearing a smell is necessary, not sufficient — \"is this *one* thing?\" is still your call."
+            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`. Clearing a smell is necessary, not sufficient - \"is this *one* thing?\" is still your call."
           } >> "$GITHUB_STEP_SUMMARY"

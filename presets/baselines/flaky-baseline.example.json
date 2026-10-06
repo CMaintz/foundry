@@ -1,5 +1,5 @@
 {
-  "//": "Foundry flaky-test quarantine baseline. Committed; may ONLY shrink. Growing it (adding an entry) is a ratchet loosening — ruleset-guard requires the ruleset-change label, because 'this test is flaky, trust me' is a deliberate human decision. Removing an entry (a fixed/stable test) is tightening — no label. Generate quarantine candidates with `foundry-flaky classify`; prune stable ones. See designs/flake-triager.md.",
+  "//": "Foundry flaky-test quarantine baseline. Committed; may ONLY shrink. Growing it (adding an entry) is a ratchet loosening - ruleset-guard requires the ruleset-change label, because 'this test is flaky, trust me' is a deliberate human decision. Removing an entry (a fixed/stable test) is tightening - no label. Generate quarantine candidates with `foundry-flaky classify`; prune stable ones. See designs/flake-triager.md.",
   "quarantined": [
     {
       "id": "com.autoapplicant.crawler.CrawlerRateLimitTest.backsOffUnderLoad",

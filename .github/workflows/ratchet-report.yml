@@ -1,4 +1,4 @@
-# Reusable ratchet report — comment on a PR with how the accepted-debt baselines
+# Reusable ratchet report - comment on a PR with how the accepted-debt baselines
 # moved, so the ratchet is VISIBLE (progress is otherwise invisible unless you
 # diff the baseline files by hand).
 #
@@ -17,7 +17,7 @@
 # Each baseline's size is counted format-agnostically as the number of scalar
 # leaves (`[paths(scalars)] | length`): for eslint-suppressions.json that's the
 # number of (file, rule) suppressions; for a snooze.json array it's the number of
-# snoozed entries. A NEGATIVE delta is the goal — the baseline only shrinks. A
+# snoozed entries. A NEGATIVE delta is the goal - the baseline only shrinks. A
 # positive one should only appear on a labelled `ruleset-change`.
 name: ratchet-report
 
@@ -85,7 +85,7 @@ jobs:
             if [ "$moved" -eq 0 ]; then
               echo "_No baseline changed._"
             else
-              echo "_A negative Δ is the goal — baselines only shrink. A positive Δ should only appear on a PR labelled \`ruleset-change\`._"
+              echo "_A negative Δ is the goal - baselines only shrink. A positive Δ should only appear on a PR labelled \`ruleset-change\`._"
             fi
           } > body.md
 

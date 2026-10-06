@@ -1,4 +1,4 @@
-# Reusable autofix — the "fix it for me" button. Add a label to a PR and CI runs
+# Reusable autofix - the "fix it for me" button. Add a label to a PR and CI runs
 # `mise run fix`, commits the result to the PR branch, and drops the label.
 #
 #   # .github/workflows/autofix.yml (caller)
@@ -13,7 +13,7 @@
 #         contents: write
 #         pull-requests: write
 #
-# Then, on a red PR, add the `autofix` label — the gate's lint/format failure says
+# Then, on a red PR, add the `autofix` label - the gate's lint/format failure says
 # to run `mise run fix`; this is that, one click, in CI.
 #
 # Same-repo PRs only: it runs the branch's code with a write token, so it must
@@ -82,7 +82,7 @@ jobs:
             git add -A
             git commit -m "style: apply \`mise run fix\` [autofix]"
             git push
-            gh pr comment "$PR" --body "🧹 Applied \`mise run fix\` and pushed. **Heads-up:** pushes by the Actions token don't re-trigger CI — re-run the gate (or push any commit) to confirm it's green."
+            gh pr comment "$PR" --body "🧹 Applied \`mise run fix\` and pushed. **Heads-up:** pushes by the Actions token don't re-trigger CI - re-run the gate (or push any commit) to confirm it's green."
           fi
       - name: Remove the trigger label
         if: always()

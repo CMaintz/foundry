@@ -2,9 +2,9 @@
 // Ratcheted `npm audit` for the foundry `audit` verb.
 //
 // `npm audit --audit-level=critical` has no way to accept a *specific* unfixable
-// advisory — it's all-or-nothing, so a repo with one pre-existing critical either
+// advisory - it's all-or-nothing, so a repo with one pre-existing critical either
 // reds every PR or silences the whole check. Neither is acceptable (foundry:
-// "accept that specific CVE with justification — never silence the whole check").
+// "accept that specific CVE with justification - never silence the whole check").
 //
 // This wraps npm audit with a shrink-only allowlist, exactly like eslint
 // suppressions or the habit-hooks snooze baseline:
@@ -13,7 +13,7 @@
 //   - PASS otherwise, printing the accepted set for visibility
 //
 // Usage:  npm audit --json | node scripts/npm-audit-ratchet.mjs [--level=critical] [--allowlist=.audit-allowlist.json]
-// Reads the `npm audit --json` report from stdin — the caller pipes it in, so `npm`
+// Reads the `npm audit --json` report from stdin - the caller pipes it in, so `npm`
 // resolves in the caller's shell (mise-invoking-execSync-invoking-npm.cmd was flaky
 // on Windows). npm audit exits non-zero when it finds anything, but still writes the
 // JSON to stdout, so the pipe (with pipefail off) delivers the report regardless.
@@ -34,7 +34,7 @@ try {
   /* no stdin */
 }
 if (!raw.trim()) {
-  console.error('npm-audit-ratchet: no audit JSON on stdin — pipe it in:\n  npm audit --json | node scripts/npm-audit-ratchet.mjs');
+  console.error('npm-audit-ratchet: no audit JSON on stdin - pipe it in:\n  npm audit --json | node scripts/npm-audit-ratchet.mjs');
   process.exit(2);
 }
 
@@ -54,7 +54,7 @@ const flagged = Object.entries(vulns)
     })(v.via))],
   }));
 
-// Allowlist — accepted[].package is the vulnerable package name; reason is required.
+// Allowlist - accepted[].package is the vulnerable package name; reason is required.
 let accepted = [];
 if (existsSync(allowlistPath)) {
   const al = JSON.parse(readFileSync(allowlistPath, 'utf8'));
@@ -72,8 +72,8 @@ const unaccepted = flagged.filter((f) => !acceptedNames.has(f.name));
 const stale = accepted.filter((e) => !flaggedNames.has(e.package));
 
 if (accepted.length) {
-  console.log(`Accepted (${level}+) debt — baselined, must shrink:`);
-  for (const e of accepted) console.log(`  • ${e.package} — ${e.reason}`);
+  console.log(`Accepted (${level}+) debt - baselined, must shrink:`);
+  for (const e of accepted) console.log(`  • ${e.package} - ${e.reason}`);
   console.log('');
 }
 
@@ -87,8 +87,8 @@ if (unaccepted.length) {
 }
 if (stale.length) {
   ok = false;
-  console.error(`\n❌ ${stale.length} stale allowlist entry(ies) — the advisory is gone, so PRUNE it (ratchets only shrink):`);
+  console.error(`\n❌ ${stale.length} stale allowlist entry(ies) - the advisory is gone, so PRUNE it (ratchets only shrink):`);
   for (const e of stale) console.error(`  • ${e.package}`);
 }
-if (ok) console.log(`✅ audit ok — no un-accepted ${level}+ advisories.`);
+if (ok) console.log(`✅ audit ok - no un-accepted ${level}+ advisories.`);
 process.exit(ok ? 0 : 1);

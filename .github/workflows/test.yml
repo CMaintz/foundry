@@ -1,6 +1,6 @@
 # Tests for the code foundry ships to consumer repos:
-#   - pytest — scripts/ruleset_guard.py, the loosening check every consumer's security gate runs.
-#   - init-smoke — scripts/foundry-init.sh scaffolds a throwaway repo per stack from THIS
+#   - pytest - scripts/ruleset_guard.py, the loosening check every consumer's security gate runs.
+#   - init-smoke - scripts/foundry-init.sh scaffolds a throwaway repo per stack from THIS
 #     checkout; asserts the files land, parse, pass actionlint, and a re-run changes nothing.
 name: test
 

@@ -1,4 +1,4 @@
-# The public gate FACADE — the one stable entrypoint a consumer pins for the language
+# The public gate FACADE - the one stable entrypoint a consumer pins for the language
 # gate + structural smells, whatever the stack. Consumers pin THIS, not the per-stack
 # files; the `_`-prefixed internals (_java/_ts/_php) are implementation and may change.
 #
@@ -8,7 +8,7 @@
 #       with: { stack: java, working_directory: backend }   # monorepo: call once per package
 #
 # Dispatches by `stack` to the internal per-stack workflow via a nested local `uses:`
-# (`./…/_java.yml`), which GitHub resolves to THIS repo at the ref the consumer pinned —
+# (`./…/_java.yml`), which GitHub resolves to THIS repo at the ref the consumer pinned -
 # so there is no cross-repo pin to keep in sync. Require the `gate-ok` check in branch
 # protection: its name is stable regardless of which stack ran.
 name: gate

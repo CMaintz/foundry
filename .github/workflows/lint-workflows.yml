@@ -1,12 +1,12 @@
 # foundry lints its own repo hygiene, deterministically:
-#   - actionlint — workflow expression + context validation. Would have caught the
+#   - actionlint - workflow expression + context validation. Would have caught the
 #     kebab-case reusable-workflow input bug (inputs.mise-version parses as
 #     `inputs.mise - version`, an undeclared property, failing at run startup with no
 #     API-visible error). Its embedded shellcheck stays off for now (`-shellcheck=`) so
-#     turning it on doesn't red-wall every `run:` block at once — a later tightening.
-#   - shellcheck — the bash foundry SHIPS (foundry-init.sh, setup-labels.sh) that
+#     turning it on doesn't red-wall every `run:` block at once - a later tightening.
+#   - shellcheck - the bash foundry SHIPS (foundry-init.sh, setup-labels.sh) that
 #     consumers run at onboarding. shellcheck is preinstalled on ubuntu runners.
-#   - typos — doc/identifier spelling slips across the repo.
+#   - typos - doc/identifier spelling slips across the repo.
 name: lint
 
 on:
@@ -40,10 +40,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      # shellcheck ships on GitHub's ubuntu runners — no install step needed.
+      # shellcheck ships on GitHub's ubuntu runners - no install step needed.
       - name: shellcheck the shipped scripts
         # foundry-verb-wrap is an extensionless shell script that *.sh misses; add it
-        # explicitly. (foundry-flaky and foundry-loop-report are Python — not shellcheck's.)
+        # explicitly. (foundry-flaky and foundry-loop-report are Python - not shellcheck's.)
         run: shellcheck scripts/*.sh tests/*.sh scripts/foundry-verb-wrap
 
   typos:

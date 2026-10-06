@@ -1,4 +1,4 @@
-# The public security FACADE — one stable entrypoint for the language-agnostic checks:
+# The public security FACADE - one stable entrypoint for the language-agnostic checks:
 # secret scan + ruleset-guard (via internal _guards.yml) and SAST (via internal
 # _semgrep.yml). Consumers pin THIS; the `_`-prefixed internals are implementation.
 #
