@@ -30,13 +30,26 @@
     {
       "description": "The CONTRACT says pin everything; Renovate is the update path. Keep Actions pinned to a digest and bump the digest + the trailing # vN comment together.",
       "matchManagers": ["github-actions"],
-      "groupName": "github-actions",
       "pinDigests": true
     },
     {
-      "description": "Toolchain versions declared in mise.toml [tools].",
+      "description": "Actions majors need review, so they get their own grouped PR. Non-major Actions bumps fall through to the weekly all-non-major group.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Toolchain majors declared in mise.toml [tools] get their own grouped PR. Non-major toolchain bumps fall through to the weekly all-non-major group.",
       "matchManagers": ["mise"],
+      "matchUpdateTypes": ["major"],
       "groupName": "mise toolchain"
+    },
+    {
+      "description": "group:allNonMajor covers minor and patch only; fold digest and pin updates (mostly Actions digest bumps) into the same weekly PR so a week yields one non-major PR.",
+      "matchPackageNames": ["*"],
+      "matchUpdateTypes": ["digest", "pin", "pinDigest"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
     },
     {
       "description": "Security fixes land fast and on their own, labelled; exempt from minimumReleaseAge so a patched release is never held back. null (Renovate's own vulnerabilityAlerts default) rather than \"0 seconds\", which the semgrep rule rejects as not \"N days\", or false, which renovate-config-validator rejects.",
