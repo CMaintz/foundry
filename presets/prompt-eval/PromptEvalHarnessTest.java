@@ -1,13 +1,13 @@
-// Foundry prompt / agent-output regression harness — Java (JUnit 5).
+// Foundry prompt / agent-output regression harness - Java (JUnit 5).
 //
 // Generalises AutoApplicant's PromptEvalHarnessTest. Deterministic + OFFLINE: score
 // hand-written good/weak samples with YOUR scorer and assert it RANKS them (good >= FLOOR,
-// weak <= CEILING, gap >= SEPARATION). Runs under `mise run test` — it IS a test, no new verb.
+// weak <= CEILING, gap >= SEPARATION). Runs under `mise run test` - it IS a test, no new verb.
 // foundry ships NO scorer: implement QualityScorer (and, if you assert prompt blocks, a
 // prompt composer) in your own code. Fixtures live in src/test/resources/prompt-eval/,
 // listed in manifest.json.
 //
-// RATCHET: the fixture COUNT may only grow (never delete a regression case) — ruleset-guard
+// RATCHET: the fixture COUNT may only grow (never delete a regression case) - ruleset-guard
 // watches manifest.json with the `coverage` kind. Do NOT ratchet the SCORES upward (it
 // overfits the scorer). Thresholds are ruleset, guard-watched via the ruleset-file watch.
 package com.example.prompteval; // <- your package
@@ -33,7 +33,7 @@ class PromptEvalHarnessTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    /** YOUR deterministic scorer — this is the domain-specific half foundry does not ship. */
+    /** YOUR deterministic scorer - this is the domain-specific half foundry does not ship. */
     private int scoreOutput(String output, String input) {
         // return new DocumentQualityEvaluator(...).evaluate(output, input).total();
         throw new UnsupportedOperationException("wire in your QualityScorer");

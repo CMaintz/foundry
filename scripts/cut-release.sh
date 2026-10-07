@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cut-release.sh — cut a Foundry release in one deterministic, auditable command.
+# cut-release.sh - cut a Foundry release in one deterministic, auditable command.
 #
 # Replaces release-please: no rolling release PR, no manifest state to desync, no
 # special repo settings, no bolt-on alias mover. You run it locally when you decide
@@ -11,7 +11,7 @@
 # Preconditions: on `main`, clean tree, in sync with origin/main. Then it:
 #   1. computes the new version from the latest vX.Y.Z tag,
 #   2. builds a CHANGELOG section from conventional commits since that tag
-#      (grouped feat/fix/other; BREAKING flagged) — only lastTag..HEAD, so the
+#      (grouped feat/fix/other; BREAKING flagged) - only lastTag..HEAD, so the
 #      rewritten-history duplicates release-please produced can't recur,
 #   3. commits the CHANGELOG bump, tags vX.Y.Z, pushes both,
 #   4. creates the GitHub release,
@@ -56,12 +56,12 @@ resolve_version() { # <current> <bump-arg>
   esac
 }
 
-has_breaking() { # <lasttag>  — 0 if any breaking commit since lasttag
+has_breaking() { # <lasttag>  - 0 if any breaking commit since lasttag
   git log "$1"..HEAD --no-merges --format='%s%n%b' | grep -qE '^[a-z]+([(].+[)])?!:|BREAKING CHANGE'
 }
 
 # Emit one "### <title>" block for commits whose subject matches <regex>, else nothing.
-# awk regexes use [(] not \( — gawk warns on \( and other awks may treat it differently.
+# awk regexes use [(] not \( - gawk warns on \( and other awks may treat it differently.
 group() { # <lasttag> <regex> <title>
   local body
   body=$(git log "$1"..HEAD --no-merges --format='%h%x09%s' \
@@ -101,7 +101,7 @@ main() {
 
   # Enforce semver: a breaking change since the last tag demands a major bump.
   if has_breaking "$last" && [ "${ver%%.*}" = "${cur%%.*}" ]; then
-    die "breaking commits since $last but $ver is not a major bump — use 'major' or an explicit X.Y.Z"
+    die "breaking commits since $last but $ver is not a major bump - use 'major' or an explicit X.Y.Z"
   fi
 
   build_changelog_section "$last" "$ver" "$repo" > /tmp/cut-release-section.md

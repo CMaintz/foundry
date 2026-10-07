@@ -7,15 +7,15 @@ plugins = ["java", "generic"]
 
 # Tests are not structural-smell-gated: long, mock-heavy test methods and many
 # fixtures are normal and fine. CI should police production maintainability, not
-# test structure. (Language-agnostic principle — see README.)
+# test structure. (Language-agnostic principle - see README.)
 #
 # NB: this `files` list scopes the line-based + PMD sensors ONLY. jscpd (see the
-# generic plugin below) does its OWN directory walk and ignores this list — so if you
+# generic plugin below) does its OWN directory walk and ignores this list - so if you
 # enable jscpd, exclude tests/fixtures from IT via a `.jscpd.json` (copy
 # ../jscpd.json to <repo>/.jscpd.json), or it gates duplication in test code.
 files = ["**/*.java", "!**/src/test/**/*.java"]
 
-# args MUST be a TOML array, not a string — habit-hooks mangles a string into
+# args MUST be a TOML array, not a string - habit-hooks mangles a string into
 # per-character ruleset refs (PMD: "Cannot load ruleset -/n/o/..."), breaking the
 # scan. As an array each element is a clean token. -R names the tuned ruleset (see
 # ../pmd/ruleset.xml -> copy to <repo>/pmd/ruleset.xml) so a missing/misplaced one
@@ -23,7 +23,7 @@ files = ["**/*.java", "!**/src/test/**/*.java"]
 # silences PMD's progress-bar WARN.
 # --suppress-marker: a line with `// foundry-allow-smell: <reason>` suppresses PMD on
 # it, so a *genuine* non-seam (a linear toEntity/save mapper, a flat long builder) can
-# be accepted on the record — reviewable in the diff — instead of forced into a
+# be accepted on the record - reviewable in the diff - instead of forced into a
 # split-to-pass or silently steered around. Use sparingly, always with a reason; it is
 # NOT for dodging a real refactor. (Mirrors `foundry-allow-var` for the no-var check.)
 [sensors.pmd]
@@ -31,7 +31,7 @@ args = ["--no-progress", "-R", "pmd/ruleset.xml", "--suppress-marker", "foundry-
 
 # unused-import: PMD's UnnecessaryImport runs here WITHOUT an aux-classpath, so it
 # cannot resolve wildcard-import usage and false-flags e.g. `jakarta.persistence.*`
-# on JPA entities. It is also redundant — a formatter (Spotless removeUnusedImports)
+# on JPA entities. It is also redundant - a formatter (Spotless removeUnusedImports)
 # already enforces unused imports correctly, WITH a classpath, in the gate. Disable
 # it so the snooze baseline stays honest. Remove this block if you don't run a
 # formatter that strips unused imports.
@@ -39,13 +39,13 @@ args = ["--no-progress", "-R", "pmd/ruleset.xml", "--suppress-marker", "foundry-
 disabled = true
 
 # too-many-parameters (PMD ExcessiveParameterList) defaults to minimum=4, which
-# fires on ordinary Spring DI constructors and records (data carriers) — noise. The
+# fires on ordinary Spring DI constructors and records (data carriers) - noise. The
 # copied pmd/ruleset.xml raises it to a real god-class signal (8); the -R above
 # points PMD at it, and findings still map to smells by PMD rule name. See README
 # ("Tuning thresholds").
 
 # File-length: flag files over 300 lines (oversized-file). 300 rather than the
-# sensor default of 200 — verbose-but-cohesive files (esp. Java) legitimately pass
+# sensor default of 200 - verbose-but-cohesive files (esp. Java) legitimately pass
 # 200, and this is a ratcheted coaching signal, not a hard wall. Config/data/prose
 # are already excluded by the `files` globs; keep big prompts in their own resource file.
 [sensors.line-count]
@@ -57,7 +57,7 @@ args = ["--max", "300"]
 #
 # To turn on Java duplication detection:
 #   1. Provision jscpd. The java mise template pins `npm:jscpd`, and the java.yml
-#      habits job runs mise-action (mise install) — so it lands on PATH with no extra
+#      habits job runs mise-action (mise install) - so it lands on PATH with no extra
 #      step. (Locally: `mise install`.)
 #   2. Copy ../jscpd.json to <repo>/.jscpd.json FIRST. jscpd ignores the `files` list
 #      above and walks the dir itself, so without this it gates test + fixture

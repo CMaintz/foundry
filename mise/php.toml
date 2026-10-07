@@ -1,4 +1,4 @@
-# Foundry verb interface — PHP (Composer) template. See CONTRACT.md.
+# Foundry verb interface - PHP (Composer) template. See CONTRACT.md.
 # Commands assume PHP_CodeSniffer + PHP-CS-Fixer + PHPStan + PHPUnit; adjust to taste.
 
 [tools]
@@ -107,5 +107,5 @@ description = "Dependency vulnerabilities"
 run = "composer audit"
 
 [tasks.gate]
-description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+description = "The oracle. Sequential - mise `depends` runs in parallel with no ordering."
 run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]

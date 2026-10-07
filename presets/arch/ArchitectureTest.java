@@ -1,4 +1,4 @@
-// Foundry architecture fitness — Java (ArchUnit).
+// Foundry architecture fitness - Java (ArchUnit).
 //
 // ArchUnit rules ARE JUnit tests, so this runs under `mise run test` with no verb
 // change. Drop it in src/test/java/<base>/arch/ and change the package + base-package
@@ -6,7 +6,7 @@
 //   testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")   // pin the version
 //
 // ARCHITECTURE-AGNOSTIC. Hexagonal (AutoApplicant's shape) is the default; swap the
-// layer/access lines for classic-layered, clean/onion, or modular — see the examples
+// layer/access lines for classic-layered, clean/onion, or modular - see the examples
 // at the bottom and designs/arch-fitness.md.
 //
 // RATCHET: every rule is wrapped in FreezingArchRule.freeze(...). On first run it

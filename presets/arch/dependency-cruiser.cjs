@@ -1,12 +1,12 @@
-// Foundry architecture fitness — TypeScript (dependency-cruiser).
+// Foundry architecture fitness - TypeScript (dependency-cruiser).
 //
 // Deterministic, whole-graph enforcement of YOUR architecture: forbids cross-layer
 // imports and dependency cycles. Runs under `lint` (fold in when your layer map is
-// filled — see mise/ts.toml `arch` task). It is whole-program, so it always runs
+// filled - see mise/ts.toml `arch` task). It is whole-program, so it always runs
 // whole-tree, never changed-scoped (a cycle can be formed by an unrelated edge).
 //
 // ARCHITECTURE-AGNOSTIC. You describe *your* layers once, in LAYERS + ALLOW; every
-// rule is generated from that. Hexagonal is only the default example — swap in any of
+// rule is generated from that. Hexagonal is only the default example - swap in any of
 // the maps at the bottom (classic-layered, clean/onion, modular) or write your own.
 //
 //   A "layer" is a set of source paths (regex, matched against the module path).
@@ -38,7 +38,7 @@ const FORBIDDEN_IMPORTS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Generation — you should not need to edit below this line.
+// Generation - you should not need to edit below this line.
 // ---------------------------------------------------------------------------
 const names = Object.keys(LAYERS);
 
@@ -101,7 +101,7 @@ module.exports = {
 //   LAYERS = { entities:"^src/entities/", usecases:"^src/usecases/", ifaces:"^src/interfaces/", fw:"^src/frameworks/" }
 //   ALLOW  = { entities:[], usecases:["entities"], ifaces:["usecases","entities"], fw:["ifaces","usecases","entities"] }
 //
-// Modular / feature-sliced (feature isolation — features never import each other,
+// Modular / feature-sliced (feature isolation - features never import each other,
 // only a shared kernel): give each feature its own layer whose ALLOW is ["shared"]:
 //   LAYERS = { shared:"^src/shared/", billing:"^src/features/billing/", auth:"^src/features/auth/" }
 //   ALLOW  = { shared: [], billing: ["shared"], auth: ["shared"] }   // billing !-> auth, auth !-> billing

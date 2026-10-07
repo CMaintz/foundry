@@ -46,7 +46,7 @@ on:
       spotbugs:
         description: >-
           Run SpotBugs (opt-in). Invokes the `spotbugs` mise task, so the consumer
-          decides the exact Gradle call — the java template defaults it to
+          decides the exact Gradle call - the java template defaults it to
           `./gradlew spotbugsMain`; a root-Gradle monorepo overrides it (e.g.
           `../gradlew :backend:spotbugsMain`). Auxiliary, not a contract verb.
         type: boolean
@@ -122,9 +122,9 @@ jobs:
         if: failure() && steps.lint.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed at \`lint\` — formatting (Spotless) or no-\`var\`"
+            echo "## ❌ Gate failed at \`lint\` - formatting (Spotless) or no-\`var\`"
             echo ""
-            echo "**Formatting** is 100% mechanical — run it, commit, push:"
+            echo "**Formatting** is 100% mechanical - run it, commit, push:"
             echo '```'
             echo "mise run fix        # = ./gradlew spotlessApply"
             echo '```'
@@ -138,7 +138,7 @@ jobs:
         if: failure() && steps.typecheck.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed at \`typecheck\` — compilation"
+            echo "## ❌ Gate failed at \`typecheck\` - compilation"
             echo ""
             echo "Not auto-fixable. The file:line is in the **gate: typecheck** step log above; reproduce with \`mise run typecheck\`."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -160,9 +160,9 @@ jobs:
         if: failure() && steps.audit.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed at \`audit\` — vulnerable dependency"
+            echo "## ❌ Gate failed at \`audit\` - vulnerable dependency"
             echo ""
-            echo "Bump the flagged dependency (or a version override) to a patched release. If it's a false positive or unfixable now, accept that **specific** CVE with justification in osv-scanner.toml — never silence the whole check."
+            echo "Bump the flagged dependency (or a version override) to a patched release. If it's a false positive or unfixable now, accept that **specific** CVE with justification in osv-scanner.toml - never silence the whole check."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Publish test report
         if: always() # a failing run is exactly when the report is worth having
@@ -190,7 +190,7 @@ jobs:
           if [ -f .habit-hooks/snooze.json ]; then
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::No .habit-hooks/snooze.json yet — run bootstrap.yml once. Skipping."
+            echo "::notice::No .habit-hooks/snooze.json yet - run bootstrap.yml once. Skipping."
             echo "have=false" >> "$GITHUB_OUTPUT"
           fi
       # Python BEFORE mise-action so the mise setup:habit-hooks postinstall can build its venv.
@@ -223,11 +223,11 @@ jobs:
           echo "$HOME/.local/opt/pmd-bin-${{ inputs.pmd_version }}/bin" >> "$GITHUB_PATH"
           pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
       # `--branch` (below) diffs the checked-out branch against `branchBase` (habit-hooks
-      # default `main`) and scans ONLY what this branch changed — not the whole tree on
+      # default `main`) and scans ONLY what this branch changed - not the whole tree on
       # every PR (the full scan is a baseline-time job, see bootstrap.yml). A PR checkout
       # is detached at the merge commit, so `main` has no local ref and habit-hooks
       # refuses to guess (a hard error, never a silent pass). Point a local `main` at the
-      # PR base — already in history from fetch-depth: 0. On push, `main` already resolves.
+      # PR base - already in history from fetch-depth: 0. On push, `main` already resolves.
       - name: Make base ref resolvable for --branch
         if: steps.baseline.outputs.have == 'true' && github.event_name == 'pull_request'
         env:
@@ -243,9 +243,9 @@ jobs:
         if: failure() && steps.smells.outcome == 'failure'
         run: |
           {
-            echo "## 📖 Structural smells — what each one means"
+            echo "## 📖 Structural smells - what each one means"
             echo ""
-            echo "Each smell is a machine-checkable shadow of a function or file doing **more than one thing**. Fix toward the missing abstraction (a value object, a strategy, a named step) — never by splitting to a line count."
+            echo "Each smell is a machine-checkable shadow of a function or file doing **more than one thing**. Fix toward the missing abstraction (a value object, a strategy, a named step) - never by splitting to a line count."
             echo ""
             echo "| Smell | What it's telling you | Fix toward |"
             echo "|---|---|---|"
@@ -257,7 +257,7 @@ jobs:
             echo "| \`duplication\` | the same logic lives in two places | extract one shared function |"
             echo "| \`dead-code\` / unused export | nothing references it | delete it |"
             echo ""
-            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`. Clearing a smell is necessary, not sufficient — \"is this *one* thing?\" is still your call."
+            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`. Clearing a smell is necessary, not sufficient - \"is this *one* thing?\" is still your call."
           } >> "$GITHUB_STEP_SUMMARY"
 
   spotbugs:
@@ -286,7 +286,7 @@ jobs:
       - run: mise run spotbugs
 
   # no-`var` used to be a separate job here. It's now folded into `lint` (mise.toml),
-  # so the deterministic gate enforces it in one place — locally and in CI — and it's
+  # so the deterministic gate enforces it in one place - locally and in CI - and it's
   # no longer opt-in. The gate job's checkout uses fetch-depth: 0, and it passes
   # FOUNDRY_BASE_REF (the PR base SHA) so novar diff-scopes correctly. See
   # designs/verb-tiers.md and designs/changed-scope-gate.md.

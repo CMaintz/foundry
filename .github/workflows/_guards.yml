@@ -1,4 +1,4 @@
-# Reusable Tier 0 — language-agnostic checks that run on every repo.
+# Reusable Tier 0 - language-agnostic checks that run on every repo.
 #
 #   jobs:
 #     tier0:
@@ -57,7 +57,7 @@ jobs:
           {
             echo "## 🔑 Secret scan found something"
             echo ""
-            echo "**Decide first — real secret, or false positive?** (Ask if unsure.)"
+            echo "**Decide first - real secret, or false positive?** (Ask if unsure.)"
             echo ""
             echo "- **Real secret:** rotate/revoke at the provider **first**, then remove from code, then purge from history (\`git filter-repo\`) and force-push. Never allowlist a real secret."
             echo "- **False positive** (public-by-design config, dummy test fixture): add the *exact file path* to \`.gitleaks.toml\` \`[allowlist] paths\`, with a note on why. Never allowlist a whole directory."
@@ -76,7 +76,7 @@ jobs:
         with:
           fetch-depth: 0
       # The guard exists to stop a fixer WEAKENING the gate in the same change
-      # that "fixes" it — the cheapest fix for a lint error is to disable the
+      # that "fixes" it - the cheapest fix for a lint error is to disable the
       # rule. But the risk is asymmetric: *loosening* needs a human; *tightening*
       # (or a change with no semantic effect) is always safe. So a bundled
       # ruleset+source PR is allowed without a label as long as every ruleset
@@ -95,7 +95,7 @@ jobs:
 
           # Diff from the merge-base (3-dot), not the raw base tip. pull_request
           # events don't re-fire when the base branch advances, so base.sha goes
-          # stale on a PR whose branch sits untouched — and a 2-dot diff then
+          # stale on a PR whose branch sits untouched - and a 2-dot diff then
           # reports files the base changed but this PR never touched (phantom
           # loosening). merge-base scopes to this PR's own commits, matching
           # `gh pr diff`. All downstream uses of BASE (blob(), ruleset_guard.py)
@@ -110,19 +110,19 @@ jobs:
 
           # Only a bundled ruleset+source change is ever in question.
           if [ -z "$ruleset" ] || [ -z "$source" ]; then
-            echo "OK — no bundled ruleset+source change."
+            echo "OK - no bundled ruleset+source change."
             exit 0
           fi
 
           # An explicit human decision overrides the analysis entirely.
           if echo "$LABELS" | tr ',' '\n' | grep -qx "$LABEL"; then
-            echo "::notice::'$LABEL' label present — deliberate ruleset change, allowing."
+            echo "::notice::'$LABEL' label present - deliberate ruleset change, allowing."
             exit 0
           fi
 
           blob() { git show "$1:$2" 2>/dev/null || true; }
 
-          # scripts/ruleset_guard.py must be committed in the calling repo — a
+          # scripts/ruleset_guard.py must be committed in the calling repo - a
           # reusable workflow runs in the caller's checkout. Copy it from
           # foundry/scripts/ when onboarding.
           review=""
@@ -130,8 +130,8 @@ jobs:
             if [ -z "$f" ]; then continue; fi
             old=$(blob "$BASE" "$f"); new=$(blob "$HEAD" "$f")
 
-            # A change with no semantic content — e.g. a CRLF/LF flip from
-            # core.autocrlf, which `eslint --prune-suppressions` provokes — is safe.
+            # A change with no semantic content - e.g. a CRLF/LF flip from
+            # core.autocrlf, which `eslint --prune-suppressions` provokes - is safe.
             if [ "$(printf '%s' "$old" | tr -d '\r')" = "$(printf '%s' "$new" | tr -d '\r')" ]; then
               echo "  safe (no semantic change): $f"; continue
             fi
@@ -154,7 +154,7 @@ jobs:
                 # Config / threshold / workflow files: direction can't be proven
                 # generically (is a changed number a raised floor or a lowered
                 # one?), so these still need the label.
-                echo "  REVIEW (config — direction can't be proven): $f"; review="$review $f"
+                echo "  REVIEW (config - direction can't be proven): $f"; review="$review $f"
                 ;;
             esac
           done <<< "$ruleset"
@@ -167,7 +167,7 @@ jobs:
             exit 1
           fi
 
-          echo "::notice::Ruleset changes are tightening-only or inert — allowed alongside source without a label."
+          echo "::notice::Ruleset changes are tightening-only or inert - allowed alongside source without a label."
 
       # Turn the bare red X into the two choices the author actually has.
       - name: Ruleset-guard remediation guidance
@@ -182,5 +182,5 @@ jobs:
             echo "- **It's a real fix, not a loosening** → move the ruleset change to its own PR. The guard only fires when ruleset *and* source change together."
             echo "- **The loosening is deliberate** → add the \`ruleset-change\` label, so a human is on record for it."
             echo ""
-            echo "Tightening a rule, or an inert change (whitespace/CRLF), passes automatically — you only land here when the direction is loosening or unprovable."
+            echo "Tightening a rule, or an inert change (whitespace/CRLF), passes automatically - you only land here when the direction is loosening or unprovable."
           } >> "$GITHUB_STEP_SUMMARY"

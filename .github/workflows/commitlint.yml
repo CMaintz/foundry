@@ -1,4 +1,4 @@
-# Enforces Conventional Commits on PR commits — the input `scripts/cut-release.sh` derives
+# Enforces Conventional Commits on PR commits - the input `scripts/cut-release.sh` derives
 # version bumps and the changelog from. Without it, a mistyped prefix (`feat` vs `fix`, or a
 # bare subject) silently produces a wrong bump or a missing changelog entry. Merge commits
 # are ignored by default.

@@ -1,4 +1,4 @@
-# Foundry verb interface — Kotlin (Gradle) template. See CONTRACT.md.
+# Foundry verb interface - Kotlin (Gradle) template. See CONTRACT.md.
 # Commands assume ktlint (style) + detekt (structural smells) + osv-scanner.
 # Adjust for Maven or your plugins.
 
@@ -30,7 +30,7 @@ run = "./gradlew ktlintFormat"
 
 [tasks.lint]
 description = "Style (ktlint) + structural smells (detekt)"
-# detekt is Kotlin's smell detector — the analogue of PMD for Java. Wire a detekt
+# detekt is Kotlin's smell detector - the analogue of PMD for Java. Wire a detekt
 # baseline (detektBaseline) for the ratchet, so only new smells fail.
 run = "./gradlew ktlintCheck detekt"
 
@@ -52,5 +52,5 @@ run = [
 ]
 
 [tasks.gate]
-description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+description = "The oracle. Sequential - mise `depends` runs in parallel with no ordering."
 run = ["mise run lint", "mise run typecheck", "mise run test", "mise run audit"]

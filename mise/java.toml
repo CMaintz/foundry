@@ -1,9 +1,9 @@
-# Foundry verb interface — Java (Gradle) template. See CONTRACT.md.
+# Foundry verb interface - Java (Gradle) template. See CONTRACT.md.
 # Commands assume Gradle + Spotless; structural smells come from habit-hooks'
 # Java/PMD plugin, not the Gradle build. Adjust for Maven or your plugins.
 # Proven on a Spring Boot repo (AutoApplicant); see OVERVIEW.md.
 #
-# No FOUNDRY_SINCE execute-scoping here, unlike mise/ts.toml — and that's deliberate,
+# No FOUNDRY_SINCE execute-scoping here, unlike mise/ts.toml - and that's deliberate,
 # not an omission (see designs/changed-scope-gate.md). On the JVM the Gradle build
 # dominates wall-clock, and Gradle already scopes the fast placements for free:
 # Spotless `spotlessCheck` ratchets from origin/main (only changed files), incremental
@@ -16,14 +16,14 @@ java = "21"
 # jscpd = the duplicated-code detector for the `generic` habit-hooks plugin (the
 # java preset enables it alongside PMD). Pinned via mise so local runs, the
 # habit-hooks-guard Stop hook, and CI (mise-action runs `mise install`) all resolve
-# the SAME version — an unpinned `npm i -g jscpd` drifts and shifts duplication
+# the SAME version - an unpinned `npm i -g jscpd` drifts and shifts duplication
 # findings between machines. Bump in lockstep with any consumer's pin.
 "npm:jscpd" = "5.2.1"
 
 # PMD is a JVM app (launcher + jars) whose GitHub release asset has no OS in its
 # name, so it can't be a clean [tools] entry. Pin the version here; setup:pmd
 # installs it idempotently, the postinstall hook runs that on `mise install`, and
-# its bin goes on mise's PATH — so the habit-hooks Java sensor + no-var find PMD
+# its bin goes on mise's PATH - so the habit-hooks Java sensor + no-var find PMD
 # with no manual install, identically local and in CI.
 [env]
 PMD_VERSION = "7.27.0"
@@ -89,7 +89,7 @@ run = "./gradlew spotlessApply"
 [tasks.lint]
 description = "Format check (Spotless) + no-`var` + structural smells (habit-hooks/PMD) on changed source."
 # lint is 'style + smells' (CONTRACT.md), not only auto-fixable formatting: Spotless
-# is mechanical (`mise run fix`), but no-`var` is a real rule — fix it or tag a
+# is mechanical (`mise run fix`), but no-`var` is a real rule - fix it or tag a
 # justified use. Both are non-mutating here. novar is ratchet-scoped (see below), so
 # folding it in never fails on legacy `var`. `mise run smells` runs the same habit-hooks
 # scan CI runs, so `gate` is the same oracle locally and in CI (both skip gracefully with
@@ -114,12 +114,12 @@ run = [
 ]
 
 # no-`var` is a ratchet-scoped check: it must fail only on *new* `var`, never on legacy.
-# It diffs from the merge-base of a base ref with HEAD — pre-existing `var` is untouched
+# It diffs from the merge-base of a base ref with HEAD - pre-existing `var` is untouched
 # until its file is edited. The base ref is FOUNDRY_BASE_REF (the ratchet base, distinct
 # from FOUNDRY_SINCE's speed signal), defaulting to origin/main for local runs; CI sets
 # it to the PR base SHA, since origin/main isn't a reliable ref in a PR checkout. An
 # unresolvable base skips (CI enforces from a full-history checkout, so it's authoritative).
-# Folded into `lint` above — no separate CI job needed.
+# Folded into `lint` above - no separate CI job needed.
 [tasks.novar]
 description = "no-`var` on changed Java (ratchet base = FOUNDRY_BASE_REF, default origin/main). Tag exceptions `// foundry-allow-var: reason`."
 depends = ["setup:pmd"]
@@ -180,7 +180,7 @@ echo "smells: $("$hh" --version) --branch base=$mb"
 "$hh" --branch "$mb"
 '''
 
-# SpotBugs bytecode analysis — auxiliary, opt-in, NOT one of the six contract verbs
+# SpotBugs bytecode analysis - auxiliary, opt-in, NOT one of the six contract verbs
 # and NOT in `gate` (like `novar`, `arch`, `setup:pmd`). The gate.yml facade runs this
 # via `mise run spotbugs` when called with `spotbugs: true`, so a repo controls the exact
 # Gradle call here: a single-project repo keeps the default; a root-Gradle monorepo
@@ -191,7 +191,7 @@ description = "SpotBugs bug-pattern analysis (opt-in; blocking in CI via the fac
 run = "./gradlew spotbugsMain"
 
 [tasks.gate]
-description = "The oracle. Sequential — mise `depends` runs in parallel with no ordering."
+description = "The oracle. Sequential - mise `depends` runs in parallel with no ordering."
 # Each verb wrapped by `foundry-verb-wrap`: times it, appends a line to FOUNDRY_TELEMETRY,
 # propagates the exit code unchanged (telemetry never changes the outcome; a failing verb
 # still stops the sequence). Read with `foundry-loop-report`. Wrapper on PATH via scripts/

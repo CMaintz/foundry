@@ -7,13 +7,13 @@ body:
     attributes:
       value: |
         The driver's output is only as good as this ticket. Every field below is
-        required — a ticket missing any of them is not claimable. See Foundry's
+        required - a ticket missing any of them is not claimable. See Foundry's
         `presets/ticket-schema.md` for the why.
   - type: textarea
     id: intent
     attributes:
       label: Intent
-      description: The user story — what and why. What the fresh-context reviewer checks the diff against.
+      description: The user story - what and why. What the fresh-context reviewer checks the diff against.
       placeholder: As a <role> I want <capability> so that <benefit>.
     validations:
       required: true
