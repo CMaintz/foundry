@@ -11,10 +11,26 @@ failures (always fail) and surfaces prune candidates (quarantined-but-now-stable
 modes tested across formats + quarantined/real/no-baseline cases. `presets/baselines/flaky-baseline.example.json`
 (schema); baseline reuses the guard's `snooze` kind - verified add=loosening (needs
 label), remove=tightening (free), no new guard code. `mise/ts.toml` gains an opt-in
-`test:flaky` integration task. **Not yet:** live rerun on a real runner (no JVM/node
-project here - only the parsing/decision/classify logic is validated); Gradle `--tests`
-rerun recipe wiring; auto-prune of stable entries (needs a green-streak counter - a
-follow-on that can piggyback the loop-telemetry log).
+`test:flaky` integration task.
+
+**Follow-ons, now built** (`tests/test_foundry_flaky.py`, 16 cases): `parse_report`
+accepts a DIRECTORY of JUnit XML (Gradle writes one `TEST-*.xml` per class), merged;
+`mise/java.toml` gains the Java `test:flaky` task + the `./gradlew test --tests "{test}"`
+classify recipe (globs `build/test-results/test`, fails if empty; parameterized bracket
+ids noted as not round-tripping). **Auto-prune** is a new `prune` mode: `gate` appends a
+per-run pass/fail line for each quarantined test that ran to `.foundry/flaky-streaks.jsonl`
+(best-effort, never changes the exit code), and `prune <baseline> [--min-green M]` removes
+any quarantined id with >= M trailing consecutive greens (a single fail resets the streak).
+Removal-only, so the `snooze` guard passes a prune label-free. The **rerun loop itself is
+now exercised live** against a synthetic flipping command (subprocess + shell-quoting of a
+spaced id), up from parsing-only.
+
+**Still not yet:** the runner-filter *semantics* (`vitest -t`, `gradlew --tests`) are
+unverified against a real suite - only the generic `{test}` subprocess contract is tested.
+The green-streak is **pre-push-fed** (`/ship`, where `.foundry/` persists); CI contributes
+to a streak only if `.foundry/` is cached across runs. A scheduled refresh workflow that
+runs `prune` and opens the removal PR (mirroring `bootstrap.yml`'s snooze `--prune`) is
+recipe-only, not built here.
 
 ## Problem
 
