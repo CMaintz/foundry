@@ -48,6 +48,7 @@ _.path = [
 # JEV_REVIEW_MIN_FILES = "0"          # skip review routing on diffs at or under N files
 # JEV_TOOLCALL_TRIAGE = "0"           # 1 warns on risky tool calls (repos with that hook)
 # JEV_FEATURE_PRECHECK = "0"          # 1 pre-checks a feature ticket (repos with that hook)
+# LEASH_ENABLED = "0"                 # 1 runs Leash turn checks (repos with the leash.sh hook)
 
 [hooks]
 # Provision the pinned habit-hooks on `mise install` (local and CI alike), like setup:pmd.

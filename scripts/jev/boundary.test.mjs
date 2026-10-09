@@ -10,7 +10,15 @@ import { test } from 'node:test';
 //
 // It scans the gate files explicitly (not every workflow) so a separate test-runner
 // workflow that runs these very tests is allowed - that is not the gate. Run from the repo root.
-const BANNED = 'scripts/jev';
+//
+// Leash (@cmaintz/leash) is the same kind of advisory Jev consumer, so its Jev-calling
+// subcommands are banned too. Its deterministic ones (guard, compile, report) stay
+// allowed: `leash guard` is a plain rubric diff and is meant to run in CI.
+const LEASH_JEV = /(?:\bleash|@cmaintz\/leash)\s+(?:check|audit|edit-check|edit-hook|hook|calibrate|bench)\b/;
+const BANNED = [
+  { label: 'scripts/jev', matches: (text) => text.includes('scripts/jev') },
+  { label: 'a Jev-calling leash command', matches: (text) => LEASH_JEV.test(text) },
+];
 
 const GATE_WORKFLOWS = [
   'gate.yml',
@@ -37,7 +45,8 @@ function miseFiles() {
 function assertNoneReference(files, why) {
   for (const file of files) {
     if (!existsSync(file)) continue;
-    assert.ok(!readFileSync(file, 'utf8').includes(BANNED), `${file} references ${BANNED} - ${why}`);
+    const text = readFileSync(file, 'utf8');
+    for (const { label, matches } of BANNED) assert.ok(!matches(text), `${file} references ${label} - ${why}`);
   }
 }
 
@@ -47,4 +56,9 @@ test('no gate workflow references the jev scripts', () => {
 
 test('no mise gate verb references the jev scripts', () => {
   assertNoneReference(miseFiles(), 'Jev must stay off the deterministic gate');
+});
+
+test('the leash pattern bans Jev-calling commands and allows the deterministic ones', () => {
+  for (const cmd of ['leash check --turn', 'npx @cmaintz/leash audit', 'leash bench']) assert.ok(LEASH_JEV.test(cmd), cmd);
+  for (const cmd of ['leash guard origin/main', 'leash compile', 'leash report', 'leash-hook.sh']) assert.ok(!LEASH_JEV.test(cmd), cmd);
 });
