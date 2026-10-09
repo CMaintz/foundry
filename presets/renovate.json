@@ -58,6 +58,16 @@
       "labels": ["security"],
       "prPriority": 10,
       "minimumReleaseAge": null
+    },
+    {
+      "description": "Foundry is our own repo, so the 7-day hold (meant for strangers' compromised releases) only delays our own fixes. Every Foundry workflow ref bumps together in one PR, any day, and merges itself once the consumer's gate passes. Still digest-pinned, so each bump is a gated change. null for the same semgrep/validator reasons as the vulnerability rule.",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["CMaintz/foundry"],
+      "minimumReleaseAge": null,
+      "groupName": "foundry",
+      "groupSlug": "foundry",
+      "schedule": ["at any time"],
+      "automerge": true
     }
   ],
   "lockFileMaintenance": { "enabled": true, "schedule": ["* 0-6 * * 1"] },
