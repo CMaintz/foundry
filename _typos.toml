@@ -1,0 +1,6 @@
+# typos config. The generated CHANGELOG lists short git SHAs in parentheses, e.g.
+# "(ba9330b)", and a hex run that happens to start with a dictionary word ("ba" -> "by")
+# trips the spell-checker. Ignore parenthesized 7-40 char hex SHAs everywhere; prose is
+# still checked.
+[default]
+extend-ignore-re = ["\\([0-9a-f]{7,40}\\)"]
