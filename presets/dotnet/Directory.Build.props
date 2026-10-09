@@ -8,15 +8,21 @@
        structural rules (method length, cyclomatic/cognitive complexity, too many parameters,
        file size), reads the warnings and ratchets them against the snooze baseline. The
        built-in .NET analyzers stay on for `typecheck` (`dotnet build -warnaserror`), which
-       owns compile errors, the CA rules and NuGetAudit. The five Sonar structural rules are
-       demoted to `suggestion` in the sibling .editorconfig so typecheck does not hard-fail
-       them - the sensor gates them instead. Tune rule severities there, not here. -->
+       owns compile errors, the CA rules and NuGetAudit. The sensor gates the five structural
+       rules instead; they are also demoted to `suggestion` in the sibling .editorconfig.
+       Tune rule severities there, not here. -->
   <PropertyGroup>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
-  <ItemGroup>
+  <!-- Scoped to the sensor's own build: the reference loads only when CodeAnalysisRuleSet
+       is set, which the habit-hooks dotnet sensor sets and typecheck does not. So typecheck
+       (`dotnet build -warnaserror`, no ruleset) never loads SonarAnalyzer and its rules
+       cannot flood the build. This keeps the preset safe even in a strict repo that drops
+       the bulk `dotnet_analyzer_diagnostic.severity = suggestion` line from its .editorconfig
+       (where an unconditional reference would turn ~40 default-on Sonar rules into errors). -->
+  <ItemGroup Condition="'$(CodeAnalysisRuleSet)' != ''">
     <!-- Pinned; Renovate's nuget manager tracks this PackageReference. PrivateAssets=all
          keeps the analyzer a build-time dev dependency - it never flows to consumers of
          the built package. -->
