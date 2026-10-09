@@ -8,14 +8,19 @@
 #
 # How this is shaped: the bulk line below dials the whole analyzer set (SonarAnalyzer
 # + the built-in CA/IDE rules) down to `suggestion` so the default gate is focused, not
-# a flood, then the per-rule lines below promote only the structural smells back to
-# `warning`. Per-rule severity wins over the bulk line regardless of order.
+# a flood. The five structural-smell rules below are KEPT at `suggestion` deliberately
+# (they are listed, not silenced, so a project can see and retune them): the habit-hooks
+# `dotnet` sensor owns them. The sensor builds with its own ruleset that enables them as
+# warnings and ratchets them against the snooze baseline, so an existing backlog is
+# grandfathered and only new structural debt gates - which a blanket `-warnaserror` cannot
+# do. `suggestion` here means `typecheck` (`dotnet build -warnaserror`, no ruleset) does NOT
+# hard-fail them, so they are not double-gated. (Empirically verified: the sensor's
+# `-p:CodeAnalysisRuleSet` overrides this `suggestion` severity in the sensor's own build, so
+# the finding still fires there; typecheck, reading only this file, stays green on them.)
 #
-# CAVEAT - no ratchet. `typecheck` uses a blanket `-warnaserror`, so every `warning`
-# rule here is a HARD gate failure with no snooze (Roslyn has no habit-hooks-style
-# baseline). That is deliberate for a fresh scaffold. A legacy repo adopting Foundry
-# can lower a noisy rule to `suggestion` here, or set <WarningsNotAsErrors> in
-# Directory.Build.props, while it cleans up - then tighten back once clean.
+# typecheck still keeps its teeth on everything else: compiler warnings (CS8xxx nullable),
+# the built-in CA rules and NuGetAudit (NU19xx) are not demoted by the bulk line (see the
+# NOTE below), so `-warnaserror` still fails on them.
 #
 # NOTE: the bulk `suggestion` line covers only analyzer diagnostics. Compiler warnings
 # (CS8xxx nullable) and NuGetAudit (NU19xx vulnerability) warnings are NOT analyzer
@@ -35,9 +40,10 @@ root = true
 # Everything defaults to a non-blocking suggestion ...
 dotnet_analyzer_diagnostic.severity = suggestion
 
-# ... except the structural smells, which are the focused default gate:
-dotnet_diagnostic.S138.severity = warning   # method/function too long
-dotnet_diagnostic.S1541.severity = warning  # cyclomatic complexity too high
-dotnet_diagnostic.S3776.severity = warning  # cognitive complexity too high
-dotnet_diagnostic.S107.severity = warning   # too many parameters
-dotnet_diagnostic.S104.severity = warning   # too many lines in a file (class-size proxy)
+# ... and the five structural smells stay at `suggestion`: the habit-hooks dotnet sensor
+# owns them (ratcheted), so typecheck must not hard-fail them under -warnaserror:
+dotnet_diagnostic.S138.severity = suggestion   # method/function too long (oversized-function)
+dotnet_diagnostic.S1541.severity = suggestion  # cyclomatic complexity too high (high-complexity)
+dotnet_diagnostic.S3776.severity = suggestion  # cognitive complexity too high (high-complexity)
+dotnet_diagnostic.S107.severity = suggestion   # too many parameters (too-many-parameters)
+dotnet_diagnostic.S104.severity = suggestion   # too many lines in a file (oversized-file)

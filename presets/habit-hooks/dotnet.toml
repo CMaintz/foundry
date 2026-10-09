@@ -1,13 +1,29 @@
 # Copy to <repo>/.habit-hooks/config.toml
-# There's no habit-hooks .NET sensor, so structural analysis comes from Roslyn analyzers
-# in `typecheck` (`dotnet build -warnaserror`): foundry-init scaffolds Directory.Build.props
-# (built-in .NET analyzers + SonarAnalyzer.CSharp) and .editorconfig (the structural-smell
-# rules promoted to warning) into the repo root. habit-hooks contributes only the language-
-# independent `generic` plugin - file-length (below) and, opt-in, jscpd.
-plugins = ["generic"]
+# The habit-hooks `dotnet` sensor OWNS the structural smells (oversized-function,
+# high-complexity, too-many-parameters, oversized-file). It wraps `dotnet build` with
+# SonarAnalyzer.CSharp active and maps its warnings (S138/S1541/S3776/S107/S104) to smells,
+# then feeds them through the snooze ratchet - an existing backlog is grandfathered and only
+# new structural debt gates. typecheck (`dotnet build -warnaserror`) keeps compile errors,
+# the built-in CA rules and NuGetAudit. foundry-init scaffolds Directory.Build.props (the
+# SonarAnalyzer.CSharp reference the sensor's build needs) and .editorconfig (the five
+# structural rules demoted to `suggestion`, so typecheck does not hard-fail them - the sensor
+# gates them with the ratchet instead). The language-independent `generic` plugin adds
+# file-length (below) and, opt-in, jscpd.
+plugins = ["dotnet", "generic"]
 
-# Tests are not smell-scanned (language-agnostic principle - see README).
-files = ["**/*.cs", "!**/*Tests/**", "!**/*Tests.cs", "!**/*.Test.cs"]
+# Tests and generated sources are not smell-scanned (language-agnostic principle - see README).
+# The sensor builds the whole project but keeps only warnings in these files; bin/obj hold
+# build output and generated code (`*.g.cs`, AssemblyInfo), so they are excluded - a plugin's
+# exclusions bind the union of every active plugin's globs, so the generic line-count honours
+# them too. (Replacing the `dotnet` plugin's own default `files`, so carry the bin/obj excludes.)
+files = ["**/*.cs", "!**/*Tests/**", "!**/*Tests.cs", "!**/*.Test.cs", "!**/bin/**/*.cs", "!**/obj/**/*.cs"]
+
+# The sensor runs `dotnet build` in the working directory. With more than one project or
+# solution file there, name the one to build, or MSBuild errors (MSB1011); to use your own
+# thresholds or rule set, pass your own ruleset (applied after the plugin's default, and
+# MSBuild takes the last). Args are a TOML array, never a string.
+# [sensors.dotnet-build]
+# args = ["Your.sln"]  # and/or "-p:CodeAnalysisRuleSet=path/to/your.ruleset"
 
 # File-length: flag files over 300 lines (oversized-file). 300 rather than the
 # sensor default of 200 - verbose-but-cohesive files (esp. Java) legitimately pass
@@ -17,8 +33,9 @@ files = ["**/*.cs", "!**/*Tests/**", "!**/*Tests.cs", "!**/*.Test.cs"]
 args = ["--max", "300"]
 
 # jscpd (the generic plugin's duplication detector) is a Node CLI. Disabled by default so
-# the habits job stays Node-free (it runs only the pure-Python line-count). To turn on C#
-# duplication detection: install Node + `npm i -g jscpd` in the smells job, copy
+# the habits job stays Node-free (the dotnet sensor shells out to the .NET SDK and the
+# line-count is pure Python). To turn on C# duplication detection: install Node + `npm i -g
+# jscpd` in the smells job, copy
 # ../jscpd.json to <repo>/.jscpd.json (jscpd ignores the `files` list above), delete this
 # block, then re-seed the snooze baseline.
 [sensors.jscpd]

@@ -2,9 +2,12 @@
 # (`uses: CMaintz/foundry/.github/workflows/gate.yml@v2` with `stack: dotnet`), not directly.
 #
 # Runs the same six verbs a developer runs locally (`mise run gate`). Toolchain (the
-# .NET SDK) comes from the repo's mise.toml (`dotnet = "8.0"`). There is no habit-hooks
-# C# sensor, so structural analysis comes from Roslyn analyzers in `typecheck`
-# (`dotnet build -warnaserror`); habit-hooks contributes only file-length (+ opt-in jscpd).
+# .NET SDK) comes from the repo's mise.toml (`dotnet = "8.0"`). Structural smells come from
+# the habit-hooks `dotnet` sensor (SonarAnalyzer structural warnings -> oversized-function,
+# high-complexity, too-many-parameters, oversized-file) plus the bundled `generic` sensor
+# (file-length) - ratcheted against the snooze baseline, run both folded into `lint` (via
+# `mise run smells`) and in the dedicated habits job below. typecheck (`dotnet build
+# -warnaserror`) stays the hard gate for compile errors, the built-in CA rules and NuGetAudit.
 #
 # Input names are snake_case (kebab parses as a subtraction and fails at startup).
 name: dotnet
@@ -21,15 +24,16 @@ on:
         default: "."
       habit_hooks:
         description: >-
-          Run the dedicated structural-smell backstop job (file-length + opt-in
-          duplication). NOTE: `lint` (in the gate job) now also enforces smells whenever
-          .habit-hooks/config.toml + snooze.json exist; this input only toggles the extra
-          backstop. To opt out entirely, remove the .habit-hooks/ directory.
+          Run the dedicated structural-smell backstop job (the dotnet sensor's Sonar
+          structural warnings + file-length + opt-in duplication). NOTE: `lint` (in the gate
+          job) now also enforces smells whenever .habit-hooks/config.toml + snooze.json exist;
+          this input only toggles the extra backstop. To opt out entirely, remove the
+          .habit-hooks/ directory.
         type: boolean
         default: true
       habit_hooks_plugin:
         type: string
-        default: "habit-hooks-generic"
+        default: "foundry-habit-hooks-dotnet"
       habit_hooks_version:
         description: >-
           habit-hooks release to install. The core and its language plugins ship in
@@ -67,6 +71,13 @@ jobs:
         with:
           version: ${{ inputs.mise_version }}
           cache: true
+      # Build the pinned habit-hooks venv (core + dotnet sensor + generic) BEFORE the verbs.
+      # `mise install` already fires this via the postinstall hook; running it explicitly
+      # keeps the gate robust if a cache hit skips postinstall, and makes the smells folded
+      # into `lint` obvious in the log. The dotnet sensor itself shells out to the .NET SDK
+      # that mise-action put on PATH above.
+      - name: 'setup: habit-hooks venv (core + dotnet sensor + generic)'
+        run: mise run setup:habit-hooks
       # `mise run gate` (lint -> typecheck -> test -> audit), one verb per step so a
       # failure reddens the exact verb and gets a targeted fix. Devs run the composite
       # `mise run gate` locally.
@@ -82,13 +93,15 @@ jobs:
         if: failure() && steps.lint.outcome == 'failure'
         run: |
           {
-            echo "## ❌ Gate failed at \`lint\` - formatting / analyzers (\`dotnet format --verify-no-changes\`)"
+            echo "## ❌ Gate failed at \`lint\` - formatting (\`dotnet format --verify-no-changes\`) or structural smells"
             echo ""
             echo "**Formatting** is mechanical - run it, commit, push:"
             echo '```'
             echo "mise run fix        # = dotnet format"
             echo '```'
-            echo "Anything \`format\` leaves is an analyzer/style issue - the rule + file:line are in the **gate: lint** step log above."
+            echo "Anything \`format\` leaves is a style issue - the rule + file:line are in the **gate: lint** step log above."
+            echo ""
+            echo "A structural smell (**oversized-function**, **high-complexity**, **too-many-parameters**, **oversized-file**) is the habit-hooks dotnet sensor, ratcheted against the snooze baseline - refactor toward the finding. The **Structural smells** job has the full fix legend."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: typecheck'
         id: typecheck
@@ -134,49 +147,52 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          fetch-depth: 0
-      - name: Baseline present?
-        id: baseline
-        run: |
-          if [ -f .habit-hooks/snooze.json ]; then
-            echo "have=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::No .habit-hooks/snooze.json yet - run bootstrap.yml once. Skipping."
-            echo "have=false" >> "$GITHUB_OUTPUT"
-          fi
+          fetch-depth: 0 # `mise run smells` resolves the merge-base vs the PR base itself
+      # Mirror the gate job's environment exactly so this backstop runs the SAME tool versions
+      # a developer runs locally: the dotnet sensor shells out to the .NET SDK (from mise) and
+      # to the pinned habit-hooks venv (built by setup:habit-hooks), so both must be present -
+      # a bare pip install with no SDK would error the sensor (and could seed a blind baseline).
+      # Python for the habit-hooks venv comes from setup-python (the dotnet mise.toml does not
+      # pin python as a tool, unlike the python stack); cache the venv on the same key as the
+      # gate job so it doesn't rebuild each run.
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        if: steps.baseline.outputs.have == 'true'
         with:
           python-version: '3.12'
-      - name: Install habit-hooks
-        if: steps.baseline.outputs.have == 'true'
-        env:
-          HH_VERSION: ${{ inputs.habit_hooks_version }}
-          PLUGIN: ${{ inputs.habit_hooks_plugin }}
-        run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
-      # --branch diffs against `main`; a PR checkout is detached, so point a local `main`
-      # at the PR base (in history from fetch-depth: 0). habit-hooks errors loudly if the
-      # base ref is missing - never a silent pass.
-      - name: Make base ref resolvable for --branch
-        if: steps.baseline.outputs.have == 'true' && github.event_name == 'pull_request'
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: git branch -f main "$BASE_SHA"
+      - name: Cache habit-hooks
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
+          key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          version: ${{ inputs.mise_version }}
+          cache: true
+      # Builds the pinned habit-hooks venv (core + dotnet sensor + generic); the .NET SDK is
+      # already on PATH from mise-action, so the sensor's build runs.
+      - name: 'setup: habit-hooks venv (core + dotnet sensor + generic)'
+        run: mise run setup:habit-hooks
       - name: Smells (fails only on smells beyond the snooze baseline)
         id: smells
-        if: steps.baseline.outputs.have == 'true'
-        run: habit-hooks --branch
+        # `mise run smells` resolves the merge-base vs FOUNDRY_BASE_REF and scans only the
+        # changed files (unchanged files are covered by the snooze baseline). It skips
+        # gracefully when there is no .habit-hooks config or no snooze baseline yet.
+        env:
+          FOUNDRY_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: mise run smells
       - name: How to read these smells
         if: failure() && steps.smells.outcome == 'failure'
         run: |
           {
             echo "## 📖 Structural smells"
             echo ""
-            echo "For C#, most structural checks are Roslyn analyzers in \`typecheck\`; habit-hooks here flags **oversized-file** (>300 lines) and, if enabled, **duplication** (jscpd)."
+            echo "These are ratcheted habit-hooks smells (snooze baseline), separate from typecheck's hard gate. The dotnet sensor maps SonarAnalyzer structural warnings to smells; the generic sensor adds file-length."
             echo "| Smell | Fix toward |"
             echo "|---|---|"
+            echo "| \`oversized-function\` | extract cohesive steps into named helpers |"
+            echo "| \`high-complexity\` | split the branchy logic into smaller methods |"
+            echo "| \`too-many-parameters\` | group related args into a type |"
             echo "| \`oversized-file\` | split by concern into cohesive units |"
             echo "| \`duplication\` | extract one shared method/type |"
             echo ""
-            echo "Findings are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`."
+            echo "Findings (file + line) are in the **Smells** step log above. Full rationale: \`presets/agent/code-standards.md\`."
           } >> "$GITHUB_STEP_SUMMARY"

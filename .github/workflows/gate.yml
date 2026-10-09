@@ -92,7 +92,7 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       mise_version: ${{ inputs.mise_version }}
       habit_hooks: ${{ inputs.habit_hooks }}
-      habit_hooks_plugin: ${{ inputs.habit_hooks_plugin || 'habit-hooks-generic' }}
+      habit_hooks_plugin: ${{ inputs.habit_hooks_plugin || 'foundry-habit-hooks-dotnet' }}
       habit_hooks_version: ${{ inputs.habit_hooks_version }}
   python:
     if: inputs.stack == 'python'

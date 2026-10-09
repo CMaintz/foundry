@@ -44,7 +44,7 @@ resolve_stack() {
     ts)     R_PLUGIN="habit-hooks-typescript"; R_CI="ts.yml";     R_HH="typescript" ;;
     java)   R_PLUGIN="habit-hooks-java";       R_CI="java.yml";   R_HH="java" ;;
     php)    R_PLUGIN="habit-hooks-php";         R_CI="php.yml";    R_HH="php" ;;
-    dotnet) R_PLUGIN="habit-hooks-generic";     R_CI="dotnet.yml"; R_HH="dotnet" ;;
+    dotnet) R_PLUGIN="foundry-habit-hooks-dotnet"; R_CI="dotnet.yml"; R_HH="dotnet" ;;
     python) R_PLUGIN="habit-hooks-python";      R_CI="python.yml"; R_HH="python" ;;  # facade gate
     kotlin) R_PLUGIN=""; R_CI=""; R_HH="kotlin" ;;  # mise template only; inline gate
     *) echo "unknown stack: $1" >&2; exit 2 ;;
@@ -125,15 +125,17 @@ fetch_java_extras() { # <wd> - PMD ruleset, jscpd ignore list, per-smell coachin
   done
 }
 
-fetch_dotnet_extras() { # <wd> - Roslyn/Sonar structural analyzers as a scaffolded default
+fetch_dotnet_extras() { # <wd> - SonarAnalyzer scaffold for the habit-hooks dotnet sensor
   local wd="$1"
-  # There's no habit-hooks .NET sensor, so structural smells come from analyzers in the
-  # build. Directory.Build.props enables the built-in .NET analyzers + SonarAnalyzer.CSharp;
-  # .editorconfig promotes the structural-smell rules to `warning` (hard failures under
-  # `typecheck`'s -warnaserror). MSBuild walks up from each .csproj, so dropping these at
-  # $wd covers the whole package (and works under --mono). fetch never clobbers, so a repo
-  # with its own Directory.Build.props/.editorconfig keeps it - merge the Foundry bits in by
-  # hand there.
+  # The habit-hooks dotnet sensor owns the structural smells (it builds with SonarAnalyzer
+  # active and ratchets the warnings). Directory.Build.props supplies the SonarAnalyzer.CSharp
+  # reference the sensor's build needs (plus the built-in .NET analyzers for typecheck);
+  # .editorconfig demotes the five structural rules (S104/S107/S138/S1541/S3776) to
+  # `suggestion` so `typecheck`'s -warnaserror does not hard-fail them - the sensor gates them
+  # instead. MSBuild walks up from each .csproj, so dropping these at $wd covers the whole
+  # package (and works under --mono). fetch never clobbers, so a repo with its own
+  # Directory.Build.props/.editorconfig keeps it - merge the Foundry bits in by hand there
+  # (a Central Package Management repo moves the SonarAnalyzer version into Directory.Packages.props).
   fetch "presets/dotnet/Directory.Build.props" "$wd/Directory.Build.props"
   fetch "presets/dotnet/.editorconfig" "$wd/.editorconfig"
 }

@@ -3,11 +3,14 @@
        consumer repo root; MSBuild auto-imports the nearest Directory.Build.props
        walking up from each .csproj, so every project in the solution inherits it.
 
-       This is what makes `typecheck` (`dotnet build -warnaserror`) a real structural
-       gate: the built-in .NET analyzers plus SonarAnalyzer.CSharp (the best structural-
-       smell analog to PMD - method length, cyclomatic/cognitive complexity, too many
-       parameters, class size). A consumer tunes WHICH rules are warnings (and so, under
-       -warnaserror, hard failures) in the sibling .editorconfig, not here. -->
+       The SonarAnalyzer.CSharp reference below is what the habit-hooks `dotnet` sensor's
+       build needs present: the sensor runs `dotnet build` with its own ruleset enabling the
+       structural rules (method length, cyclomatic/cognitive complexity, too many parameters,
+       file size), reads the warnings and ratchets them against the snooze baseline. The
+       built-in .NET analyzers stay on for `typecheck` (`dotnet build -warnaserror`), which
+       owns compile errors, the CA rules and NuGetAudit. The five Sonar structural rules are
+       demoted to `suggestion` in the sibling .editorconfig so typecheck does not hard-fail
+       them - the sensor gates them instead. Tune rule severities there, not here. -->
   <PropertyGroup>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
