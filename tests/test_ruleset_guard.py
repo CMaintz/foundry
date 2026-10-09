@@ -82,6 +82,13 @@ class TestLines:
     def test_duplicate_line_is_a_loosening(self):
         assert guard.loosened("lines", "v1\n", "v1\nv1\n") == ["v1"]
 
+    def test_comment_lines_are_ignored(self):
+        # ArchUnit's stored.rules is a Properties file with a changing '#<timestamp>'
+        # comment; a prune must not look like an added line because of it.
+        old = "#Tue Jan 01 00:00:00 UTC 2026\nv1\nv2\n"
+        new = "#Wed Jan 02 09:30:00 UTC 2026\nv1\n"
+        assert guard.loosened("lines", old, new) == []
+
 
 class TestCoverage:
     def test_adding_fixtures_is_safe(self):

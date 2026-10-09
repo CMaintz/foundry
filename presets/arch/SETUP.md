@@ -40,7 +40,9 @@ by `scripts/ruleset_guard.py`), while adding a baseline entry, or editing a rule
 (`.dependency-cruiser.cjs`, `.importlinter`), needs the `ruleset-change` label. The one
 path the default *can't* know is your **ArchUnit rule class** (it lives at a repo-specific
 `src/test/java/.../arch/` path) and, in a monorepo, package-prefixed baselines — add those
-to the `ruleset_paths` input when you wire `security.yml`.
+to the `ruleset_paths` input when you wire `security.yml`. **Note:** passing your own
+`ruleset_paths` *replaces* the default (it is not merged), so an override must re-list the
+arch paths above plus every other gate-defining file it needs, or they go unguarded.
 
 ---
 
@@ -137,10 +139,12 @@ slow for the Stop hook. Java arch runs at pre-push and CI (see the design doc §
 project `.venv` — `setup:pytools` installs it on the next `mise install` *once the config
 below exists* (non-adopting repos never install or audit it)
 
-1. Copy `presets/arch/importlinter.ini` to `.importlinter` at the repo root (or inline it
-   under `[tool.importlinter]` in `pyproject.toml`), then run `mise install` once so
-   `setup:pytools` provisions `import-linter` into the `.venv` (the config now exists, so
-   it will). Until then `mise run arch` just prints a "no config yet" hint and exits 0.
+1. Copy `presets/arch/importlinter.ini` to `.importlinter` at the repo root, then run
+   `mise install` once so `setup:pytools` provisions `import-linter` into the `.venv` (the
+   config now exists, so it will). Until then `mise run arch` just prints a "no config yet"
+   hint and exits 0. (import-linter can also read an inline `[tool.importlinter]` in
+   `pyproject.toml`, but use the standalone `.importlinter` — only that file is in the
+   guard's default `ruleset_paths`, so only it gets the ratchet enforced in CI.)
 2. Set `root_package` to your top package, and fill the `layers` contract. **Mental-model
    shift from TS:** a layer is a *module path under `root_package`*, not a filesystem
    regex, and layers are listed **high → low** (a higher layer may import a lower one, not
@@ -192,7 +196,9 @@ unadopted. Present config means it gates.
 code; pruning the TS baseline JSON or a Java store line. **Requires the label**
 (loosening): widening `ALLOW`/`layers`, deleting a rule, adding a baseline entry, Java
 `freeze.refreeze=true`, and — Python only — *any* edit to `.importlinter` including
-pruning an `ignore_imports` line.
+pruning an `ignore_imports` line. **Adding a *new* rule** freezes its current violations
+into the baseline (new store lines / known-violations entries), so the guard asks for the
+label too — that's correct: you're recording new accepted debt, which deserves the record.
 
 **Never** regenerate a baseline wholesale (`--output-type baseline` over existing,
 `freeze.refreeze=true`, rewriting `ignore_imports`) to make a build pass. That erases the

@@ -58,11 +58,17 @@ def value_counts(x):
 
 
 def line_counts(text):
-    """ArchUnit freeze store: one violation per line -> multiset of non-empty lines."""
+    """ArchUnit freeze store: one violation per line -> multiset of non-empty lines.
+
+    Comment lines (starting with '#') are skipped: ArchUnit's default store index
+    (`stored.rules`) is a Java Properties file, which writes a '#<timestamp>' comment
+    that changes on every store update. Counting it would flag an added line on each
+    legitimate prune. Real violation descriptions never start with '#'.
+    """
     c = Counter()
     for ln in (text or "").splitlines():
         ln = ln.strip()
-        if ln:
+        if ln and not ln.startswith("#"):
             c[ln] += 1
     return c
 
