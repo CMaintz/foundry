@@ -11,15 +11,18 @@ dotnet = "8.0"
 # habit-hooks (the structural-smell detector) is a pinned, mise-managed pip tool,
 # provisioned into a per-plugin venv by setup:habit-hooks (postinstall) whose bin goes on
 # PATH below - so the SAME version runs in-loop, pre-push (`gate`) and in CI (mirrors how
-# java.toml pins PMD). There's no habit-hooks C# sensor, so the plugin is the language-
-# independent `generic` (file-length + opt-in jscpd); structural analysis otherwise comes
-# from Roslyn analyzers in `typecheck` - foundry-init scaffolds Directory.Build.props
-# (built-in .NET analyzers + SonarAnalyzer.CSharp) and .editorconfig (structural-smell
-# rules promoted to warning) into the repo root. Core + plugin ship in lockstep, so both pin to this
-# one version. Renovate bumps it (presets/renovate.json); keep it == the reusable workflow's
+# java.toml pins PMD). The `dotnet` sensor OWNS the structural smells (oversized-function,
+# high-complexity, too-many-parameters, oversized-file): it wraps `dotnet build` with
+# SonarAnalyzer.CSharp active and ratchets the warnings via the snooze baseline; the bundled
+# `generic` sensor adds file-length (+ opt-in jscpd). foundry-init scaffolds
+# Directory.Build.props (the SonarAnalyzer.CSharp reference the sensor's build needs) and
+# .editorconfig (the five structural rules demoted to `suggestion`, so typecheck does not
+# hard-fail them - the sensor gates them instead). Core + plugin ship in lockstep, so all pin
+# to this one version (the dotnet plugin depends only on core, so generic is pinned explicitly
+# below too). Renovate bumps it (presets/renovate.json); keep it == the reusable workflow's
 # `habit_hooks_version` default (1.5.0).
 HABIT_HOOKS_VERSION = "1.5.0"
-HABIT_HOOKS_PLUGIN = "habit-hooks-generic"
+HABIT_HOOKS_PLUGIN = "foundry-habit-hooks-dotnet"
 # The habit-hooks venv bin on PATH (Linux `bin/`, Windows `Scripts/` - a missing one is
 # harmless), plus the repo's scripts/.
 _.path = [
@@ -50,10 +53,10 @@ _.path = [
 # Provision the pinned habit-hooks on `mise install` (local and CI alike), like setup:pmd.
 postinstall = "mise run setup:habit-hooks"
 
-# Provision the pinned habit-hooks (core + generic plugin, same version) into a per-plugin
-# venv. Auxiliary (tier c) - not a contract verb, run via postinstall on `mise install`.
+# Provision the pinned habit-hooks (core + dotnet sensor + generic, same version) into a
+# per-plugin venv. Auxiliary (tier c) - not a contract verb, run via postinstall on `mise install`.
 [tasks."setup:habit-hooks"]
-description = "Install the pinned habit-hooks + generic plugin into a venv (file-length/jscpd smells)"
+description = "Install the pinned habit-hooks + dotnet sensor + generic into a venv (structural smells + file-length)"
 run = '''
 set -eu
 dst="$HOME/.local/opt/$HABIT_HOOKS_PLUGIN-$HABIT_HOOKS_VERSION"
@@ -68,11 +71,15 @@ echo "Installing $HABIT_HOOKS_PLUGIN + habit-hooks $HABIT_HOOKS_VERSION -> $dst"
 rm -rf "$dst"
 "$py" -m venv "$dst"
 bin="$dst/bin"; [ -d "$bin" ] || bin="$dst/Scripts"
-"$bin/pip" install --disable-pip-version-check "habit-hooks==$HABIT_HOOKS_VERSION" "$HABIT_HOOKS_PLUGIN==$HABIT_HOOKS_VERSION"
+# generic is pinned explicitly: the dotnet plugin depends only on core, and core's own
+# generic dependency is a range that could resolve off the pinned version - the explicit
+# pin keeps all three in lockstep.
+"$bin/pip" install --disable-pip-version-check "habit-hooks==$HABIT_HOOKS_VERSION" "$HABIT_HOOKS_PLUGIN==$HABIT_HOOKS_VERSION" "habit-hooks-generic==$HABIT_HOOKS_VERSION"
 '''
 
-# Structural smells (file-length / jscpd via habit-hooks), folded into `lint` below (tier
-# b). Same check CI's habits job runs, so `gate` is the same oracle locally and in CI.
+# Structural smells (the dotnet sensor's Sonar warnings + generic file-length, via habit-hooks),
+# folded into `lint` below (tier b). Same check CI's habits job runs, so `gate` is the same
+# oracle locally and in CI.
 # Degrades gracefully (skip) with no .habit-hooks config/snooze or an unresolvable base;
 # FAILS only when a config + baseline exist but habit-hooks isn't on PATH (run `mise install`).
 [tasks.smells]
@@ -96,17 +103,20 @@ description = "Auto-format (dotnet format)"
 run = "dotnet format"
 
 [tasks.lint]
-description = "Format check + analyzers + structural smells (habit-hooks)"
-# `dotnet format --verify-no-changes` is the style check; Roslyn analyzers (built-in +
-# SonarAnalyzer.CSharp, wired by the scaffolded Directory.Build.props + .editorconfig)
-# run in the build below with -warnaserror, which is where structural smells surface.
-# `mise run smells` runs habit-hooks (file-length/jscpd) - the same smell scan CI runs -
-# so `gate` is the same oracle locally and in CI.
+description = "Format check + structural smells (habit-hooks dotnet sensor)"
+# `dotnet format --verify-no-changes` is the style check. `mise run smells` runs habit-hooks:
+# the dotnet sensor (SonarAnalyzer structural warnings -> oversized-function, high-complexity,
+# too-many-parameters, oversized-file) plus the generic file-length check, RATCHETED against
+# the snooze baseline - the same smell scan CI runs, so `gate` is the same oracle locally and
+# in CI. The sensor owns the structural smells; typecheck (below) owns compile/CA/audit.
 run = ["dotnet format --verify-no-changes", "mise run smells"]
 
 [tasks.typecheck]
 description = "Build = C#'s compile + analyzer pass"
-# TreatWarningsAsErrors turns analyzer + NuGetAudit warnings into gate failures.
+# TreatWarningsAsErrors turns compiler, built-in CA and NuGetAudit warnings into gate
+# failures. The five Sonar structural rules (S104/S107/S138/S1541/S3776) are demoted to
+# `suggestion` in the scaffolded .editorconfig, so they do NOT hard-fail here - the dotnet
+# sensor gates them with the ratchet instead (run via `mise run smells` in `lint`).
 run = "dotnet build -warnaserror"
 
 [tasks.test]

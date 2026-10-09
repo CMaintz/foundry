@@ -26,12 +26,12 @@ to a truly universal check.
 | `java.toml` | java, generic | Java (PMD → oversized-file/function, etc.) |
 | `php.toml` | php, generic | PHP (phpmd) |
 | `kotlin.toml` | generic | Kotlin - smells via detekt in `mise run lint` (no habit-hooks sensor yet) |
-| `dotnet.toml` | generic | .NET/C# - smells via Roslyn analyzers in `mise run lint` |
-| `python.toml` | generic | Python - smells via ruff in `mise run lint` |
+| `dotnet.toml` | dotnet, generic | .NET/C# (SonarAnalyzer -> oversized-function/high-complexity/too-many-parameters/oversized-file) |
+| `python.toml` | python, generic | Python (ruff -> complexity/params/oversized-function/etc.) |
 
-For languages with no habit-hooks sensor of their own (Kotlin, .NET, Python), the
-preset runs only the language-independent `generic` (jscpd) duplication check; the
-language's own linter carries the structural smells inside the `lint` verb.
+For languages with no habit-hooks sensor of their own (Kotlin), the preset runs only
+the language-independent `generic` (jscpd) duplication check; the language's own linter
+carries the structural smells inside the `lint` verb.
 
 Copy one to `<repo>/.habit-hooks/config.toml`, install the detectors
 (`habit-hooks init` lists them), then snooze the baseline.

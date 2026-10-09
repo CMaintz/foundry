@@ -118,11 +118,29 @@ jobs:
       # Guarded on the task existing, so non-Python stacks skip it (not masked).
       - name: 'Python: provision pinned .venv tools (ruff + deptry) for seeding'
         run: if mise tasks ls 2>/dev/null | grep -q 'setup:pytools'; then mise run setup:pytools; fi
+      # The dotnet sensor builds the project, so it needs the .NET SDK (from mise.toml via
+      # mise-action above). Fail loud if it is missing rather than seed a blind baseline: a
+      # sensor that cannot find `dotnet` bakes its tool-error string into snooze.json as an
+      # accepted finding. Only the dotnet plugin cares, so other stacks skip the check.
+      - name: '.NET: confirm the SDK is present for seeding'
+        env:
+          PLUGIN: ${{ inputs.habit_hooks_plugin }}
+        run: |
+          case "$PLUGIN" in
+            *dotnet*)
+              command -v dotnet >/dev/null 2>&1 || {
+                echo "::error::dotnet SDK not on PATH - the dotnet sensor would seed a tool-error string into snooze.json. Check mise.toml pins dotnet."
+                exit 1
+              } ;;
+          esac
       - name: Install habit-hooks
+        # generic pinned explicitly for lockstep: core's generic dependency is a range that
+        # could resolve off the pinned version, and a language plugin (e.g. the dotnet sensor)
+        # depends only on core. All three on the one version.
         env:
           HH_VERSION: ${{ inputs.habit_hooks_version }}
           PLUGIN: ${{ inputs.habit_hooks_plugin }}
-        run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION"
+        run: pip install --disable-pip-version-check "habit-hooks==$HH_VERSION" "$PLUGIN==$HH_VERSION" "habit-hooks-generic==$HH_VERSION"
       - name: Regenerate (prune to shrink; snooze only to create)
         id: regen
         run: |

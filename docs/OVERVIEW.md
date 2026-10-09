@@ -255,11 +255,12 @@ tsc + vitest + habit-hooks-typescript).
 
 Reachable cheaply (habit-hooks already has detectors): **Java** (PMD), **PHP**
 (phpmd), **Python** (ruff), **Ruby** (rubocop). Each needs a `mise` template +
-a workflow.
+a workflow. **C#/.NET** has its own sensor too (`foundry-habit-hooks-dotnet`:
+SonarAnalyzer structural warnings ratcheted via the snooze baseline).
 
-No habit-hooks support, would use native tooling: **C#/.NET** (Roslyn analyzers /
-editorconfig), **Kotlin** (detekt), **Swift** (SwiftLint), **HTML/CSS** (a
-line-count / max-file gate, since the full smell suite doesn't apply).
+No habit-hooks sensor yet, would use native tooling: **Kotlin** (detekt), **Swift**
+(SwiftLint), **HTML/CSS** (a line-count / max-file gate, since the full smell suite
+doesn't apply).
 
 The architecture is additive: a new stack is a new `mise` template and a new
 reusable workflow, mapping that language's tools onto the same six verbs and the
