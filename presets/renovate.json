@@ -19,6 +19,12 @@
       "matchStrings": ["HABIT_HOOKS_VERSION\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
       "datasourceTemplate": "pypi",
       "depNameTemplate": "habit-hooks"
+    },
+    {
+      "customType": "regex",
+      "description": "Any mise.toml [env] pin annotated with a `# renovate: datasource=<ds> depName=<name>` comment on the line above (the Python template's mypy/pytest/pytest-cov/pip-audit/deptry). Reusable for any stack: annotate a pin and Renovate tracks it.",
+      "fileMatch": ["(^|/)mise\\.toml$", "^mise/[^/]+\\.toml$"],
+      "matchStrings": ["#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n[A-Z0-9_]+\\s*=\\s*\"(?<currentValue>[^\"]+)\""]
     }
   ],
   "packageRules": [
