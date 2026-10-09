@@ -6,6 +6,18 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.10.0](https://github.com/CMaintz/foundry/compare/v2.9.0...v2.10.0) (2026-10-09)
+
+### Features
+
+* scaffold a default ruff config and gitignore the venv (4fc98ce)
+* track mise.toml pins annotated with # renovate comments (424fb30)
+* wire the habit-hooks dotnet sensor as a first-class stack (ba9330b)
+
+### Bug Fixes
+
+* pin a full python patch and build the venv from mise's interpreter (b8c78f0)
+
 ## [2.9.0](https://github.com/CMaintz/foundry/compare/v2.8.0...v2.9.0) (2026-10-09)
 
 ### Features
