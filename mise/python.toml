@@ -50,7 +50,9 @@ HABIT_HOOKS_PLUGIN = "habit-hooks-python"
 # renovate: datasource=pypi depName=deptry
 DEPTRY_VERSION = "0.25.1"
 # import-linter (the opt-in `arch` task) builds its import graph by importing the project,
-# so it must resolve from the project .venv - installed by setup:pytools like mypy/pytest.
+# so it must resolve from the project .venv - but setup:pytools installs it ONLY once the
+# repo adopts arch (a .importlinter / [tool.importlinter] config exists), so non-adopters
+# neither install nor pip-audit it. This pin stays here for Renovate regardless.
 # renovate: datasource=pypi depName=import-linter
 IMPORT_LINTER_VERSION = "2.15"
 # Coverage floor for `test`. Override per repo (a legacy repo can start lower and
@@ -112,13 +114,23 @@ stamp=".venv/.foundry-pytools"
 # The stamp covers the project's own manifests too, so a changed dependency list
 # reinstalls instead of leaving a stale .venv behind.
 manifests=$(cat pyproject.toml setup.py setup.cfg requirements.txt 2>/dev/null | cksum | cut -d' ' -f1)
-want="$("$base" --version 2>&1) $MYPY_VERSION $PYTEST_VERSION $PYTEST_COV_VERSION $PIP_AUDIT_VERSION $DEPTRY_VERSION $IMPORT_LINTER_VERSION $manifests"
+# import-linter backs the OPT-IN `arch` task, so install it only once the repo has adopted
+# arch (same three-way config test the `arch` task uses) - a non-adopting repo neither
+# pays the install nor audits it under `audit` (pip-audit runs over this .venv). The pin
+# stays in [env] for Renovate regardless; folding the resolved spec into `want` means
+# ADDING .importlinter later flips the stamp and triggers the reinstall.
+arch_pkg=""
+if [ -f .importlinter ] || grep -q '^\[importlinter\]' setup.cfg 2>/dev/null || grep -q '^\[tool\.importlinter\]' pyproject.toml 2>/dev/null; then
+  arch_pkg="import-linter==$IMPORT_LINTER_VERSION"
+fi
+want="$("$base" --version 2>&1) $MYPY_VERSION $PYTEST_VERSION $PYTEST_COV_VERSION $PIP_AUDIT_VERSION $DEPTRY_VERSION ${arch_pkg:-no-arch} $manifests"
 if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ]; then exit 0; fi
 "$base" -m venv --clear .venv  # --clear: a changed Python pin rebuilds, not layers
 py=".venv/bin/python"; [ -x "$py" ] || py=".venv/Scripts/python.exe"  # Scripts on Windows
 "$py" -m pip install --disable-pip-version-check --quiet --upgrade pip
+# $arch_pkg is unquoted on purpose: empty => nothing added; set => one token (no spaces).
 "$py" -m pip install --disable-pip-version-check --quiet \
-  "mypy==$MYPY_VERSION" "pytest==$PYTEST_VERSION" "pytest-cov==$PYTEST_COV_VERSION" "pip-audit==$PIP_AUDIT_VERSION" "deptry==$DEPTRY_VERSION" "import-linter==$IMPORT_LINTER_VERSION"
+  "mypy==$MYPY_VERSION" "pytest==$PYTEST_VERSION" "pytest-cov==$PYTEST_COV_VERSION" "pip-audit==$PIP_AUDIT_VERSION" "deptry==$DEPTRY_VERSION" $arch_pkg
 # Make the project importable so pytest/mypy see its code and deps: editable if it is a
 # package (a pyproject.toml that only holds tool config is not), plus requirements.txt
 # when present. A failed install fails the task and writes no stamp, so it is retried
@@ -178,9 +190,10 @@ echo "smells: $("$hh" --version) --branch base=$mb"
 '''
 
 # Architecture fitness (opt-in, tier-c auxiliary until you adopt it). Enforces YOUR layer
-# map + framework-freedom via import-linter (`lint-imports`), installed into the project
-# .venv by setup:pytools (import-linter imports the package to build its graph, so it must
-# run against the project's own interpreter, not an isolated tool). Whole-graph, so NOT
+# map + framework-freedom via import-linter (`lint-imports`), which setup:pytools installs
+# into the project .venv ONCE a config exists (import-linter imports the package to build
+# its graph, so it must run against the project's own interpreter, not an isolated tool,
+# and non-adopters skip the install entirely). Whole-graph, so NOT
 # changed-scoped - one stray import anywhere can break a layer. To adopt: copy
 # presets/arch/importlinter.ini to .importlinter, set root_package + your layers, record
 # today's violations as `ignore_imports`, then fold `mise run arch` into `lint`. Unlike the

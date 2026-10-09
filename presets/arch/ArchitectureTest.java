@@ -3,7 +3,7 @@
 // ArchUnit rules ARE JUnit tests, so this runs under `mise run test` with no verb
 // change. Drop it in src/test/java/<base>/arch/ and change the package + base-package
 // below. Requires the ArchUnit test dependency:
-//   testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")   // pin the version
+//   testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")   // pin the version
 //
 // ARCHITECTURE-AGNOSTIC. Hexagonal (AutoApplicant's shape) is the default; swap the
 // layer/access lines for classic-layered, clean/onion, or modular - see the examples

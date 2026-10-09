@@ -66,25 +66,26 @@ This is the deepest of the three because the freeze mechanism has moving parts. 
 in order.
 
 1. **Add the dependency** (pin the version):
-   - Gradle (KTS): `testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")`
-   - Maven: `<dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit-junit5</artifactId><version>1.3.0</version><scope>test</scope></dependency>`
+   - Gradle (KTS): `testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")`
+   - Maven: `<dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit-junit5</artifactId><version>1.5.1</version><scope>test</scope></dependency>`
 2. **Drop in the test.** Copy `ArchitectureTest.java` to `src/test/java/<your-base>/arch/`.
    Change two things: the `package` declaration, and the `packages = "com.example"` base
    package in `@AnalyzeClasses` (plus the `slices().matching("com.example.(*)..")` line).
    Edit the layer rules to your architecture — the file ships hexagonal as default with
    classic-layered / clean-onion / modular examples at the bottom. Every rule is already
    wrapped in `FreezingArchRule.freeze(...)`.
-3. **Configure the freeze store.** Create `src/test/resources/archunit.properties`:
+3. **Seed the store once.** Create `src/test/resources/archunit.properties` with store
+   creation *temporarily* enabled:
    ```properties
    freeze.store.default.path=archunit_store
    freeze.store.default.allowStoreCreation=true
    ```
-   `allowStoreCreation` defaults to **false**, so without it the very first run fails
-   instead of recording the baseline. Leave it `true` so a fresh checkout / new rule can
-   seed its store.
-4. **First run seeds the store.** Run `mise run test` once. ArchUnit records today's
-   violations into `archunit_store/` and the test passes. **Commit that directory.**
-   Thereafter only *new* violations fail, and the store may only shrink.
+   `allowStoreCreation` defaults to **false** (a missing store errors rather than silently
+   recording one), so you enable it just long enough to record the baseline.
+4. **First run seeds, then lock it down.** Run `mise run test` once: ArchUnit records
+   today's violations into `archunit_store/` and the test passes. Now **remove the
+   `allowStoreCreation=true` line** (or set it `false`) and **commit both** the properties
+   file and `archunit_store/`. This is the safety-critical step — see why below.
 5. **Normalize line endings.** Add to `.gitattributes`:
    ```
    archunit_store/** text eol=lf
@@ -92,11 +93,20 @@ in order.
    (Foundry's root `.gitattributes` already forces `* text=auto eol=lf`; adopters who
    vendor it are covered, but set it explicitly if yours doesn't — otherwise Windows
    contributors get a phantom whole-file diff.)
-6. **Never refreeze to pass.** `freeze.refreeze=true` regenerates the whole store from
-   current reality — it is the "accept everything" escape hatch. Setting it, or deleting
-   the store, is a `ruleset-change` PR, never a fix. `ruleset-guard` watches the store
-   files with the `lines` kind (one frozen violation per line), so an added line fails the
-   guard.
+6. **Why lock `allowStoreCreation` back off.** With it left `true`, deleting
+   `archunit_store/` would *silently re-seed* from current reality on the next run — a
+   full refreeze that launders away every rule, and one `ruleset-guard` **cannot catch**
+   (the `lines` kind sees a deleted store as an empty file: nothing added, so it passes).
+   With creation disabled, a missing store makes the **test itself fail loudly** — so
+   deletion is caught at the point it happens. You don't lose anything by disabling it:
+   `freeze.store.default.allowStoreUpdate` stays at its default **true**, so a newly-added
+   rule still auto-freezes into the existing store and fixed violations are still pruned
+   (the store shrinks) — only *creating* a store from nothing is blocked. Do **not** set
+   `allowStoreUpdate=false` (it would break legitimate shrinking), and never use
+   `freeze.refreeze=true` to pass — both, like any store deletion, are a `ruleset-change`
+   PR, never a fix. `ruleset-guard` watches the store files with the `lines` kind (one
+   frozen violation per line), so an *added* line fails the guard; a *deleted store* is
+   caught by the failing test instead.
 7. **Keep arch tests off changed-scope selection.** They are cheap and global; a
    changed-scope `test` run must never skip them, or a cross-layer import in an "untouched"
    file sails through. Put them in a package/source set your test selection always
@@ -111,10 +121,13 @@ slow for the Stop hook. Java arch runs at pre-push and CI (see the design doc §
 
 **Preset:** `presets/arch/importlinter.ini` · **Baseline:** inline `ignore_imports` lines
 (same file) · **Verb:** `lint` (via the `arch` task) · **Pinned:** `import-linter` in the
-project `.venv` (`mise/python.toml` already wires it)
+project `.venv` — `setup:pytools` installs it on the next `mise install` *once the config
+below exists* (non-adopting repos never install or audit it)
 
 1. Copy `presets/arch/importlinter.ini` to `.importlinter` at the repo root (or inline it
-   under `[tool.importlinter]` in `pyproject.toml`).
+   under `[tool.importlinter]` in `pyproject.toml`), then run `mise install` once so
+   `setup:pytools` provisions `import-linter` into the `.venv` (the config now exists, so
+   it will). Until then `mise run arch` just prints a "no config yet" hint and exits 0.
 2. Set `root_package` to your top package, and fill the `layers` contract. **Mental-model
    shift from TS:** a layer is a *module path under `root_package`*, not a filesystem
    regex, and layers are listed **high → low** (a higher layer may import a lower one, not
