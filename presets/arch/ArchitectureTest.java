@@ -7,7 +7,8 @@
 //
 // ARCHITECTURE-AGNOSTIC. Hexagonal (AutoApplicant's shape) is the default; swap the
 // layer/access lines for classic-layered, clean/onion, or modular - see the examples
-// at the bottom and designs/arch-fitness.md.
+// at the bottom and docs/designs/arch-fitness.md. Adoption walkthrough (store setup,
+// archunit.properties, ratchet): presets/arch/SETUP.md.
 //
 // RATCHET: every rule is wrapped in FreezingArchRule.freeze(...). On first run it
 // records today's violations into a store (default: archunit_store/, committed) and

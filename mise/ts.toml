@@ -217,8 +217,9 @@ run = "npm audit --json | node scripts/npm-audit-ratchet.mjs --level=critical --
 # layer map + no cycles via dependency-cruiser (needs `dependency-cruiser` installed).
 # Whole-graph, so NOT changed-scoped - a cycle can be formed by an unrelated edge.
 # To adopt: fill the layer map in .dependency-cruiser.cjs (from presets/arch/), generate
-# the shrink-only baseline once, then fold `mise run arch` into `lint`. See
-# designs/arch-fitness.md. Architecture-agnostic - hexagonal is just the default map.
+# the shrink-only baseline once, then fold `mise run arch` into `lint`. Walkthrough:
+# presets/arch/SETUP.md; design: docs/designs/arch-fitness.md. Architecture-agnostic -
+# hexagonal is just the default map.
 [tasks.arch]
 description = "Architecture fitness: no cross-layer imports, no cycles (dependency-cruiser)"
 run = '''

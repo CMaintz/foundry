@@ -83,11 +83,13 @@ module.exports = {
     // Ratchet (verify exact flags for your dependency-cruiser version): generate a
     // known-violations baseline once, commit it, and run against it so only NEW
     // violations fail. The baseline may only shrink; ruleset-guard watches it with
-    // the `snooze` kind (value_counts over the JSON). Example:
-    //   depcruise src --config presets/arch/dependency-cruiser.cjs \
+    // the `snooze` kind (value_counts over the JSON). Copy this file to the repo root as
+    // .dependency-cruiser.cjs first (that is the path `mise run arch` uses). Example:
+    //   depcruise src --config .dependency-cruiser.cjs \
     //     --output-type baseline > .dependency-cruiser-known-violations.json
-    //   depcruise src --config presets/arch/dependency-cruiser.cjs \
+    //   depcruise src --config .dependency-cruiser.cjs \
     //     --ignore-known .dependency-cruiser-known-violations.json
+    // Full walkthrough: presets/arch/SETUP.md.
   },
 };
 
