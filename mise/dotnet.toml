@@ -132,7 +132,7 @@ description = "Dependency vulnerabilities"
 # success. So capture it, fail on a non-zero `dotnet list`, THEN grep. NuGetAudit (in
 # the build above) is the other half - it warns at restore, and -warnaserror fails that.
 run = '''
-set -euo pipefail
+set -eu
 out=$(dotnet list package --vulnerable --include-transitive 2>&1) || { echo "$out"; echo "audit: 'dotnet list' failed"; exit 1; }
 echo "$out"
 if echo "$out" | grep -q 'has the following vulnerable'; then echo "audit: vulnerable packages found"; exit 1; fi
