@@ -1,0 +1,22 @@
+# Foundry default ruff config for Python repos. foundry-init places it as ruff.toml only
+# when the repo has no ruff config of its own (a ruff.toml would silently override a
+# pyproject.toml [tool.ruff] table, so it is skipped when one exists).
+#
+# This is the HARD gate in `mise run lint`: style, correctness and import order. The
+# structural smells (complexity C901, too-many-parameters PLR0913, too-many-statements
+# PLR0915, blind except BLE001) are deliberately NOT selected here: the habit-hooks
+# python sensor owns them and ratchets them against the snooze baseline, so a legacy repo
+# can adopt Foundry without fixing every smell first.
+line-length = 120
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes: undefined names, unused imports, ...
+    "I",   # import order
+    "UP",  # pyupgrade: modern syntax for the target Python
+    "B",   # bugbear: likely bugs and design problems
+    "SIM", # simplifications
+]
+# Security patterns are the SAST job's (semgrep, in security.yml), not ruff's.

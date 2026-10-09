@@ -35,7 +35,8 @@ for stack in "${STACKS[@]}"; do
       ts) expected+=(tsconfig.json .jscpd.json scripts/npm-audit-ratchet.mjs .github/workflows/bootstrap.yml) ;;
       java) expected+=(pmd/ruleset.xml config/pmd/no-var.xml .jscpd.json .github/workflows/bootstrap.yml) ;;
       dotnet) expected+=(Directory.Build.props .editorconfig .github/workflows/bootstrap.yml) ;;
-      php | python) expected+=(.github/workflows/bootstrap.yml) ;;
+      php) expected+=(.github/workflows/bootstrap.yml) ;;
+      python) expected+=(ruff.toml .github/workflows/bootstrap.yml) ;;
     esac
     for f in "${expected[@]}"; do [ -s "$f" ] || fail "missing or empty: $f"; done
     if [ "$stack" = ts ]; then
@@ -45,6 +46,10 @@ for stack in "${STACKS[@]}"; do
     fi
     [ -x scripts/foundry-verb-wrap ] || fail "foundry-verb-wrap is not executable"
     grep -qxF '.foundry/' .gitignore || fail ".gitignore lacks .foundry/"
+    if [ "$stack" = python ]; then
+      grep -qxF '.venv/' .gitignore || fail ".gitignore lacks .venv/"
+      python3 -c 'import tomllib; tomllib.load(open("ruff.toml", "rb"))' || fail "ruff.toml does not parse"
+    fi
     grep -q '@v0.0.0-smoke' .github/workflows/security.yml || fail "workflows not pinned to FOUNDRY_REF"
 
     # Facade stacks get a gate.yml that pins the gate.yml facade + passes `stack`; only
@@ -74,6 +79,21 @@ PY
   )
   rm -rf "$dir"
 done
+
+# Python with its own ruff config: a ruff.toml would override pyproject's [tool.ruff], so
+# init must not place the preset.
+if [[ " ${STACKS[*]} " == *" python "* ]]; then
+  dir="$(mktemp -d)"
+  (
+    cd "$dir"
+    git init -q
+    printf '[tool.ruff]\nline-length = 100\n' > pyproject.toml
+    bash "$ROOT/scripts/foundry-init.sh" python > init.log 2>&1 || { cat init.log; fail "init exited non-zero"; }
+    [ ! -e ruff.toml ] || fail "ruff.toml placed although pyproject.toml configures ruff"
+    echo "ok [python, own ruff config]"
+  )
+  rm -rf "$dir"
+fi
 
 # Monorepo: scaffold two packages into one repo; assert per-package assets land, the
 # generated gate.yml wires both packages + the classifier + a bare gate-ok, and a
