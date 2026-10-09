@@ -6,6 +6,16 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.9.0](https://github.com/CMaintz/foundry/compare/v2.8.0...v2.9.0) (2026-10-09)
+
+### Features
+
+* fold actions and mise non-major updates into the weekly group (9f7e1e7)
+
+### Bug Fixes
+
+* use a repo-relative audit script path so windows bash does not break it (53cb481)
+
 ## [2.8.0](https://github.com/CMaintz/foundry/compare/v2.7.0...v2.8.0) (2026-10-06)
 
 ### Features
