@@ -9,9 +9,21 @@ generation verified for hexagonal + modular maps); `presets/arch/ArchitectureTes
 ArchUnit template (layered + framework-freedom + cycles, wrapped in `FreezingArchRule`);
 `presets/arch/guides/{layering-violation,dependency-cycle}.md`; `ruleset_guard.py` gains
 a `lines` kind for the ArchUnit freeze store (tested; dep-cruiser baseline reuses `snooze`);
-`mise/ts.toml` adds an opt-in `arch` task. **Not yet:** live ArchUnit/dep-cruiser run on a
-real project (no JVM/node project here); Python `.importlinter` preset; foundry-init
-vendoring of the arch presets.
+`mise/ts.toml` adds an opt-in `arch` task; `presets/arch/importlinter.ini` - Python preset
+(hexagonal default + the same four example maps), with `mise/python.toml` adding an opt-in
+`arch` task (import-linter pinned into the project `.venv` via `setup:pytools`);
+`presets/arch/SETUP.md` - a dual-audience (human + agent) adoption walkthrough for all three
+stacks. **Not yet:** live ArchUnit/dep-cruiser/import-linter run on a real project (no
+JVM/node/py project here); foundry-init vendoring of the arch presets.
+
+**Python ratchet note.** import-linter has no external baseline file: accepted violations
+are recorded inline as `ignore_imports` in the config, so `.importlinter` is both ruleset
+and baseline and rides the ruleset-file watch (any edit + source => `ruleset-change` label,
+*including* pruning an ignore). This diverges from TS/Java label-free pruning and is
+documented as such in SETUP.md. The rot-prevention half holds for free:
+`unmatched_ignore_imports_alerting = error` (import-linter's default) fails the build on a
+stale ignore. There is also no whole-graph cycle check on Python (the `layers` contract only
+forbids cross-layer cycles) - no import-linter equivalent of dep-cruiser's `no-circular`.
 
 ## Problem
 

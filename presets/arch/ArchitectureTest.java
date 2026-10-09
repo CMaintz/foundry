@@ -3,11 +3,12 @@
 // ArchUnit rules ARE JUnit tests, so this runs under `mise run test` with no verb
 // change. Drop it in src/test/java/<base>/arch/ and change the package + base-package
 // below. Requires the ArchUnit test dependency:
-//   testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")   // pin the version
+//   testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")   // pin the version
 //
 // ARCHITECTURE-AGNOSTIC. Hexagonal (AutoApplicant's shape) is the default; swap the
 // layer/access lines for classic-layered, clean/onion, or modular - see the examples
-// at the bottom and designs/arch-fitness.md.
+// at the bottom and docs/designs/arch-fitness.md. Adoption walkthrough (store setup,
+// archunit.properties, ratchet): presets/arch/SETUP.md.
 //
 // RATCHET: every rule is wrapped in FreezingArchRule.freeze(...). On first run it
 // records today's violations into a store (default: archunit_store/, committed) and
