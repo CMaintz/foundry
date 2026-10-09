@@ -25,12 +25,21 @@ Removal-only, so the `snooze` guard passes a prune label-free. The **rerun loop 
 now exercised live** against a synthetic flipping command (subprocess + shell-quoting of a
 spaced id), up from parsing-only.
 
+A quarantined test that is renamed or deleted never reaches the green threshold, so it
+would sit as permanent dead debt; `prune` reports such ids as `stale (never seen in the
+log)` for a human to review but never auto-removes them (a rename deserves eyes). The
+pruned baseline is written LF (`newline="\n"`) and consumers should carry
+`flaky-baseline.json text eol=lf` in `.gitattributes`, so a Windows-run prune doesn't emit
+a phantom CRLF diff on a committed ratchet file.
+
 **Still not yet:** the runner-filter *semantics* (`vitest -t`, `gradlew --tests`) are
 unverified against a real suite - only the generic `{test}` subprocess contract is tested.
-The green-streak is **pre-push-fed** (`/ship`, where `.foundry/` persists); CI contributes
-to a streak only if `.foundry/` is cached across runs. A scheduled refresh workflow that
-runs `prune` and opens the removal PR (mirroring `bootstrap.yml`'s snooze `--prune`) is
-recipe-only, not built here.
+The green-streak only accrues where `gate` runs against the baseline, i.e. once a consumer
+has folded `test:flaky` into `test` - pre-push `/ship` runs `gate`, not `test:flaky`
+directly. It is therefore **pre-push-fed** (`/ship`, where `.foundry/` persists); CI
+contributes to a streak only if `.foundry/` is cached across runs. A scheduled refresh
+workflow that runs `prune` and opens the removal PR (mirroring `bootstrap.yml`'s snooze
+`--prune`) is recipe-only, not built here.
 
 ## Problem
 

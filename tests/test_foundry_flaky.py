@@ -98,6 +98,14 @@ class TestGateAndStreak:
         flaky.cmd_gate(str(rep), None)
         assert not (tmp_path / ".foundry" / "flaky-streaks.jsonl").exists()
 
+    def test_streak_omits_quarantined_test_that_did_not_run(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        rep = tmp_path / "r.xml"; rep.write_text(JUNIT)
+        base = _baseline(tmp_path, "com.foo.BarTest.passes", "ghost.NotRun")
+        flaky.cmd_gate(str(rep), str(base))
+        res = json.loads((tmp_path / ".foundry" / "flaky-streaks.jsonl").read_text())["results"]
+        assert res == {"com.foo.BarTest.passes": "pass"}  # ghost absent, not recorded
+
 
 class TestTrailingGreenAndPrune:
     def _log(self, tmp_path, *runs):
@@ -136,6 +144,19 @@ class TestTrailingGreenAndPrune:
         log = self._log(tmp_path, {"t": "pass"}, {"t": "pass"})
         assert flaky.cmd_prune(str(base), 10, str(log)) == 0
         assert [e["id"] for e in json.loads(base.read_text())["quarantined"]] == ["t"]
+
+    def test_prune_reports_stale_but_keeps_it(self, tmp_path, capsys):
+        base = _baseline(tmp_path, "gone")  # never appears in the log
+        log = self._log(tmp_path, {"other": "pass"}, {"other": "pass"})
+        assert flaky.cmd_prune(str(base), 10, str(log)) == 0
+        assert [e["id"] for e in json.loads(base.read_text())["quarantined"]] == ["gone"]
+        assert "stale: gone" in capsys.readouterr().out
+
+    def test_prune_writes_lf_newlines(self, tmp_path):
+        base = _baseline(tmp_path, "stable")
+        log = self._log(tmp_path, *([{"stable": "pass"}] * 10))
+        flaky.cmd_prune(str(base), 10, str(log))
+        assert b"\r\n" not in base.read_bytes()
 
 
 class TestClassifyLiveRerun:

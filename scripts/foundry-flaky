@@ -35,6 +35,7 @@ Test id format (match the baseline to these):
   JUnit XML  -> "<classname>.<name>"      (Gradle/PHPUnit/JUnit)
   vitest     -> the assertion "fullName"  (ancestor titles + test title, space-joined)
 """
+import glob
 import json
 import os
 import subprocess
@@ -57,8 +58,6 @@ def parse_report(path):
     (Gradle/PHPUnit write one TEST-*.xml per class to build/test-results/test/) - in
     which case every *.xml under it is parsed and merged.
     """
-    import glob
-
     if os.path.isdir(path):
         files = sorted(glob.glob(os.path.join(path, "**", "*.xml"), recursive=True))
         if not files:
@@ -197,6 +196,26 @@ def trailing_green(log_path, tid):
     return streak
 
 
+def times_seen(log_path, tid):
+    """How many recorded runs include `tid` at all (0 => never ran since logging began)."""
+    try:
+        with open(log_path, encoding="utf-8") as fh:
+            lines = fh.readlines()
+    except FileNotFoundError:
+        return 0
+    n = 0
+    for ln in lines:
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            if tid in json.loads(ln).get("results", {}):
+                n += 1
+        except json.JSONDecodeError:
+            continue
+    return n
+
+
 def cmd_prune(baseline, min_green, log_path):
     if not baseline:
         print("usage: foundry-flaky prune <baseline> [--min-green M] [--log <path>]",
@@ -209,20 +228,33 @@ def cmd_prune(baseline, min_green, log_path):
         print(f"flaky prune: no baseline at {baseline} - nothing to prune.")
         return 0
     entries = data.get("quarantined", [])
-    kept, pruned = [], []
+    kept, pruned, stale = [], [], []
     for e in entries:
         tid = e["id"] if isinstance(e, dict) else e
         g = trailing_green(log_path, tid)
         if g >= min_green:
             pruned.append((tid, g))
-        else:
-            kept.append(e)
+            continue
+        kept.append(e)
+        # Never seen in the log = renamed/deleted test, or a quarantine that never runs.
+        # It can never reach the green threshold, so it would otherwise sit as dead debt.
+        # Surface it for a human - do NOT auto-remove (a rename deserves eyes).
+        if times_seen(log_path, tid) == 0:
+            stale.append(tid)
+    if stale:
+        print("flaky prune: STALE quarantine (never seen in the streak log - renamed, "
+              "deleted, or never run?); review by hand:")
+        for tid in stale:
+            print(f"  stale: {tid}")
     if not pruned:
         print(f"flaky prune: no quarantined test has {min_green}+ consecutive green "
               f"runs in {log_path}; baseline unchanged.")
         return 0
     data["quarantined"] = kept
-    with open(baseline, "w", encoding="utf-8") as fh:
+    # newline="\n": a committed ratchet baseline must stay LF, or a Windows-run prune
+    # emits a whole-file CRLF diff (the phantom-diff the global gitattributes convention
+    # and _guards.yml's CRLF check exist to prevent).
+    with open(baseline, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(data, fh, indent=2)
         fh.write("\n")
     print(f"flaky prune: re-armed {len(pruned)} stable test(s) (>= {min_green} green runs); "
