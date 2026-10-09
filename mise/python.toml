@@ -14,17 +14,24 @@
 # Gitignore `.venv/` (the project venv, a build artifact); foundry-init seeds `.foundry/`.
 
 [tools]
-python = "3.12"
-ruff = "0.14.0" # lint + format; standalone binary, no project deps -> clean pin
+# A full patch pin, not "3.12": Renovate reads a bare minor as x.y.0 and proposes the
+# oldest patch (3.12.1), whose builds mise cannot verify (no artifact attestations), so
+# CI fails at `mise install`. A full pin also makes local and CI identical.
+python = "3.14.8"
+ruff = "0.16.10" # lint + format; standalone binary, no project deps -> clean pin
 
 [env]
-# Pinned into the project .venv by setup:pytools (see the header note). Bump them
-# together, and with ruff above - like the java template's PMD_VERSION, these mise.toml
-# pins are not auto-tracked by Renovate (only workflow-input defaults are).
-MYPY_VERSION = "1.18.2"
-PYTEST_VERSION = "9.0.3" # 8.4.2 fails pip-audit: PYSEC-2026-1845, fixed in 9.0.3
-PYTEST_COV_VERSION = "7.0.0"
-PIP_AUDIT_VERSION = "2.9.0"
+# Pinned into the project .venv by setup:pytools (see the header note). Renovate tracks
+# each one through the `# renovate:` comment above it (the shared preset's annotation
+# manager), so keep those comments directly above their pins.
+# renovate: datasource=pypi depName=mypy
+MYPY_VERSION = "2.4.0"
+# renovate: datasource=pypi depName=pytest
+PYTEST_VERSION = "9.1.1" # >= 9.0.3: 8.4.2 fails pip-audit (PYSEC-2026-1845)
+# renovate: datasource=pypi depName=pytest-cov
+PYTEST_COV_VERSION = "7.1.0"
+# renovate: datasource=pypi depName=pip-audit
+PIP_AUDIT_VERSION = "2.10.1"
 # habit-hooks (the structural-smell detector) is a pinned, mise-managed pip tool,
 # provisioned into a per-plugin venv by setup:habit-hooks (postinstall) whose bin goes on
 # PATH below - so the SAME version runs in-loop, pre-push (`gate`) and in CI (mirrors how
@@ -39,7 +46,8 @@ HABIT_HOOKS_VERSION = "1.5.0"
 HABIT_HOOKS_PLUGIN = "habit-hooks-python"
 # deptry (the python sensor's unused-dependency check) is resolved from the project .venv
 # (.venv/bin is first on PATH below), so it is installed by setup:pytools alongside the
-# other pinned project tools. Bump it with the rest.
+# other pinned project tools.
+# renovate: datasource=pypi depName=deptry
 DEPTRY_VERSION = "0.25.1"
 # Coverage floor for `test`. Override per repo (a legacy repo can start lower and
 # ratchet up); CI inherits whatever you set here.
@@ -92,20 +100,30 @@ dir = "{{config_root}}"
 # `mise install` (local and via mise-action) stays fast on a warm checkout.
 run = '''
 set -eu
+# The pinned interpreter, by absolute path: on Windows, Git Bash can put a system Python
+# (C:\PythonXY) ahead of mise's on PATH, and a bare `python` would build the .venv on the
+# wrong version - local and CI would then disagree.
+base=$(mise which python 2>/dev/null || command -v python3 || command -v python)
 stamp=".venv/.foundry-pytools"
-want="$MYPY_VERSION $PYTEST_VERSION $PYTEST_COV_VERSION $PIP_AUDIT_VERSION $DEPTRY_VERSION"
+# The stamp covers the project's own manifests too, so a changed dependency list
+# reinstalls instead of leaving a stale .venv behind.
+manifests=$(cat pyproject.toml setup.py setup.cfg requirements.txt 2>/dev/null | cksum | cut -d' ' -f1)
+want="$("$base" --version 2>&1) $MYPY_VERSION $PYTEST_VERSION $PYTEST_COV_VERSION $PIP_AUDIT_VERSION $DEPTRY_VERSION $manifests"
 if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ]; then exit 0; fi
-python -m venv .venv
+"$base" -m venv --clear .venv  # --clear: a changed Python pin rebuilds, not layers
 py=".venv/bin/python"; [ -x "$py" ] || py=".venv/Scripts/python.exe"  # Scripts on Windows
 "$py" -m pip install --disable-pip-version-check --quiet --upgrade pip
 "$py" -m pip install --disable-pip-version-check --quiet \
   "mypy==$MYPY_VERSION" "pytest==$PYTEST_VERSION" "pytest-cov==$PYTEST_COV_VERSION" "pip-audit==$PIP_AUDIT_VERSION" "deptry==$DEPTRY_VERSION"
-# Make the project importable so pytest/mypy see its code and deps. Editable if it is a
-# package; its declared runtime deps otherwise. Harmless no-op when there is neither.
-if [ -f pyproject.toml ] || [ -f setup.py ] || [ -f setup.cfg ]; then
-  "$py" -m pip install --disable-pip-version-check --quiet -e . || true
-elif [ -f requirements.txt ]; then
-  "$py" -m pip install --disable-pip-version-check --quiet -r requirements.txt || true
+# Make the project importable so pytest/mypy see its code and deps: editable if it is a
+# package (a pyproject.toml that only holds tool config is not), plus requirements.txt
+# when present. A failed install fails the task and writes no stamp, so it is retried
+# instead of leaving a half-provisioned .venv that the gate would misreport.
+if [ -f setup.py ] || [ -f setup.cfg ] || grep -qE '^\[(project|build-system)\]' pyproject.toml 2>/dev/null; then
+  "$py" -m pip install --disable-pip-version-check --quiet -e .
+fi
+if [ -f requirements.txt ]; then
+  "$py" -m pip install --disable-pip-version-check --quiet -r requirements.txt
 fi
 echo "$want" > "$stamp"
 '''
@@ -120,8 +138,9 @@ run = '''
 set -eu
 dst="$HOME/.local/opt/$HABIT_HOOKS_PLUGIN-$HABIT_HOOKS_VERSION"
 py=""
-for c in python3 python; do
-  if command -v "$c" >/dev/null 2>&1 && "$c" --version >/dev/null 2>&1; then py="$c"; break; fi
+# The pinned interpreter first (see setup:pytools), then whatever is on PATH.
+for c in "$(mise which python 2>/dev/null || true)" python3 python; do
+  if [ -n "$c" ] && command -v "$c" >/dev/null 2>&1 && "$c" --version >/dev/null 2>&1; then py="$c"; break; fi
 done
 if [ -z "$py" ]; then echo "setup:habit-hooks: no working python3/python on PATH; skipping (install Python to run smells)"; exit 0; fi
 bin="$dst/bin"; [ -d "$bin" ] || bin="$dst/Scripts"

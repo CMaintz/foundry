@@ -97,6 +97,12 @@ fails when there is no `tsconfig.json` (a framework checker would otherwise pass
 checked only its own file types), and type-checks Deno code (e.g. Supabase Edge
 Functions) with `deno check` over `FOUNDRY_DENO_PATHS`; Deno code found with that unset
 fails the verb instead of going unchecked.
+`python` pins a full interpreter patch (Renovate reads a bare `3.12` as 3.12.0 and
+proposes builds mise cannot verify) and builds the project `.venv` from `mise which
+python`, so a system Python earlier on PATH (common under Git Bash on Windows) cannot
+swap the version; the `.venv` stamp also covers the interpreter and the project's
+manifests, so a changed pin or dependency list reinstalls. Its pytest/mypy/pip-audit/
+deptry pins carry `# renovate:` comments the shared preset tracks.
 
 ## Presets (`presets/`)
 
@@ -107,9 +113,10 @@ fails the verb instead of going unchecked.
 | `habit-hooks/java/guides/*.md` | Per-smell coaching (oversized-function, high-complexity, too-many-parameters, deep-nesting) - concrete "how to fix + don't game it" text that renders inline per finding, in-loop and CI. Drop into a repo's `.habit-hooks/java/guides/`. |
 | `pmd/ruleset.xml` | Tuned Java ruleset (`ExcessiveParameterList` minimum 8). |
 | `pmd/no-var.xml` | The no-`var` rule (diff-scoped in CI). |
+| `lint/ruff.toml` | Default ruff hard gate for the `python` stack (pycodestyle, pyflakes, import order, pyupgrade, bugbear, simplify; line length 120). Leaves complexity, parameter count, function length and blind excepts to the habit-hooks python sensor, which ratchets them. `foundry-init` places it only when the repo has no ruff config, since a `ruff.toml` would override `[tool.ruff]` in pyproject. |
 | `typecheck/tsconfig.json` | Strict, check-only tsconfig for the `ts` stack, including src, scripts and tests; notes on extending a framework's strict preset and keeping Deno code out. Copied by `foundry-init`. |
 | `gitleaks.toml` | Secret-scan allowlist starting point. |
-| `renovate.json` | Dependency-update automation - the update path the pin-everything rule needs. `foundry-init` scaffolds a two-line repo config that extends this preset, so the policy stays a single source of truth here. Batched to stay quiet: weekly (Monday mornings), every non-major update (minor, patch, digest, pin) across all managers - Actions and mise included - lands in one "all non-major dependencies" PR; majors get their own PRs (Actions and mise majors grouped per manager); lock file maintenance is weekly; security fixes skip the schedule, the group and the 7-day hold. Dependency Dashboard on, no automerge. |
+| `renovate.json` | Dependency-update automation - the update path the pin-everything rule needs. `foundry-init` scaffolds a two-line repo config that extends this preset, so the policy stays a single source of truth here. Batched to stay quiet: weekly (Monday mornings), every non-major update (minor, patch, digest, pin) across all managers - Actions and mise included - lands in one "all non-major dependencies" PR; majors get their own PRs (Actions and mise majors grouped per manager); lock file maintenance is weekly; security fixes skip the schedule, the group and the 7-day hold. Dependency Dashboard on, no automerge. A regex manager tracks any `mise.toml` pin with a `# renovate: datasource=<ds> depName=<name>` comment above it. |
 | `code-standards.md` | Agent-facing clean-code standard (functions do one thing / SRP), tied to the deterministic smells. `@`-include into AGENTS.md/CLAUDE.md. |
 | `collaboration.md` | Agent-facing working discipline - branch hygiene for parallel sessions (own branch off `origin/main`, one branch→one PR, rebase not merge). `@`-include into AGENTS.md/CLAUDE.md. |
 | `agent-loop.md` | Agent-facing working *loop* - observe (run the oracle) → diagnose the real cause → act → verify/self-critique → repeat until green *and* honest; tiered in-loop/pre-push/CI; never game the metric. `@`-include into AGENTS.md/CLAUDE.md. |

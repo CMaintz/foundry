@@ -140,6 +140,26 @@ fetch_dotnet_extras() { # <wd> - SonarAnalyzer scaffold for the habit-hooks dotn
   fetch "presets/dotnet/.editorconfig" "$wd/.editorconfig"
 }
 
+has_ruff_config() { # <wd> - the repo already configures ruff (a ruff.toml would override pyproject)
+  local wd="$1"
+  [ -f "$wd/ruff.toml" ] || [ -f "$wd/.ruff.toml" ] || grep -qE '^\[tool\.ruff' "$wd/pyproject.toml" 2>/dev/null
+}
+
+fetch_python_extras() { # <wd> - default ruff rules + gitignore the project .venv
+  local wd="$1"
+  # Without a ruff config, `lint` runs ruff's minimal defaults (E4/E7/E9/F only). The
+  # preset is the Foundry hard gate; it leaves the structural smells to the habit-hooks
+  # python sensor. Skipped when the repo already configures ruff anywhere.
+  if has_ruff_config "$wd"; then echo "  skip (ruff already configured): $wd/ruff.toml"
+  else fetch "presets/lint/ruff.toml" "$wd/ruff.toml"; fi
+  # setup:pytools creates $wd/.venv (thousands of files); never let it be committed.
+  local gi="$wd/.gitignore"
+  if ! grep -qxE '/?\.venv/?' "$gi" 2>/dev/null; then
+    printf '\n# Python project venv (setup:pytools)\n.venv/\n__pycache__/\n.coverage\n' >> "$gi"
+    echo "  updated: $gi (+.venv/)"
+  fi
+}
+
 scaffold_package() { # <stack> <wd> - everything one package needs (not repo-level)
   local stack="$1" wd="$2"
   echo "- package: $stack @ $wd"
@@ -147,6 +167,7 @@ scaffold_package() { # <stack> <wd> - everything one package needs (not repo-lev
   if [ "$stack" = ts ]; then fetch_ts_extras "$wd"; fi
   if [ "$stack" = java ]; then fetch_java_extras "$wd"; fi
   if [ "$stack" = dotnet ]; then fetch_dotnet_extras "$wd"; fi
+  if [ "$stack" = python ]; then fetch_python_extras "$wd"; fi
 }
 
 ensure_gitignore() { # the telemetry log is local-only observability, never committed
