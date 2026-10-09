@@ -29,6 +29,19 @@ runs it. Adoption = fill the map, freeze the baseline, then fold `arch` into the
 > otherwise. Tightening (removing a violation, pruning the baseline) is always free —
 > except on Python, see that section.
 
+### How CI enforces this
+
+Foundry's `security.yml` → `ruleset-guard` is what makes the shrink-only / `ruleset-change`
+rules above real. Its default `ruleset_paths` now covers the universal arch files —
+`.dependency-cruiser.cjs`, `.dependency-cruiser-known-violations.json`, `.importlinter`,
+and `archunit_store/` — so a PR editing one of them beside production source is checked:
+pruning a dependency-cruiser or ArchUnit baseline passes label-free (shrink-only, verified
+by `scripts/ruleset_guard.py`), while adding a baseline entry, or editing a rule config
+(`.dependency-cruiser.cjs`, `.importlinter`), needs the `ruleset-change` label. The one
+path the default *can't* know is your **ArchUnit rule class** (it lives at a repo-specific
+`src/test/java/.../arch/` path) and, in a monorepo, package-prefixed baselines — add those
+to the `ruleset_paths` input when you wire `security.yml`.
+
 ---
 
 ## TypeScript — dependency-cruiser (runs under `lint`)

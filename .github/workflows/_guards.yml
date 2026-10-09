@@ -17,7 +17,7 @@ on:
           Extended regex of paths that constitute "the ruleset". A PR touching
           both these and production source is examined for loosening.
         type: string
-        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml)'
+        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/)'
       source_paths:
         description: Extended regex of production source paths.
         type: string
@@ -149,6 +149,22 @@ jobs:
                 if python3 scripts/ruleset_guard.py snooze "$BASE" "$HEAD" "$f"; then
                   echo "  safe (no snooze added): $f"
                 else echo "  REVIEW (snooze added): $f"; review="$review $f"; fi
+                ;;
+              *.dependency-cruiser-known-violations.json)
+                # Architecture-fitness baseline (dependency-cruiser): same shrink-only
+                # property as snooze - an added known violation loosens, pruning is safe.
+                if python3 scripts/ruleset_guard.py snooze "$BASE" "$HEAD" "$f"; then
+                  echo "  safe (no arch violation added): $f"
+                else echo "  REVIEW (arch violation added): $f"; review="$review $f"; fi
+                ;;
+              *archunit_store/*)
+                # ArchUnit FreezingArchRule store: one frozen violation per line. An
+                # added line loosens; pruning (fixing a violation) is safe. A DELETED
+                # store is caught by the failing test, not here (an empty file adds
+                # nothing), which is why adopters disable allowStoreCreation post-seed.
+                if python3 scripts/ruleset_guard.py lines "$BASE" "$HEAD" "$f"; then
+                  echo "  safe (no frozen violation added): $f"
+                else echo "  REVIEW (frozen violation added): $f"; review="$review $f"; fi
                 ;;
               *)
                 # Config / threshold / workflow files: direction can't be proven
