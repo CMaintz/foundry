@@ -104,6 +104,41 @@ run = "./gradlew compileJava"
 description = "Tests (wire a coverage floor via jacocoTestCoverageVerification)"
 run = "./gradlew test"
 
+# Flaky-test triage (opt-in, tier-c auxiliary) - the Java counterpart of ts's `test:flaky`.
+# Runs the suite, then `foundry-flaky gate` post-processes Gradle's JUnit XML against
+# flaky-baseline.json: a quarantined flake is printed but does not gate; a real failure
+# still fails. `gate` also appends the green-streak log that `foundry-flaky prune` reads to
+# auto-re-arm tests gone stable (>= M green runs). Fold into `test` when adopted; keep the
+# coverage floor on the main `test`. See docs/designs/flake-triager.md. `foundry-flaky` is on
+# PATH via scripts/ (foundry-init installs it).
+#
+# Classify a failure into flake-vs-real with explicit reruns (NOT `--rerun-tasks`, which
+# hides flakes). Quote the id - Gradle's --tests matches fully.qualified.Class.method:
+#   foundry-flaky classify --runs 5 --rerun './gradlew test --tests "{test}"' \
+#     build/test-results/test flaky-baseline.json
+# Parameterized tests report as `method(Type)[1]` / `method[1]`; --tests only matches those
+# as a glob (`"...method*"`) and the bracketed id won't round-trip - quarantine by hand.
+[tasks."test:flaky"]
+description = "Tests, with quarantined flakes reported but not gating (flaky-baseline.json)"
+# `|| true`: let the gate decision come from foundry-flaky, not gradle's exit. The report
+# dir is globbed and the task FAILS if it is empty (a repo that redirects junitXml via
+# reports.junitXml.outputLocation must point this at its real location) - never a silent pass.
+run = '''
+set -eu
+dir="build/test-results/test"
+# Clear last run's XML first: `|| true` below swallows a compile failure too, and Gradle
+# leaves per-class files behind (unlike vitest's single overwritten report), so stale XML
+# could otherwise pass the glob and gate green on old results.
+rm -rf "$dir"
+./gradlew test || true
+if ! ls "$dir"/*.xml >/dev/null 2>&1; then
+  echo "test:flaky: no JUnit XML under $dir - the suite did not run (compile error?) or" >&2
+  echo "  reports.junitXml.outputLocation is redirected. Not gating on absent results." >&2
+  exit 1
+fi
+foundry-flaky gate "$dir" flaky-baseline.json
+'''
+
 [tasks.audit]
 description = "Dependency CVEs via osv-scanner over a Gradle lockfile (needs osv-scanner on PATH)"
 # Enable dependencyLocking { lockAllConfigurations() } in build.gradle.kts; the
