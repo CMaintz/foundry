@@ -6,17 +6,17 @@
 # csharp_* style rules) would turn into an instant lint failure in every consumer.
 # Keep style preferences in a separate, consumer-owned .editorconfig section.
 #
-# How this is shaped: the bulk line below dials the whole analyzer set (SonarAnalyzer
-# + the built-in CA/IDE rules) down to `suggestion` so the default gate is focused, not
-# a flood. The five structural-smell rules below are KEPT at `suggestion` deliberately
-# (they are listed, not silenced, so a project can see and retune them): the habit-hooks
-# `dotnet` sensor owns them. The sensor builds with its own ruleset that enables them as
-# warnings and ratchets them against the snooze baseline, so an existing backlog is
-# grandfathered and only new structural debt gates - which a blanket `-warnaserror` cannot
-# do. `suggestion` here means `typecheck` (`dotnet build -warnaserror`, no ruleset) does NOT
-# hard-fail them, so they are not double-gated. (Empirically verified: the sensor's
-# `-p:CodeAnalysisRuleSet` overrides this `suggestion` severity in the sensor's own build, so
-# the finding still fires there; typecheck, reading only this file, stays green on them.)
+# How this is shaped: SonarAnalyzer is referenced only in the sensor's own build (see
+# Directory.Build.props - the reference is scoped to CodeAnalysisRuleSet), so `typecheck`
+# (`dotnet build -warnaserror`, no ruleset) never loads it and cannot be flooded by its
+# rules. The bulk line below then dials the remaining analyzer set (the built-in CA/IDE
+# rules, the only ones typecheck loads) down to `suggestion` so the default gate is focused.
+# The five structural-smell rules are listed at `suggestion` as documentation and defense in
+# depth: the habit-hooks `dotnet` sensor owns them, building with its own ruleset that enables
+# them as warnings and ratchets them against the snooze baseline, so an existing backlog is
+# grandfathered and only new structural debt gates - which a blanket `-warnaserror` cannot do.
+# (The sensor's `-p:CodeAnalysisRuleSet` sets these severities in its build regardless of this
+# file; the lines here keep them demoted for any project that references Sonar unconditionally.)
 #
 # typecheck still keeps its teeth on everything else: compiler warnings (CS8xxx nullable),
 # the built-in CA rules and NuGetAudit (NU19xx) are not demoted by the bulk line (see the
@@ -41,7 +41,8 @@ root = true
 dotnet_analyzer_diagnostic.severity = suggestion
 
 # ... and the five structural smells stay at `suggestion`: the habit-hooks dotnet sensor
-# owns them (ratcheted), so typecheck must not hard-fail them under -warnaserror:
+# owns them (ratcheted). Sonar is loaded only in the sensor's build, so typecheck does not
+# see these at all; the lines below are documentation and defense in depth:
 dotnet_diagnostic.S138.severity = suggestion   # method/function too long (oversized-function)
 dotnet_diagnostic.S1541.severity = suggestion  # cyclomatic complexity too high (high-complexity)
 dotnet_diagnostic.S3776.severity = suggestion  # cognitive complexity too high (high-complexity)
