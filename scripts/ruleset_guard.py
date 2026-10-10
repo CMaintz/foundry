@@ -192,7 +192,10 @@ def inline_loosened(base, head):
 # Test-definition markers, counted PER FILE. Deleting or moving tests out of a file drops
 # its count - the INVERSE of the suppression check (a removal is the loosening), like the
 # coverage kind. Built from fragments for the same self-match reason as INLINE_DIRECTIVES.
-TEST_DEFS = ["(it|test) *" + r"\(", "def " + "test", "@" + "Test", r"\[" + "Fact", r"\[" + "Theory"]
+# `(^|[^A-Za-z])` is a poor-man's word boundary (git grep -E has no portable \b): it
+# matches `it(` / `test(` and the `.each`/`.skip`/`.only`/`.concurrent` modifier forms
+# (`it.`), without matching `unit(`. `@Test([^A-Za-z]|$)` excludes `@TestConfiguration`.
+TEST_DEFS = ["(^|[^A-Za-z])(it|test)[.(]", "def " + "test", "@" + "Test([^A-Za-z]|$)", r"\[" + "Fact", r"\[" + "Theory"]
 TEST_PATHS = [
     "*.test.ts", "*.test.tsx", "*.test.js", "*.test.jsx", "*.test.mjs", "*.test.cjs",
     "*.spec.ts", "*.spec.tsx", "*.spec.js", "*.spec.jsx", "*.spec.mjs", "*.spec.cjs",

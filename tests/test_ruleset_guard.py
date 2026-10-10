@@ -283,3 +283,17 @@ class TestTestDeletion:
         base = commit("const r = test('x')\n", path="app.ts")
         head = commit("const r = 1\n", path="app.ts")
         assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_it_each_is_counted(self, repo):
+        cwd, commit = repo
+        # If it.each weren't counted, base==head==1 and this would pass as safe.
+        base = commit("it.each([1, 2])('n %s', (x) => {})\nit('b', () => {})\n", path="a.test.ts")
+        head = commit("it('b', () => {})\n", path="a.test.ts")
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 1 and "a.test.ts" in r.stderr
+
+    def test_test_config_annotation_is_not_counted(self, repo):
+        cwd, commit = repo
+        base = commit("@TestConfiguration\nclass FooTest {}\n", path="FooTest.java")
+        head = commit("class FooTest {}\n", path="FooTest.java")
+        assert run_cli(cwd, "tests", base, head).returncode == 0
