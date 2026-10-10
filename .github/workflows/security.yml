@@ -17,7 +17,7 @@ on:
       ruleset_paths:
         description: "Extended regex of gate-defining paths (ruleset-guard)."
         type: string
-        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/)'
+        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/|.*\.editorconfig|.*Directory\.Build\.props|.*tsconfig[A-Za-z.]*\.json|.*\.csproj)'
       source_paths:
         type: string
         default: '^(src|app|lib)/'
@@ -27,6 +27,9 @@ on:
       ruleset_label:
         type: string
         default: "ruleset-change"
+      suppression_label:
+        type: string
+        default: "suppression"
       semgrep_config:
         type: string
         default: "p/ci"
@@ -53,6 +56,7 @@ jobs:
       source_paths: ${{ inputs.source_paths }}
       test_paths: ${{ inputs.test_paths }}
       ruleset_label: ${{ inputs.ruleset_label }}
+      suppression_label: ${{ inputs.suppression_label }}
   sast:
     uses: ./.github/workflows/_semgrep.yml
     with:

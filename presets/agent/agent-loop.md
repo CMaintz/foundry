@@ -31,6 +31,20 @@ say-so.** A claim that you fixed something is not evidence; the oracle is.
 - **Stop and surface** - don't "win" by weakening the gate. If you cannot go green
   without disabling a check, lowering a threshold, or growing a baseline, that's a
   deliberate, labelled human decision (`ruleset-guard`), not a fix. Say so and stop.
+- **Weakening a check is never silent.** `ruleset-guard` runs on every PR and blocks
+  any of these unless you label the PR *and* explain it in the description:
+  - an in-source **suppression** (`eslint-disable`, `@ts-ignore`, `@SuppressWarnings`,
+    `# noqa`, `#pragma warning disable`, a coverage-exclusion),
+  - a **config demotion** (`.editorconfig` `severity = none/suggestion`, `tsconfig`
+    `"strict": false`, a `csproj` `<NoWarn>`),
+  - a **deleted or skipped test** (`.skip`/`.only`/`@Disabled`/removing a test),
+  - an **edited ratchet baseline** (eslint-suppressions / snooze / arch store) that grows.
+
+  If one is genuinely warranted, add the **`suppression`** label (or `ruleset-change`
+  for a baseline/threshold change) and write *why* in the PR body: which test is gone
+  and why coverage is still sound, which rule is suppressed and why the exception is
+  safe. A label with no explanation is not acceptable - the reviewer needs the reason.
+  Default to not suppressing: fix the cause, and only suppress a proven false positive.
 - **Don't spin.** If two rounds make no real progress, or the only remaining path is
   to weaken a rule, stop and report what's blocking - looping past that wastes work.
 

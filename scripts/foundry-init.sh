@@ -212,6 +212,7 @@ repo_level_once() { # shared presets + repo-wide setup that runs once, not per p
 }
 JSON
   fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
+  fetch "presets/github/PULL_REQUEST_TEMPLATE.md" ".github/PULL_REQUEST_TEMPLATE.md"
   # One-shot, non-blocking PR check reporter the pr-ci-watch flow calls once CI has
   # finished. Repo-scoped (gh pr checks on the branch's PR), so it lands once at repo
   # root, not per package.

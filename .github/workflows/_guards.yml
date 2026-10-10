@@ -17,7 +17,7 @@ on:
           Extended regex of paths that constitute "the ruleset". A PR touching
           both these and production source is examined for loosening.
         type: string
-        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/)'
+        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/|.*\.editorconfig|.*Directory\.Build\.props|.*tsconfig[A-Za-z.]*\.json|.*\.csproj)'
       source_paths:
         description: Extended regex of production source paths.
         type: string
@@ -32,6 +32,13 @@ on:
         description: Label that marks a deliberate loosening as approved.
         type: string
         default: "ruleset-change"
+      suppression_label:
+        description: >-
+          Label that approves an added in-source suppression, config demotion or
+          deleted test. The ruleset_label is also accepted, so a single blanket
+          label still works; this one gives suppressions their own reviewable signal.
+        type: string
+        default: "suppression"
 
 jobs:
   secrets:
@@ -75,6 +82,49 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+      # Two gaming moves the baseline-file guard below cannot see, both checked here on
+      # EVERY PR (a pure-source or config-only PR is exactly where they hide):
+      #   1. an ADDED in-source suppression / config demotion (`eslint-disable`, `@ts-ignore`,
+      #      `@SuppressWarnings`, `# noqa`, `#pragma warning disable`, a coverage-exclusion, a
+      #      skipped test, `severity = none`) - it STOPS the tool reporting, so the count in
+      #      eslint-suppressions.json / snooze.json never grows.
+      #   2. a DELETED test - fewer test definitions in a file than the base had.
+      # Both are shrink-only (removing a suppression or adding a test always passes) and both
+      # are waved through by the suppression label (or the ruleset-change label).
+      - name: Refuse added suppressions and deleted tests
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          SUP_LABEL: ${{ inputs.suppression_label }}
+          RULESET_LABEL: ${{ inputs.ruleset_label }}
+        run: |
+          set -euo pipefail
+          BASE=$(git merge-base "$BASE" "$HEAD")
+
+          # Either label is a deliberate, on-record human decision (PR must explain it).
+          if echo "$LABELS" | tr ',' '\n' | grep -qxE "$SUP_LABEL|$RULESET_LABEL"; then
+            echo "::notice::'$SUP_LABEL'/'$RULESET_LABEL' label present - allowing suppression/test changes."
+            exit 0
+          fi
+
+          # scripts/ruleset_guard.py is a consumer-committed canonical copy; an older one
+          # predates these checks. Fail LOUD with the fix, not a confusing traceback.
+          if ! grep -q 'def test_counts' scripts/ruleset_guard.py; then
+            echo "::error::scripts/ruleset_guard.py is outdated (no suppression/test scan). Overwrite your committed copy with foundry's current scripts/ruleset_guard.py (foundry-init skips files that already exist, so copy it in manually)."
+            exit 1
+          fi
+
+          rc=0
+          python3 scripts/ruleset_guard.py inline "$BASE" "$HEAD" || rc=1
+          python3 scripts/ruleset_guard.py tests "$BASE" "$HEAD" || rc=1
+          if [ "$rc" -eq 0 ]; then
+            echo "::notice::No suppression added and no test deleted."
+          else
+            echo "::error::This PR adds an in-source suppression/config demotion, or deletes a test (listed above). Remove it, or add the '$SUP_LABEL' label AND explain the reason in the PR description."
+            exit 1
+          fi
+
       # The guard exists to stop a fixer WEAKENING the gate in the same change
       # that "fixes" it - the cheapest fix for a lint error is to disable the
       # rule. But the risk is asymmetric: *loosening* needs a human; *tightening*
@@ -192,11 +242,15 @@ jobs:
           {
             echo "## 🔒 Ruleset guard blocked this PR"
             echo ""
-            echo "It changes both **production source** and a **gate-defining file** (a lint/PMD ruleset, a suppression or snooze baseline, a threshold, or a workflow) in a way that can't be proven *not* to loosen the gate."
+            echo "One of these fired:"
             echo ""
-            echo "**Pick one:**"
-            echo "- **It's a real fix, not a loosening** → move the ruleset change to its own PR. The guard only fires when ruleset *and* source change together."
-            echo "- **The loosening is deliberate** → add the \`ruleset-change\` label, so a human is on record for it."
+            echo "1. **An added in-source suppression or config demotion** - an \`eslint-disable\`, \`@ts-ignore\`, \`@SuppressWarnings\`, \`# noqa\`, \`#pragma warning disable\`, a coverage-exclusion, a skipped/\`.only\` test, or an \`.editorconfig\`/\`tsconfig\`/\`csproj\` demotion. These silence the gate without touching any baseline file."
+            echo "2. **A deleted test** - a test file has fewer test definitions than the base (deleted, or moved out)."
+            echo "3. **A gate-defining file** changed alongside source in a way that can't be proven *not* to loosen the gate."
             echo ""
-            echo "Tightening a rule, or an inert change (whitespace/CRLF), passes automatically - you only land here when the direction is loosening or unprovable."
+            echo "The step log names the exact file + directive. **Pick one:**"
+            echo "- **It's a real fix, not a loosening** → remove the suppression / keep the test, or move a bundled ruleset change to its own PR."
+            echo "- **It's deliberate and reviewed** → add the \`suppression\` label (or \`ruleset-change\`) **and explain why in the PR description** (which test and why it's gone, why the rule is suppressed), so a human is on record."
+            echo ""
+            echo "Removing a suppression, adding a test, tightening a rule, or an inert change (whitespace/CRLF) passes automatically - you only land here when something is being loosened."
           } >> "$GITHUB_STEP_SUMMARY"

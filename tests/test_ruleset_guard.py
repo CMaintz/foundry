@@ -149,3 +149,137 @@ class TestCli:
         base = commit("x", path="other.txt")
         head = commit("v1\n", path="store.txt")
         assert run_cli(cwd, "lines", base, head, "store.txt").returncode == 1
+
+    def test_unknown_kind_exits_nonzero_with_guidance(self, repo):
+        cwd, _ = repo
+        r = run_cli(cwd, "bogus", "a", "b", "c")
+        assert r.returncode != 0
+        assert "unknown kind" in (r.stdout + r.stderr)
+
+
+# Directive literals assembled from fragments so this test file never contains one
+# verbatim (defence-in-depth on top of the scan's path exclusion).
+DISABLE = "// es" + "lint-disable-next-line no-explicit-any\n"
+NOQA = "x = 1  # no" + "qa\n"
+SKIP = "it" + ".skip('later', () => {})\n"
+
+
+class TestInline:
+    def test_added_suppression_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit("export const a = 1\n", path="a.ts")
+        head = commit("export const a = 1\n" + DISABLE, path="a.ts")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1
+        assert "eslint-disable" in r.stderr and "a.ts" in r.stderr
+
+    def test_removing_a_suppression_is_safe(self, repo):
+        cwd, commit = repo
+        base = commit("export const a = 1\n" + DISABLE, path="a.ts")
+        head = commit("export const a = 1\n", path="a.ts")
+        assert run_cli(cwd, "inline", base, head).returncode == 0
+
+    def test_moving_within_a_file_is_safe(self, repo):
+        cwd, commit = repo
+        base = commit(DISABLE + "export const a = 1\n", path="a.ts")
+        head = commit("export const a = 1\n" + DISABLE, path="a.ts")
+        assert run_cli(cwd, "inline", base, head).returncode == 0
+
+    def test_offset_across_files_is_caught(self, repo):
+        cwd, commit = repo
+        # Remove the suppression in a.ts, add one in b.ts: nets zero on a count, caught per-file.
+        commit("export const a = 1\n" + DISABLE, path="a.ts")
+        base = commit("export const b = 1\n", path="b.ts")
+        commit("export const a = 1\n", path="a.ts")
+        head = commit("export const b = 1\n" + DISABLE, path="b.ts")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "b.ts" in r.stderr
+
+    def test_skipped_test_is_caught(self, repo):
+        cwd, commit = repo
+        base = commit("export const a = 1\n", path="a.ts")
+        head = commit("export const a = 1\n" + SKIP, path="a.ts")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "js-skip" in r.stderr
+
+    def test_noqa_in_python_is_caught(self, repo):
+        cwd, commit = repo
+        base = commit("x = 1\n", path="m.py")
+        head = commit(NOQA, path="m.py")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "noqa" in r.stderr
+
+    def test_non_code_file_is_ignored(self, repo):
+        cwd, commit = repo
+        base = commit("hello\n", path="README.md")
+        head = commit("hello\n" + DISABLE, path="README.md")
+        assert run_cli(cwd, "inline", base, head).returncode == 0
+
+
+class TestInlineConfig:
+    def test_editorconfig_demotion_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit("[*.cs]\n", path=".editorconfig")
+        head = commit("[*.cs]\ndotnet_diagnostic.S3776.severity = none\n", path=".editorconfig")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "editorconfig-demote" in r.stderr
+
+    def test_editorconfig_promotion_is_safe(self, repo):
+        cwd, commit = repo
+        base = commit("[*.cs]\n", path=".editorconfig")
+        head = commit("[*.cs]\ndotnet_diagnostic.S3776.severity = warning\n", path=".editorconfig")
+        assert run_cli(cwd, "inline", base, head).returncode == 0
+
+    def test_tsconfig_unstrict_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit('{ "compilerOptions": { "strict": true } }\n', path="tsconfig.json")
+        head = commit('{ "compilerOptions": { "strict": false } }\n', path="tsconfig.json")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "tsconfig-unstrict" in r.stderr
+
+    def test_csproj_nowarn_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit("<Project></Project>\n", path="app.csproj")
+        head = commit("<Project><PropertyGroup><NoWarn>CS1591</NoWarn></PropertyGroup></Project>\n", path="app.csproj")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "csproj-nowarn" in r.stderr
+
+
+THREE = "it('a', () => {})\ntest('b', () => {})\nit('c', () => {})\n"
+
+
+class TestTestDeletion:
+    def test_deleting_a_test_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        head = commit("it('a', () => {})\nit('c', () => {})\n", path="a.test.ts")
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 1 and "a.test.ts" in r.stderr
+
+    def test_deleting_a_whole_test_file_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        subprocess.run(["git", "rm", "-q", "a.test.ts"], cwd=cwd, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-qm", "rm"], cwd=cwd, check=True, capture_output=True)
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 1 and "a.test.ts" in r.stderr
+
+    def test_adding_tests_is_safe(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        head = commit(THREE + "it('d', () => {})\n", path="a.test.ts")
+        assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_a_new_test_file_is_safe(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        head = commit("def test_x():\n    pass\n", path="b_test.py")
+        assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_non_test_file_is_not_counted(self, repo):
+        cwd, commit = repo
+        # `test(` in production code is not a test definition; removing it must not flag.
+        base = commit("const r = test('x')\n", path="app.ts")
+        head = commit("const r = 1\n", path="app.ts")
+        assert run_cli(cwd, "tests", base, head).returncode == 0

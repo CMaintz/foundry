@@ -49,6 +49,7 @@ jobs:
       - name: Build and post the ratchet report
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           BASELINES: ${{ inputs.baselines }}
@@ -73,6 +74,30 @@ jobs:
             else icon="· 0"; fi
             rows="${rows}| \`$f\` | $before | $after | $icon |"$'\n'
           done
+
+          # In-source suppressions and the test count have no baseline FILE - the tree is the
+          # baseline. Count them tree-wide at base vs head with the same scanner the guard
+          # uses, so the report shows these surfaces too. Skipped if the committed guard
+          # predates them. For suppressions MORE is worse (+ = ⚠️); for tests FEWER is worse,
+          # so a drop is the warning.
+          if grep -q 'tests-count' scripts/ruleset_guard.py 2>/dev/null; then
+            mb=$(git merge-base "$BASE" "$HEAD" 2>/dev/null || echo "$BASE")
+            ib=$(python3 scripts/ruleset_guard.py inline-count "$mb" 2>/dev/null || echo 0)
+            ia=$(python3 scripts/ruleset_guard.py inline-count "$HEAD" 2>/dev/null || echo 0)
+            delta=$((ia - ib))
+            if [ "$delta" -lt 0 ]; then icon="✅ −$(( -delta ))"; moved=1
+            elif [ "$delta" -gt 0 ]; then icon="⚠️ +$delta"; moved=1
+            else icon="· 0"; fi
+            rows="${rows}| inline suppressions (tree-wide) | $ib | $ia | $icon |"$'\n'
+
+            tb=$(python3 scripts/ruleset_guard.py tests-count "$mb" 2>/dev/null || echo 0)
+            ta=$(python3 scripts/ruleset_guard.py tests-count "$HEAD" 2>/dev/null || echo 0)
+            delta=$((ta - tb))
+            if [ "$delta" -gt 0 ]; then icon="✅ +$delta"; moved=1
+            elif [ "$delta" -lt 0 ]; then icon="⚠️ −$(( -delta ))"; moved=1
+            else icon="· 0"; fi
+            rows="${rows}| tests (tree-wide) | $tb | $ta | $icon |"$'\n'
+          fi
 
           {
             echo "$marker"
