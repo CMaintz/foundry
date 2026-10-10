@@ -6,6 +6,27 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.11.0](https://github.com/CMaintz/foundry/compare/v2.10.0...v2.11.0) (2026-10-10)
+
+### Features
+
+* enable Actions-create-PRs and auto-merge during scaffold (f7785c0)
+* gate deleted tests and add a dedicated suppression label (42331b0)
+* gate inline suppressions and test-skips, not just baseline files (d24a0b0)
+* keep Leash's Jev commands out of the gate and add the LEASH_ENABLED knob (a8df992)
+* scope the SonarAnalyzer reference to the sensor build (c0325c0)
+* auto-prune mode, Java wiring, live rerun smoke (311161d)
+* wire arch configs into ruleset-guard (a19b752)
+* adoption guide + Python import-linter preset (e7f8b32)
+* fast-lane Foundry bumps in consumer repos (952eb9e)
+
+### Bug Fixes
+
+* run the audit task under posix sh (915161a)
+* stale-quarantine report, LF prune write, clear stale Gradle XML (bca5cd9)
+* guard-ignore ArchUnit store timestamp; steer to standalone .importlinter (d2dffe0)
+* gate import-linter install, harden Java store recipe (4ca4460)
+
 ## [2.10.0](https://github.com/CMaintz/foundry/compare/v2.9.0...v2.10.0) (2026-10-09)
 
 ### Features
