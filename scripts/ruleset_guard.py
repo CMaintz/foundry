@@ -116,8 +116,19 @@ def _git_show(ref, path):
 _EXCLUDE = [":(exclude)scripts/ruleset_guard.py", ":(exclude)tests/test_ruleset_guard.py"]
 # Real source files (git pathspec globs match at any depth).
 CODE_PATHS = [
-    "*.ts", "*.tsx", "*.js", "*.jsx", "*.mjs", "*.cjs",
-    "*.py", "*.cs", "*.java", "*.kt", "*.kts", "*.php", *_EXCLUDE,
+    "*.ts",
+    "*.tsx",
+    "*.js",
+    "*.jsx",
+    "*.mjs",
+    "*.cjs",
+    "*.py",
+    "*.cs",
+    "*.java",
+    "*.kt",
+    "*.kts",
+    "*.php",
+    *_EXCLUDE,
 ]
 # Gate-defining config files. A config-only PR that demotes a rule (severity = none,
 # "strict": false, <NoWarn>) never touches source_paths, so the bundled ruleset-guard
@@ -171,7 +182,8 @@ def inline_counts(ref):
     for name, pat, paths in INLINE_DIRECTIVES:
         r = subprocess.run(
             ["git", "grep", "-I", "-E", "-e", pat, ref, "--", *paths],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         # git grep: 0 = matches, 1 = no matches (both fine), >1 = real error.
         if r.returncode > 1:
@@ -194,11 +206,28 @@ def inline_loosened(base, head):
 # coverage kind. Built from fragments for the same self-match reason as INLINE_DIRECTIVES.
 TEST_DEFS = ["(it|test) *" + r"\(", "def " + "test", "@" + "Test", r"\[" + "Fact", r"\[" + "Theory"]
 TEST_PATHS = [
-    "*.test.ts", "*.test.tsx", "*.test.js", "*.test.jsx", "*.test.mjs", "*.test.cjs",
-    "*.spec.ts", "*.spec.tsx", "*.spec.js", "*.spec.jsx", "*.spec.mjs", "*.spec.cjs",
-    "test_*.py", "*_test.py",
-    "*Test.java", "*Tests.java", "*IT.java", "*Test.kt", "*Tests.kt",
-    "*Test.cs", "*Tests.cs", *_EXCLUDE,
+    "*.test.ts",
+    "*.test.tsx",
+    "*.test.js",
+    "*.test.jsx",
+    "*.test.mjs",
+    "*.test.cjs",
+    "*.spec.ts",
+    "*.spec.tsx",
+    "*.spec.js",
+    "*.spec.jsx",
+    "*.spec.mjs",
+    "*.spec.cjs",
+    "test_*.py",
+    "*_test.py",
+    "*Test.java",
+    "*Tests.java",
+    "*IT.java",
+    "*Test.kt",
+    "*Tests.kt",
+    "*Test.cs",
+    "*Tests.cs",
+    *_EXCLUDE,
 ]
 
 
@@ -210,7 +239,8 @@ def test_counts(ref):
         args += ["-e", p]
     r = subprocess.run(
         ["git", "grep", "-I", "-c", "-E", *args, ref, "--", *TEST_PATHS],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if r.returncode > 1:
         raise SystemExit(f"ruleset_guard tests: git grep failed: {r.stderr.strip()}")
@@ -233,9 +263,11 @@ _KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count", "te
 if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
     if kind not in _KINDS:
-        sys.exit(f"ruleset_guard: unknown kind {kind!r}. Overwrite your committed "
-                 f"scripts/ruleset_guard.py with foundry's current copy - this workflow "
-                 f"needs a newer guard (foundry-init skips files that already exist).")
+        sys.exit(
+            f"ruleset_guard: unknown kind {kind!r}. Overwrite your committed "
+            f"scripts/ruleset_guard.py with foundry's current copy - this workflow "
+            f"needs a newer guard (foundry-init skips files that already exist)."
+        )
     if kind in ("inline-count", "tests-count"):
         # Tree-wide total at one ref, for the ratchet report.
         counts = inline_counts if kind == "inline-count" else test_counts
