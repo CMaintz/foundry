@@ -20,15 +20,17 @@ Kinds:
           run once per changed store file under archunit_store/)
   coverage  prompt-eval manifest.json - INVERSE: a REMOVED fixture is less coverage,
             so removal (not addition) is the loosening
-  inline  IN-SOURCE suppression directives and test-skips, counted tree-wide per
-          (file, directive) at both refs - an added eslint-disable / @ts-ignore /
-          @SuppressWarnings / # noqa / #pragma warning disable / coverage-exclusion
-          / it.skip is a loosening the baseline files above never see. No <path>:
-          the base tree IS the baseline. Same per-entry shrink-only property as
-          eslint, so the offset attack (fix one, suppress another) is still caught.
+  inline  IN-SOURCE suppression directives, test-skips and config demotions, counted
+          tree-wide per (file, directive) at both refs - an added eslint-disable /
+          @ts-ignore / @SuppressWarnings / # noqa / #pragma warning disable /
+          coverage-exclusion / it.skip / editorconfig severity=none is a loosening the
+          baseline files above never see. No <path>: the base tree IS the baseline. Same
+          per-entry shrink-only property as eslint, so the offset attack is still caught.
+  tests   TEST DELETION: test-definition count PER FILE, INVERSE - a file with fewer
+          tests at head than base lost coverage (deleted or moved out). No <path>.
 
 Usage: ruleset_guard.py <eslint|snooze|lines|coverage> <base-ref> <head-ref> <path>
-       ruleset_guard.py inline <base-ref> <head-ref>
+       ruleset_guard.py <inline|tests> <base-ref> <head-ref>
 """
 
 import json
@@ -187,7 +189,46 @@ def inline_loosened(base, head):
     return [k for k in n if n[k] > o.get(k, 0)]
 
 
-_KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count"}
+# Test-definition markers, counted PER FILE. Deleting or moving tests out of a file drops
+# its count - the INVERSE of the suppression check (a removal is the loosening), like the
+# coverage kind. Built from fragments for the same self-match reason as INLINE_DIRECTIVES.
+TEST_DEFS = ["(it|test) *" + r"\(", "def " + "test", "@" + "Test", r"\[" + "Fact", r"\[" + "Theory"]
+TEST_PATHS = [
+    "*.test.ts", "*.test.tsx", "*.test.js", "*.test.jsx", "*.test.mjs", "*.test.cjs",
+    "*.spec.ts", "*.spec.tsx", "*.spec.js", "*.spec.jsx", "*.spec.mjs", "*.spec.cjs",
+    "test_*.py", "*_test.py",
+    "*Test.java", "*Tests.java", "*IT.java", "*Test.kt", "*Tests.kt",
+    "*Test.cs", "*Tests.cs", *_EXCLUDE,
+]
+
+
+def test_counts(ref):
+    """Counter[file] = number of test-definition lines in that test file, at a git ref."""
+    c = Counter()
+    args = []
+    for p in TEST_DEFS:
+        args += ["-e", p]
+    r = subprocess.run(
+        ["git", "grep", "-I", "-c", "-E", *args, ref, "--", *TEST_PATHS],
+        capture_output=True, text=True,
+    )
+    if r.returncode > 1:
+        raise SystemExit(f"ruleset_guard tests: git grep failed: {r.stderr.strip()}")
+    for line in r.stdout.splitlines():
+        # git grep -c prints "<ref>:<path>:<count>".
+        head, _, cnt = line.rpartition(":")
+        path = head.split(":", 1)[1] if ":" in head else head
+        c[path] = int(cnt)
+    return c
+
+
+def tests_loosened(base, head):
+    """Files that LOST test definitions (fewer at head than base) - deletion/move-out."""
+    o, n = test_counts(base), test_counts(head)
+    return [f for f in o if n.get(f, 0) < o[f]]
+
+
+_KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count", "tests", "tests-count"}
 
 if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -195,16 +236,18 @@ if __name__ == "__main__":
         sys.exit(f"ruleset_guard: unknown kind {kind!r}. Overwrite your committed "
                  f"scripts/ruleset_guard.py with foundry's current copy - this workflow "
                  f"needs a newer guard (foundry-init skips files that already exist).")
-    if kind == "inline-count":
-        # Total in-source suppression hits at one ref, for the ratchet report.
-        print(sum(inline_counts(sys.argv[2]).values()))
+    if kind in ("inline-count", "tests-count"):
+        # Tree-wide total at one ref, for the ratchet report.
+        counts = inline_counts if kind == "inline-count" else test_counts
+        print(sum(counts(sys.argv[2]).values()))
         sys.exit(0)
-    if kind == "inline":
+    if kind in ("inline", "tests"):
         base, head = sys.argv[2:4]
-        bad = inline_loosened(base, head)
+        bad = inline_loosened(base, head) if kind == "inline" else tests_loosened(base, head)
     else:
         base, head, path = sys.argv[2:5]
         bad = loosened(kind, _git_show(base, path), _git_show(head, path))
+    verb = "removed/decreased" if kind in ("coverage", "tests") else "added/increased"
     for k in bad[:20]:
-        print(f"  added/increased: {k}", file=sys.stderr)
+        print(f"  {verb}: {k}", file=sys.stderr)
     sys.exit(1 if bad else 0)

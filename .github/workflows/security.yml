@@ -27,6 +27,9 @@ on:
       ruleset_label:
         type: string
         default: "ruleset-change"
+      suppression_label:
+        type: string
+        default: "suppression"
       semgrep_config:
         type: string
         default: "p/ci"
@@ -53,6 +56,7 @@ jobs:
       source_paths: ${{ inputs.source_paths }}
       test_paths: ${{ inputs.test_paths }}
       ruleset_label: ${{ inputs.ruleset_label }}
+      suppression_label: ${{ inputs.suppression_label }}
   sast:
     uses: ./.github/workflows/_semgrep.yml
     with:

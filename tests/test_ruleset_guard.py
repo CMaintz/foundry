@@ -243,3 +243,43 @@ class TestInlineConfig:
         head = commit("<Project><PropertyGroup><NoWarn>CS1591</NoWarn></PropertyGroup></Project>\n", path="app.csproj")
         r = run_cli(cwd, "inline", base, head)
         assert r.returncode == 1 and "csproj-nowarn" in r.stderr
+
+
+THREE = "it('a', () => {})\ntest('b', () => {})\nit('c', () => {})\n"
+
+
+class TestTestDeletion:
+    def test_deleting_a_test_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        head = commit("it('a', () => {})\nit('c', () => {})\n", path="a.test.ts")
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 1 and "a.test.ts" in r.stderr
+
+    def test_deleting_a_whole_test_file_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        subprocess.run(["git", "rm", "-q", "a.test.ts"], cwd=cwd, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-qm", "rm"], cwd=cwd, check=True, capture_output=True)
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 1 and "a.test.ts" in r.stderr
+
+    def test_adding_tests_is_safe(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        head = commit(THREE + "it('d', () => {})\n", path="a.test.ts")
+        assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_a_new_test_file_is_safe(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        head = commit("def test_x():\n    pass\n", path="b_test.py")
+        assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_non_test_file_is_not_counted(self, repo):
+        cwd, commit = repo
+        # `test(` in production code is not a test definition; removing it must not flag.
+        base = commit("const r = test('x')\n", path="app.ts")
+        head = commit("const r = 1\n", path="app.ts")
+        assert run_cli(cwd, "tests", base, head).returncode == 0
