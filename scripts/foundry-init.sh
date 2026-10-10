@@ -226,17 +226,43 @@ configure_repo_settings() { # repo settings the workflows assume but can't set t
   fi
 }
 
+ensure_renovate() { # make renovate.json extend the shared foundry preset, as a single
+                    # source of truth for the update policy. Robust to a pre-existing
+                    # renovate.json: Renovate's own onboarding writes one with
+                    # `config:recommended`, and the never-clobber `write` would otherwise
+                    # leave the foundry preset out entirely.
+  local f="renovate.json" preset="local>CMaintz/foundry//presets/renovate"
+  if [ ! -e "$f" ]; then
+    write "$f" <<JSON
+{
+  "\$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["$preset"]
+}
+JSON
+    return 0
+  fi
+  if grep -q "CMaintz/foundry//presets/renovate" "$f"; then
+    echo "  skip (already extends foundry preset): $f"; return 0
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    local tmp; tmp=$(mktemp)
+    if jq --arg p "$preset" \
+         '.extends = ([$p] + ((.extends // []) | if type=="array" then . else [.] end))' \
+         "$f" > "$tmp" 2>/dev/null; then
+      mv "$tmp" "$f"; echo "  updated (prepended foundry preset to extends): $f"
+    else
+      rm -f "$tmp"
+      echo "  WARN: could not edit $f - add \"$preset\" to its \"extends\" by hand"
+    fi
+  else
+    echo "  WARN: $f exists without the foundry preset and jq is missing - add \"$preset\" to its \"extends\" by hand"
+  fi
+}
+
 repo_level_once() { # shared presets + repo-wide setup that runs once, not per package
   echo "- shared presets"
   fetch "presets/security/gitleaks.toml" ".gitleaks.toml"
-  # Extend the shared foundry renovate preset instead of vendoring its full config, so the
-  # update policy stays a single source of truth in foundry and never drifts per repo.
-  write "renovate.json" <<'JSON'
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>CMaintz/foundry//presets/renovate"]
-}
-JSON
+  ensure_renovate
   fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
   fetch "presets/github/PULL_REQUEST_TEMPLATE.md" ".github/PULL_REQUEST_TEMPLATE.md"
   # One-shot, non-blocking PR check reporter the pr-ci-watch flow calls once CI has
