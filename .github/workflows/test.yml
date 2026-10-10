@@ -22,6 +22,13 @@ jobs:
           python-version: '3.12'
       - run: pip install --disable-pip-version-check pytest==8.4.2
       - run: python -m pytest -q tests
+      # ruleset_guard.py is vendored into every consumer and linted by their python gate
+      # with foundry's shipped ruff preset (line-length 120). Keep it conformant HERE so a
+      # consumer's `ruff format --check` / `ruff check` never trips on the vendored copy -
+      # foundry is not otherwise ruff-gated, so without this the script would drift.
+      - run: pip install --disable-pip-version-check ruff==0.16.10
+      - run: ruff format --check --config presets/lint/ruff.toml scripts/ruleset_guard.py
+      - run: ruff check --config presets/lint/ruff.toml scripts/ruleset_guard.py
 
   init-smoke:
     runs-on: ubuntu-latest
