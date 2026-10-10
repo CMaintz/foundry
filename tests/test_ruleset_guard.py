@@ -197,10 +197,25 @@ class TestInline:
 
     def test_skipped_test_is_caught(self, repo):
         cwd, commit = repo
-        base = commit("export const a = 1\n", path="a.ts")
-        head = commit("export const a = 1\n" + SKIP, path="a.ts")
+        base = commit("it('a', () => {})\n", path="a.test.ts")
+        head = commit("it('a', () => {})\n" + SKIP, path="a.test.ts")
         r = run_cli(cwd, "inline", base, head)
         assert r.returncode == 1 and "js-skip" in r.stderr
+
+    def test_skip_directives_only_apply_to_test_files(self, repo):
+        cwd, commit = repo
+        # A paging `.skip(` in app code, and `process.exit(` (which contains "xit("), must
+        # NOT trip the test-skip directives - they are scoped to test files.
+        base = commit("export const a = 1\n", path="app.ts")
+        head = commit("const page = q.skip(10)\nprocess.exit(0)\n", path="app.ts")
+        assert run_cli(cwd, "inline", base, head).returncode == 0
+
+    def test_xit_in_a_test_file_is_caught(self, repo):
+        cwd, commit = repo
+        base = commit("it('a', () => {})\n", path="a.test.ts")
+        head = commit("it('a', () => {})\nxit('b', () => {})\n", path="a.test.ts")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "js-xit" in r.stderr
 
     def test_noqa_in_python_is_caught(self, repo):
         cwd, commit = repo
@@ -282,4 +297,18 @@ class TestTestDeletion:
         # `test(` in production code is not a test definition; removing it must not flag.
         base = commit("const r = test('x')\n", path="app.ts")
         head = commit("const r = 1\n", path="app.ts")
+        assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_it_each_is_counted(self, repo):
+        cwd, commit = repo
+        # If it.each weren't counted, base==head==1 and this would pass as safe.
+        base = commit("it.each([1, 2])('n %s', (x) => {})\nit('b', () => {})\n", path="a.test.ts")
+        head = commit("it('b', () => {})\n", path="a.test.ts")
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 1 and "a.test.ts" in r.stderr
+
+    def test_test_config_annotation_is_not_counted(self, repo):
+        cwd, commit = repo
+        base = commit("@TestConfiguration\nclass FooTest {}\n", path="FooTest.java")
+        head = commit("class FooTest {}\n", path="FooTest.java")
         assert run_cli(cwd, "tests", base, head).returncode == 0

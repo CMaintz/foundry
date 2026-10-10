@@ -18,7 +18,7 @@ label "align"          1d76db "repo-align target ticket"
 
 # Gate / CI controls
 label "ruleset-change" 5319e7 "Deliberate ruleset/threshold/baseline loosening (ruleset-guard gate)"
-label "suppression"    b60205 "Reviewed in-source suppression, config demotion or deleted test (ruleset-guard gate); explain why in the PR"
+label "suppression"    b60205 "Reviewed suppression, config demotion or deleted test (ruleset-guard); explain why in the PR"
 label "autofix"        c2e0c6 "Trigger autofix.yml - runs mise run fix and commits the result"
 
 echo "Done - labels are idempotent, safe to re-run."

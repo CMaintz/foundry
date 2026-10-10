@@ -114,7 +114,8 @@ jobs:
           BASE=$(git merge-base "$BASE" "$HEAD")
 
           # Either label is a deliberate, on-record human decision (PR must explain it).
-          if echo "$LABELS" | tr ',' '\n' | grep -qxE "$SUP_LABEL|$RULESET_LABEL"; then
+          # Fixed-string match (-F): a label name is never a regex.
+          if echo "$LABELS" | tr ',' '\n' | grep -qxF -e "$SUP_LABEL" -e "$RULESET_LABEL"; then
             echo "::notice::'$SUP_LABEL'/'$RULESET_LABEL' label present - allowing suppression/test changes."
             exit 0
           fi
@@ -151,6 +152,7 @@ jobs:
           SOURCE_RE: ${{ inputs.source_paths }}
           TEST_RE: ${{ inputs.test_paths }}
           LABEL: ${{ inputs.ruleset_label }}
+          SUP_LABEL: ${{ inputs.suppression_label }}
         run: |
           set -euo pipefail
 
@@ -175,9 +177,11 @@ jobs:
             exit 0
           fi
 
-          # An explicit human decision overrides the analysis entirely.
-          if echo "$LABELS" | tr ',' '\n' | grep -qx "$LABEL"; then
-            echo "::notice::'$LABEL' label present - deliberate ruleset change, allowing."
+          # An explicit human decision overrides the analysis entirely. Either label
+          # counts, so guidance that says "add suppression (or ruleset-change)" holds on a
+          # bundled config+source PR too. Fixed-string: a label is never a regex.
+          if echo "$LABELS" | tr ',' '\n' | grep -qxF -e "$LABEL" -e "$SUP_LABEL"; then
+            echo "::notice::'$LABEL'/'$SUP_LABEL' label present - deliberate ruleset change, allowing."
             exit 0
           fi
 
