@@ -200,6 +200,32 @@ setup_labels() { # the GitHub labels the workflows + ticket state machine need
   fi
 }
 
+configure_repo_settings() { # repo settings the workflows assume but can't set themselves
+  echo "- repo settings (Actions may open PRs, auto-merge)"
+  if ! { command -v gh >/dev/null 2>&1 && gh repo view >/dev/null 2>&1; }; then
+    echo "  skip: no gh / no GitHub remote yet"
+    return 0
+  fi
+  # bootstrap.yml and autofix.yml OPEN pull requests. With the repo's "Allow GitHub
+  # Actions to create and approve pull requests" setting off (the default), that call
+  # 403s and the first bootstrap run fails for no obvious reason - exactly what bit leash.
+  # Preserve the existing default token scope; only flip the create-PR bit.
+  cur=$(gh api "repos/{owner}/{repo}/actions/permissions/workflow" \
+    --jq .default_workflow_permissions 2>/dev/null || echo read)
+  if gh api --method PUT "repos/{owner}/{repo}/actions/permissions/workflow" \
+      -f default_workflow_permissions="$cur" -F can_approve_pull_request_reviews=true >/dev/null 2>&1; then
+    echo "  Actions may create PRs"
+  else
+    echo "  (skip: needs admin on the repo - enable it under Settings > Actions > General)"
+  fi
+  # Auto-merge lets a green bootstrap/renovate PR land without a manual click.
+  if gh api --method PATCH "repos/{owner}/{repo}" -F allow_auto_merge=true >/dev/null 2>&1; then
+    echo "  auto-merge enabled"
+  else
+    echo "  (skip: needs admin on the repo)"
+  fi
+}
+
 repo_level_once() { # shared presets + repo-wide setup that runs once, not per package
   echo "- shared presets"
   fetch "presets/security/gitleaks.toml" ".gitleaks.toml"
@@ -221,6 +247,7 @@ JSON
   ensure_gitignore
   set_windows_mise_shell
   setup_labels
+  configure_repo_settings
 }
 
 emit_security_and_ratchet() { # repo-level facades, identical single or mono
