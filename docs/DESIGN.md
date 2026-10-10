@@ -404,6 +404,7 @@ Recorded because each one cost a red build or a wrong assumption:
 - **jsdom is the dominant test cost.** Defaulting to `node` and opting in per file took MDB's suite from 20.0s to 2.6s. Do this in every new repo from the start.
 - **habit-hooks caches.** ~25s cold, ~6s warm - which is what makes the `Stop`-hook placement viable. It is still far too slow for `PostToolUse`.
 - **ESLint 9.24+ has the ratchet built in** (`--suppress-all`, `--prune-suppressions`). Do not hand-roll a baseline; do not disable rules.
+- **A ratchet only sees what the tool reports.** An inline `eslint-disable` / `@ts-ignore` / `@SuppressWarnings` / `# noqa` / `#pragma warning disable` stops the tool emitting, so the suppression count never grows and the baseline guard sees nothing - the cheapest way to game the gate. `ruleset_guard.py inline` closes it by counting directives tree-wide at base vs head (shrink-only, label to override), run on every PR. Config demotions are the same move a different way - an editorconfig `severity = none`, a tsconfig `"strict": false`, a csproj `<NoWarn>` - and a config-only PR dodges the bundled ruleset-guard, so the inline scan carries those too. Skipped tests are caught the same way; deleted tests fall to the coverage floor.
 
 ---
 

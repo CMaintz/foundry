@@ -20,8 +20,15 @@ Kinds:
           run once per changed store file under archunit_store/)
   coverage  prompt-eval manifest.json - INVERSE: a REMOVED fixture is less coverage,
             so removal (not addition) is the loosening
+  inline  IN-SOURCE suppression directives and test-skips, counted tree-wide per
+          (file, directive) at both refs - an added eslint-disable / @ts-ignore /
+          @SuppressWarnings / # noqa / #pragma warning disable / coverage-exclusion
+          / it.skip is a loosening the baseline files above never see. No <path>:
+          the base tree IS the baseline. Same per-entry shrink-only property as
+          eslint, so the offset attack (fix one, suppress another) is still caught.
 
 Usage: ruleset_guard.py <eslint|snooze|lines|coverage> <base-ref> <head-ref> <path>
+       ruleset_guard.py inline <base-ref> <head-ref>
 """
 
 import json
@@ -103,9 +110,101 @@ def _git_show(ref, path):
     return r.stdout if r.returncode == 0 else ""
 
 
+# Never scan this script or its fixtures - they contain every directive by construction.
+_EXCLUDE = [":(exclude)scripts/ruleset_guard.py", ":(exclude)tests/test_ruleset_guard.py"]
+# Real source files (git pathspec globs match at any depth).
+CODE_PATHS = [
+    "*.ts", "*.tsx", "*.js", "*.jsx", "*.mjs", "*.cjs",
+    "*.py", "*.cs", "*.java", "*.kt", "*.kts", "*.php", *_EXCLUDE,
+]
+# Gate-defining config files. A config-only PR that demotes a rule (severity = none,
+# "strict": false, <NoWarn>) never touches source_paths, so the bundled ruleset-guard
+# below never fires on it - this always-run scan is the only thing that catches it.
+CONFIG_PATHS = ["*.editorconfig", "*.csproj", "*.props", "tsconfig*.json", *_EXCLUDE]
+
+# In-source suppressions / test-skips / config demotions, each (name, regex, pathspec).
+# The regexes are BUILT FROM FRAGMENTS so this file never contains a directive literally
+# (else the scan would flag its own source). Extended-regex (git grep -E); one hit per
+# line, so the count is per-(file, directive) line-hits - stable at both refs, which is
+# all the shrink-only comparison needs. Only LOOSENING values are listed, so a demotion
+# is an added entry (flagged) and a re-promotion is a removal (safe) for free.
+INLINE_DIRECTIVES = [
+    ("eslint-disable", "eslint-" + "disable", CODE_PATHS),
+    ("ts-ignore", "@ts-" + "ignore", CODE_PATHS),
+    ("ts-expect-error", "@ts-" + "expect-error", CODE_PATHS),
+    ("istanbul-ignore", "istanbul " + "ignore", CODE_PATHS),
+    ("c8-ignore", "c8 " + "ignore", CODE_PATHS),
+    ("noqa", "# *no" + "qa", CODE_PATHS),
+    ("py-type-ignore", "# *type: *" + "ignore", CODE_PATHS),
+    ("pylint-disable", "pylint: *" + "disable", CODE_PATHS),
+    ("py-no-cover", "pragma: *no " + "cover", CODE_PATHS),
+    ("java-suppresswarnings", "@Suppress" + "Warnings", CODE_PATHS),
+    ("kotlin-suppress", "@Suppress" + r"\(", CODE_PATHS),
+    ("csharp-pragma-warning", "pragma warning " + "disable", CODE_PATHS),
+    ("csharp-suppressmessage", r"\[" + "SuppressMessage", CODE_PATHS),
+    ("csharp-exclude-coverage", "ExcludeFrom" + "CodeCoverage", CODE_PATHS),
+    ("php-phpstan-ignore", "@phpstan-" + "ignore", CODE_PATHS),
+    ("php-psalm-suppress", "@psalm-" + "suppress", CODE_PATHS),
+    ("phpcs-ignore", "phpcs: *" + "ignore", CODE_PATHS),
+    # Test-skips: a skipped/narrowed test is a quietly disabled check. Deleting a test
+    # outright is NOT caught here - a coverage floor is the backstop (which is why the
+    # coverage-exclusion directives above matter).
+    ("js-skip", r"\.skip" + r"\(", CODE_PATHS),
+    ("js-only", r"\.only" + r"\(", CODE_PATHS),
+    ("js-xit", "x(it|describe) *" + r"\(", CODE_PATHS),
+    ("py-skip", "@(pytest.mark|unittest).*" + "skip", CODE_PATHS),
+    ("junit-disabled", "@(Disabled|" + "Ignore)", CODE_PATHS),
+    ("xunit-skip", r"\(Skip *=", CODE_PATHS),
+    # Config demotions: flipping a rule off in a config file is the same gaming move as an
+    # inline disable, and a config-only PR dodges the bundled guard.
+    ("editorconfig-demote", "severity *= *(none|silent|" + "suggestion)", CONFIG_PATHS),
+    ("tsconfig-unstrict", '"strict[A-Za-z]*" *: *' + "false", CONFIG_PATHS),
+    ("csproj-nowarn", "<No" + "Warn>", CONFIG_PATHS),
+]
+
+
+def inline_counts(ref):
+    """Counter[(file, directive)] of in-source suppression/skip/demotion hits at a ref."""
+    c = Counter()
+    for name, pat, paths in INLINE_DIRECTIVES:
+        r = subprocess.run(
+            ["git", "grep", "-I", "-E", "-e", pat, ref, "--", *paths],
+            capture_output=True, text=True,
+        )
+        # git grep: 0 = matches, 1 = no matches (both fine), >1 = real error.
+        if r.returncode > 1:
+            raise SystemExit(f"ruleset_guard inline: git grep failed for {name}: {r.stderr.strip()}")
+        for line in r.stdout.splitlines():
+            # "<ref>:<path>:<text>" - a ref holds no colon, so field 1 is the path.
+            parts = line.split(":", 2)
+            if len(parts) >= 2:
+                c[(parts[1], name)] += 1
+    return c
+
+
+def inline_loosened(base, head):
+    o, n = inline_counts(base), inline_counts(head)
+    return [k for k in n if n[k] > o.get(k, 0)]
+
+
+_KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count"}
+
 if __name__ == "__main__":
-    kind, base, head, path = sys.argv[1:5]
-    bad = loosened(kind, _git_show(base, path), _git_show(head, path))
+    kind = sys.argv[1] if len(sys.argv) > 1 else ""
+    if kind not in _KINDS:
+        sys.exit(f"ruleset_guard: unknown kind {kind!r}. Overwrite your committed "
+                 f"scripts/ruleset_guard.py with foundry's current copy - this workflow "
+                 f"needs a newer guard (foundry-init skips files that already exist).")
+    if kind == "inline-count":
+        # Total in-source suppression hits at one ref, for the ratchet report.
+        print(sum(inline_counts(sys.argv[2]).values()))
+        sys.exit(0)
+    if kind == "inline":
+        base, head = sys.argv[2:4]
+        bad = inline_loosened(base, head)
+    else:
+        base, head, path = sys.argv[2:5]
+        bad = loosened(kind, _git_show(base, path), _git_show(head, path))
     for k in bad[:20]:
         print(f"  added/increased: {k}", file=sys.stderr)
     sys.exit(1 if bad else 0)

@@ -17,7 +17,7 @@ on:
           Extended regex of paths that constitute "the ruleset". A PR touching
           both these and production source is examined for loosening.
         type: string
-        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/)'
+        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/|.*\.editorconfig|.*Directory\.Build\.props|.*tsconfig[A-Za-z.]*\.json|.*\.csproj)'
       source_paths:
         description: Extended regex of production source paths.
         type: string
@@ -75,6 +75,42 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+      # Inline suppressions are the hole the baseline-file guard below cannot see: an
+      # `eslint-disable`, `@ts-ignore`, `@SuppressWarnings`, `# noqa`, `#pragma warning
+      # disable`, a coverage-exclusion, or a skipped test STOPS the tool reporting, so the
+      # count in eslint-suppressions.json / snooze.json never grows. This scans source
+      # tree-wide at base vs head and fails on any ADDED directive (shrink-only, like the
+      # baselines), unless the ruleset-change label says it's deliberate. Runs on EVERY PR,
+      # not just bundled ruleset+source ones - a pure-source PR is exactly where this hides.
+      - name: Refuse added inline suppressions
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          LABEL: ${{ inputs.ruleset_label }}
+        run: |
+          set -euo pipefail
+          BASE=$(git merge-base "$BASE" "$HEAD")
+
+          if echo "$LABELS" | tr ',' '\n' | grep -qx "$LABEL"; then
+            echo "::notice::'$LABEL' label present - allowing inline suppression changes."
+            exit 0
+          fi
+
+          # scripts/ruleset_guard.py is a consumer-committed canonical copy; an older one
+          # predates the `inline` kind. Fail LOUD with the fix, not a confusing traceback.
+          if ! grep -q 'def inline_counts' scripts/ruleset_guard.py; then
+            echo "::error::scripts/ruleset_guard.py is outdated (no inline scan). Overwrite your committed copy with foundry's current scripts/ruleset_guard.py (foundry-init skips files that already exist, so copy it in manually)."
+            exit 1
+          fi
+
+          if python3 scripts/ruleset_guard.py inline "$BASE" "$HEAD"; then
+            echo "::notice::No in-source suppression or test-skip added."
+          else
+            echo "::error::This PR ADDS in-source suppressions or test-skips (listed above). Remove them, or add the '$LABEL' label if the suppression is deliberate and reviewed."
+            exit 1
+          fi
+
       # The guard exists to stop a fixer WEAKENING the gate in the same change
       # that "fixes" it - the cheapest fix for a lint error is to disable the
       # rule. But the risk is asymmetric: *loosening* needs a human; *tightening*
@@ -192,11 +228,14 @@ jobs:
           {
             echo "## 🔒 Ruleset guard blocked this PR"
             echo ""
-            echo "It changes both **production source** and a **gate-defining file** (a lint/PMD ruleset, a suppression or snooze baseline, a threshold, or a workflow) in a way that can't be proven *not* to loosen the gate."
+            echo "One of two things fired:"
+            echo ""
+            echo "1. **An added in-source suppression or test-skip** - an \`eslint-disable\`, \`@ts-ignore\`, \`@SuppressWarnings\`, \`# noqa\`, \`#pragma warning disable\`, a coverage-exclusion, or a skipped/\`.only\` test. These silence the gate without touching any baseline file, so they are checked directly (see the step log for the exact file + directive)."
+            echo "2. **A gate-defining file** (a lint/PMD ruleset, a suppression or snooze baseline, a threshold, an .editorconfig/csproj, or a workflow) changed alongside source in a way that can't be proven *not* to loosen the gate."
             echo ""
             echo "**Pick one:**"
-            echo "- **It's a real fix, not a loosening** → move the ruleset change to its own PR. The guard only fires when ruleset *and* source change together."
-            echo "- **The loosening is deliberate** → add the \`ruleset-change\` label, so a human is on record for it."
+            echo "- **It's a real fix, not a loosening** → remove the suppression, or move a bundled ruleset change to its own PR."
+            echo "- **The suppression/loosening is deliberate** → add the \`ruleset-change\` label, so a human is on record for it."
             echo ""
-            echo "Tightening a rule, or an inert change (whitespace/CRLF), passes automatically - you only land here when the direction is loosening or unprovable."
+            echo "Removing a suppression, tightening a rule, or an inert change (whitespace/CRLF) passes automatically - you only land here when something is being loosened."
           } >> "$GITHUB_STEP_SUMMARY"
