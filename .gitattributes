@@ -13,3 +13,4 @@
 # and identical lines can dupe - both tidied when a release is cut - but the conflict
 # class disappears. Applies to any repo that vendors this file.
 CHANGELOG.md merge=union
+scripts/jev/vendor/** linguist-vendored

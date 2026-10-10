@@ -15,8 +15,11 @@ build if any CI workflow or mise gate verb ever references this directory.
 ## Pieces
 
 - `client.mjs` - the `JevProvider` port (`TypeSafeProvider`, `CloudflareProvider`,
-  `postJson` with 429/529 backoff) plus `providerFromEnv`, which returns `null`
-  when no key is set so every caller fails open to current behavior.
+  `postJson` with 429/529 backoff and a 30 s per-attempt timeout) plus
+  `providerFromEnv`, which returns `null` when no key is set so every caller fails
+  open to current behavior. It re-exports [`@cmaintz/jev-core`](https://www.npmjs.com/package/@cmaintz/jev-core),
+  vendored in `vendor/jev-core/` so nothing needs installing. To update it, run
+  `scripts/jev/vendor-jev-core.sh <version>`; don't edit the vendored files.
 - `route.mjs` - pure, no-network core: `routeReview(answers, cfg)`,
   `triageToolcall(answer, cfg)`, and the question templates. Fail-open is the
   invariant: a missing or low-confidence answer always widens review, never narrows it.
@@ -52,8 +55,8 @@ min-files gate) routes every file to review - Jev only ever narrows spend, never
 
 Read from the environment (keys never in CI):
 `JEV_API_KEY`, `JEV_PROVIDER` (`typesafe` | `cloudflare`), `JEV_MODEL`
-(defaults to `jev-latest`), `CLOUDFLARE_ACCOUNT_ID`, and `TYPESAFE_AI_BASE_URL`
-(point the direct call at a self-host, proxy, or mock). `review.mjs` also reads
+(defaults to `jev-latest`, which also works on Cloudflare), `CLOUDFLARE_ACCOUNT_ID`,
+and `TYPESAFE_AI_BASE_URL` (point the direct call at a self-host, proxy, or mock). `review.mjs` also reads
 `JEV_REVIEW_MIN_FILES`.
 
 The non-secret knobs have a commented, opt-in home in each mise template's
