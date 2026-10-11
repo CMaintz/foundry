@@ -10,9 +10,11 @@ success/fail/unwritable-path). The offline summariser (per-verb
 time/fails/**regressions (thrash)**, time-sink, latest-red, placement/scope breakdown;
 handles missing/empty/torn logs) ships with the cmaintz-skills plugin as
 `scripts/foundry-loop-report`, behind the `/loop-report` skill. The wrapper is wired into
-`mise/ts.toml` + `mise/java.toml` (gate wraps each verb; `FOUNDRY_TELEMETRY` + `scripts/`
-on PATH via `{{config_root}}`; array form kept so the CONTRACT's sequential-not-`depends`
-rule holds). `foundry-init` vendors the wrapper + gitignores `.foundry/`.
+`mise/ts.toml` + `mise/java.toml` + `mise/python.toml` (gate wraps each verb;
+`FOUNDRY_TELEMETRY` set; the verbs stay in the array so the CONTRACT's
+sequential-not-`depends` rule holds). `foundry-verb-wrap` is provisioned by the template's
+`setup:foundry-scripts` task, cached at a pinned ref rather than vendored; `foundry-init`
+vendors neither script and gitignores `.foundry/`.
 **Not yet:** end-to-end run on a live `mise` project (only the scripts are validated here -
 no mise runtime in this env); smell-count emission from the habit-hooks Stop hook (the
 smell-trend convergence signal - a follow-on); `gh run` CI mining lives in the skill.

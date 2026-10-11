@@ -54,16 +54,14 @@ resolve_stack() {
 # mono_jobid <dir> - a workflow-safe job id for a package dir (job ids forbid / and .).
 mono_jobid() { printf '%s' "$1" | tr '/.' '--'; }
 
-fetch_package_core() { # <stack> <wd> - verbs, smells config, verb-telemetry wrapper
+fetch_package_core() { # <stack> <wd> - mise verbs, smells config
   local stack="$1" wd="$2"
   resolve_stack "$stack"
   fetch "mise/$stack.toml" "$wd/mise.toml"
   fetch "presets/habit-hooks/$R_HH.toml" "$wd/.habit-hooks/config.toml"
-  # The verb wrapper lives in $wd/scripts (= config_root/scripts, on PATH via the mise
-  # template), NOT repo-root scripts/ - a package with wd=backend must find it too. The
-  # reader (foundry-loop-report) ships with the cmaintz-skills plugin, not here.
-  fetch "scripts/foundry-verb-wrap" "$wd/scripts/foundry-verb-wrap"
-  chmod +x "$wd/scripts/foundry-verb-wrap" 2>/dev/null || true
+  # No loop-telemetry script is vendored: foundry-loop-report ships with the cmaintz-skills
+  # plugin, and the gate scripts (foundry-verb-wrap etc.) are cached at a pinned ref by the
+  # mise template's setup:foundry-scripts task - see mise/<stack>.toml.
 }
 
 # ensure_ts_devdeps <wd> - add the structural-smell sensor tools to the consumer's
@@ -94,7 +92,7 @@ ensure_ts_devdeps() {
   done
 }
 
-fetch_ts_extras() { # <wd> - strict tsconfig + ratcheted npm-audit + jscpd ignores + smell devDeps
+fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps
   local wd="$1"
   # `typecheck` refuses to run without a tsconfig: framework checkers (astro check,
   # vue-tsc) otherwise exit 0 having checked only their own file types. A repo that
@@ -103,9 +101,8 @@ fetch_ts_extras() { # <wd> - strict tsconfig + ratcheted npm-audit + jscpd ignor
   if [ -d supabase/functions ] || [ -d "$wd/supabase/functions" ]; then
     echo "  NOTE: supabase/functions found - set FOUNDRY_DENO_PATHS and pin deno in mise.toml"
   fi
-  fetch "scripts/npm-audit-ratchet.mjs" "$wd/scripts/npm-audit-ratchet.mjs"
-  fetch "scripts/foundry-flaky" "$wd/scripts/foundry-flaky"
-  chmod +x "$wd/scripts/foundry-flaky" 2>/dev/null || true
+  # npm-audit-ratchet.mjs and foundry-flaky are no longer vendored: the mise template's
+  # setup:foundry-scripts task caches them at a pinned ref (see mise/ts.toml).
   # jscpd duplication (generic sensor) reads .jscpd.json; pre-place it like the Java path.
   fetch "presets/habit-hooks/jscpd.json" "$wd/.jscpd.json"
   ensure_ts_devdeps "$wd"
