@@ -34,7 +34,11 @@ jobs:
             "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
           echo "${SHA256}  actionlint.tar.gz" | sha256sum -c -
           tar -xzf actionlint.tar.gz actionlint
-          ./actionlint -shellcheck= -color
+          # actionlint 1.7.12's `job` context schema predates job.workflow_sha /
+          # job.workflow_repository (GitHub added them for reusable workflows to check out
+          # their own source). They are valid; ignore only that one stale-schema message.
+          ./actionlint -shellcheck= -color \
+            -ignore 'property "workflow_(repository|sha)" is not defined'
 
   shellcheck:
     runs-on: ubuntu-latest

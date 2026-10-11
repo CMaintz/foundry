@@ -46,6 +46,16 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0 # need the base commit to diff the baseline against
+      # Guard script comes from foundry at this workflow's pinned ref (see _guards.yml),
+      # not a committed copy; foundry is public so the caller's token can read it.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .foundry
+          persist-credentials: false
+          sparse-checkout: scripts/ruleset_guard.py
+          sparse-checkout-cone-mode: false
       - name: Build and post the ratchet report
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
@@ -77,21 +87,20 @@ jobs:
 
           # In-source suppressions and the test count have no baseline FILE - the tree is the
           # baseline. Count them tree-wide at base vs head with the same scanner the guard
-          # uses, so the report shows these surfaces too. Skipped if the committed guard
-          # predates them. For suppressions MORE is worse (+ = ⚠️); for tests FEWER is worse,
-          # so a drop is the warning.
-          if grep -q 'tests-count' scripts/ruleset_guard.py 2>/dev/null; then
+          # uses, so the report shows these surfaces too. For suppressions MORE is worse
+          # (+ = ⚠️); for tests FEWER is worse, so a drop is the warning.
+          if [ -f .foundry/scripts/ruleset_guard.py ]; then
             mb=$(git merge-base "$BASE" "$HEAD" 2>/dev/null || echo "$BASE")
-            ib=$(python3 scripts/ruleset_guard.py inline-count "$mb" 2>/dev/null || echo 0)
-            ia=$(python3 scripts/ruleset_guard.py inline-count "$HEAD" 2>/dev/null || echo 0)
+            ib=$(python3 .foundry/scripts/ruleset_guard.py inline-count "$mb" 2>/dev/null || echo 0)
+            ia=$(python3 .foundry/scripts/ruleset_guard.py inline-count "$HEAD" 2>/dev/null || echo 0)
             delta=$((ia - ib))
             if [ "$delta" -lt 0 ]; then icon="✅ −$(( -delta ))"; moved=1
             elif [ "$delta" -gt 0 ]; then icon="⚠️ +$delta"; moved=1
             else icon="· 0"; fi
             rows="${rows}| inline suppressions (tree-wide) | $ib | $ia | $icon |"$'\n'
 
-            tb=$(python3 scripts/ruleset_guard.py tests-count "$mb" 2>/dev/null || echo 0)
-            ta=$(python3 scripts/ruleset_guard.py tests-count "$HEAD" 2>/dev/null || echo 0)
+            tb=$(python3 .foundry/scripts/ruleset_guard.py tests-count "$mb" 2>/dev/null || echo 0)
+            ta=$(python3 .foundry/scripts/ruleset_guard.py tests-count "$HEAD" 2>/dev/null || echo 0)
             delta=$((ta - tb))
             if [ "$delta" -gt 0 ]; then icon="✅ +$delta"; moved=1
             elif [ "$delta" -lt 0 ]; then icon="⚠️ −$(( -delta ))"; moved=1

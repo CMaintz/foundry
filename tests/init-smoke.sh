@@ -29,7 +29,7 @@ for stack in "${STACKS[@]}"; do
     bash "$ROOT/scripts/foundry-init.sh" "$stack" > first.log 2>&1 || { cat first.log; fail "init exited non-zero"; }
 
     expected=(mise.toml .habit-hooks/config.toml .gitleaks.toml renovate.json
-      scripts/ruleset_guard.py scripts/foundry-verb-wrap scripts/foundry-loop-report
+      scripts/foundry-verb-wrap scripts/foundry-loop-report
       .github/workflows/gate.yml .github/workflows/security.yml .github/workflows/ratchet.yml)
     case "$stack" in
       ts) expected+=(tsconfig.json .jscpd.json scripts/npm-audit-ratchet.mjs .github/workflows/bootstrap.yml) ;;
@@ -108,7 +108,7 @@ dir="$(mktemp -d)"
 
   expected=(backend/mise.toml frontend/mise.toml backend/.habit-hooks/config.toml
     frontend/.habit-hooks/config.toml backend/pmd/ruleset.xml frontend/tsconfig.json
-    .gitleaks.toml renovate.json scripts/ruleset_guard.py
+    .gitleaks.toml renovate.json
     .github/workflows/gate.yml .github/workflows/security.yml
     .github/workflows/ratchet.yml .github/workflows/bootstrap.yml)
   for f in "${expected[@]}"; do [ -s "$f" ] || fail "missing or empty: $f"; done
