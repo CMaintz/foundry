@@ -93,6 +93,21 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+      # The loosening logic is foundry's scripts/ruleset_guard.py. Fetch it from foundry
+      # at the EXACT ref this reusable workflow was pinned to, instead of making every
+      # consumer commit a copy that silently drifts from the workflow version.
+      # job.workflow_repository / job.workflow_sha resolve to this reusable workflow's own
+      # repo + sha (a tag pin like @v2 resolves to its sha), so script and workflow stay
+      # in lockstep. foundry is public, so the caller's GITHUB_TOKEN can read it.
+      - name: Fetch the guard script from foundry (pinned to this workflow's ref)
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .foundry
+          persist-credentials: false
+          sparse-checkout: scripts/ruleset_guard.py
+          sparse-checkout-cone-mode: false
       # Two gaming moves the baseline-file guard below cannot see, both checked here on
       # EVERY PR (a pure-source or config-only PR is exactly where they hide):
       #   1. an ADDED in-source suppression / config demotion (`eslint-disable`, `@ts-ignore`,
@@ -120,16 +135,15 @@ jobs:
             exit 0
           fi
 
-          # scripts/ruleset_guard.py is a consumer-committed canonical copy; an older one
-          # predates these checks. Fail LOUD with the fix, not a confusing traceback.
-          if ! grep -q 'def test_counts' scripts/ruleset_guard.py; then
-            echo "::error::scripts/ruleset_guard.py is outdated (no suppression/test scan). Overwrite your committed copy with foundry's current scripts/ruleset_guard.py (foundry-init skips files that already exist, so copy it in manually)."
-            exit 1
+          # The guard runs from foundry (.foundry/), pinned to this workflow's ref, so it
+          # is always current. A committed copy in the caller is now dead weight.
+          if [ -f scripts/ruleset_guard.py ]; then
+            echo "::notice::scripts/ruleset_guard.py is no longer used (the guard now runs from foundry at the pinned ref) - safe to delete your committed copy."
           fi
 
           rc=0
-          python3 scripts/ruleset_guard.py inline "$BASE" "$HEAD" || rc=1
-          python3 scripts/ruleset_guard.py tests "$BASE" "$HEAD" || rc=1
+          python3 .foundry/scripts/ruleset_guard.py inline "$BASE" "$HEAD" || rc=1
+          python3 .foundry/scripts/ruleset_guard.py tests "$BASE" "$HEAD" || rc=1
           if [ "$rc" -eq 0 ]; then
             echo "::notice::No suppression added and no test deleted."
           else
@@ -187,9 +201,8 @@ jobs:
 
           blob() { git show "$1:$2" 2>/dev/null || true; }
 
-          # scripts/ruleset_guard.py must be committed in the calling repo - a
-          # reusable workflow runs in the caller's checkout. Copy it from
-          # foundry/scripts/ when onboarding.
+          # The guard script runs from foundry (.foundry/, pinned to this workflow's
+          # ref); the git-grep/blob work still targets the caller's checkout (cwd).
           review=""
           while IFS= read -r f; do
             if [ -z "$f" ]; then continue; fi
@@ -206,19 +219,19 @@ jobs:
             # flags any single suppression/snooze entry that is added or increased.
             case "$f" in
               *eslint-suppressions.json)
-                if python3 scripts/ruleset_guard.py eslint "$BASE" "$HEAD" "$f"; then
+                if python3 .foundry/scripts/ruleset_guard.py eslint "$BASE" "$HEAD" "$f"; then
                   echo "  safe (no suppression added): $f"
                 else echo "  REVIEW (suppression added/increased): $f"; review="$review $f"; fi
                 ;;
               *snooze.json)
-                if python3 scripts/ruleset_guard.py snooze "$BASE" "$HEAD" "$f"; then
+                if python3 .foundry/scripts/ruleset_guard.py snooze "$BASE" "$HEAD" "$f"; then
                   echo "  safe (no snooze added): $f"
                 else echo "  REVIEW (snooze added): $f"; review="$review $f"; fi
                 ;;
               *.dependency-cruiser-known-violations.json)
                 # Architecture-fitness baseline (dependency-cruiser): same shrink-only
                 # property as snooze - an added known violation loosens, pruning is safe.
-                if python3 scripts/ruleset_guard.py snooze "$BASE" "$HEAD" "$f"; then
+                if python3 .foundry/scripts/ruleset_guard.py snooze "$BASE" "$HEAD" "$f"; then
                   echo "  safe (no arch violation added): $f"
                 else echo "  REVIEW (arch violation added): $f"; review="$review $f"; fi
                 ;;
@@ -227,7 +240,7 @@ jobs:
                 # added line loosens; pruning (fixing a violation) is safe. A DELETED
                 # store is caught by the failing test, not here (an empty file adds
                 # nothing), which is why adopters disable allowStoreCreation post-seed.
-                if python3 scripts/ruleset_guard.py lines "$BASE" "$HEAD" "$f"; then
+                if python3 .foundry/scripts/ruleset_guard.py lines "$BASE" "$HEAD" "$f"; then
                   echo "  safe (no frozen violation added): $f"
                 else echo "  REVIEW (frozen violation added): $f"; review="$review $f"; fi
                 ;;

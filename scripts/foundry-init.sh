@@ -263,7 +263,8 @@ repo_level_once() { # shared presets + repo-wide setup that runs once, not per p
   echo "- shared presets"
   fetch "presets/security/gitleaks.toml" ".gitleaks.toml"
   ensure_renovate
-  fetch "scripts/ruleset_guard.py" "scripts/ruleset_guard.py"
+  # ruleset_guard.py is NOT vendored: the security/ratchet reusable workflows fetch it
+  # from foundry at their pinned ref, so it never drifts from the workflow version.
   fetch "presets/github/PULL_REQUEST_TEMPLATE.md" ".github/PULL_REQUEST_TEMPLATE.md"
   # One-shot, non-blocking PR check reporter the pr-ci-watch flow calls once CI has
   # finished. Repo-scoped (gh pr checks on the branch's PR), so it lands once at repo
