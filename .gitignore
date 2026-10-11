@@ -3,3 +3,5 @@ node_modules/
 *.log
 __pycache__/
 .pytest_cache/
+# Local-only agent scratch: verb telemetry and the ship/pr-ci-watch PR-URL handoff.
+.foundry/
