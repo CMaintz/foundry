@@ -29,7 +29,7 @@ for stack in "${STACKS[@]}"; do
     bash "$ROOT/scripts/foundry-init.sh" "$stack" > first.log 2>&1 || { cat first.log; fail "init exited non-zero"; }
 
     expected=(mise.toml .habit-hooks/config.toml .gitleaks.toml renovate.json
-      scripts/foundry-verb-wrap scripts/foundry-loop-report
+      scripts/foundry-verb-wrap
       .github/workflows/gate.yml .github/workflows/security.yml .github/workflows/ratchet.yml)
     case "$stack" in
       ts) expected+=(tsconfig.json .jscpd.json scripts/npm-audit-ratchet.mjs .github/workflows/bootstrap.yml) ;;

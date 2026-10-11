@@ -44,7 +44,7 @@ _.path = [
 ]
 
 # Loop telemetry: each gate verb appends one JSONL line here (see designs/loop-telemetry.md).
-# Gitignore `.foundry/`. Read it with `foundry-loop-report`. foundry-init installs the wrapper.
+# Gitignore `.foundry/`. Read it with the `foundry:loop-report` skill. foundry-init installs the wrapper.
 FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
 
 # -- Jev (advisory layer; opt-in, OFF unless set) --------------------------
@@ -230,7 +230,7 @@ run = "./gradlew spotbugsMain"
 description = "The oracle. Sequential - mise `depends` runs in parallel with no ordering."
 # Each verb wrapped by `foundry-verb-wrap`: times it, appends a line to FOUNDRY_TELEMETRY,
 # propagates the exit code unchanged (telemetry never changes the outcome; a failing verb
-# still stops the sequence). Read with `foundry-loop-report`. Wrapper on PATH via scripts/
+# still stops the sequence). Read with the `foundry:loop-report` skill. Wrapper on PATH via scripts/
 # ([env]); foundry-init installs it. Not part of the six-verb contract.
 run = [
     "foundry-verb-wrap lint      -- mise run lint",
