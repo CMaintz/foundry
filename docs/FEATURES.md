@@ -141,7 +141,7 @@ deptry pins carry `# renovate:` comments the shared preset tracks.
 - **Hooks:** `habit-hooks-guard` (Stop, smells), `auto-format` (PostToolUse, per-edit
   prettier/eslint), `format-java-stop` (Stop, ratcheted Spotless),
   `typecheck-stop` (Stop, type errors), `guard-generated-files` (PreToolUse, blocks hand-editing snooze/suppressions), `guard-pr-create` (PreToolUse, forces PRs through `foundry-ship-pr`), `pre-push` (git hook). All portable sh.
-- **Plugin scripts:** `foundry-ship-pr` (the one sanctioned create path: draft PR + non-blocking CI watch + mark-ready-on-green), `foundry-pr-report` (one-shot PR check verdict with failing-step logs), `foundry-loop-report` (offline verb-telemetry summariser). Agent-only, so they live with the skills instead of being vendored; a SessionStart hook exports `FOUNDRY_PLUGIN_ROOT` so skills can resolve them.
+- **Plugin scripts:** `foundry-ship-pr` (the one sanctioned create path: draft PR + non-blocking CI watch + mark-ready-on-green), `foundry-pr-report` (one-shot PR check verdict with failing-step logs), `foundry-loop-report` (offline verb-telemetry summariser). Agent-only, so they live with the skills instead of being vendored; skills resolve them via the braced `${CLAUDE_PLUGIN_ROOT}`, which Claude Code substitutes inline at skill load.
 
 ## Cross-cutting mechanisms
 
