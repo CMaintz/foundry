@@ -6,6 +6,14 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.11.1](https://github.com/CMaintz/foundry/compare/v2.11.0...v2.11.1) (2026-10-11)
+
+### Bug Fixes
+
+* guarantee renovate.json extends the foundry preset (be8d6bc)
+* stop test-skip false positives, shorten the suppression label (ce1d1d5)
+* only set GITLEAKS_CONFIG when the repo has a .gitleaks.toml (7d6c118)
+
 ## [2.11.0](https://github.com/CMaintz/foundry/compare/v2.10.0...v2.11.0) (2026-10-10)
 
 ### Features
