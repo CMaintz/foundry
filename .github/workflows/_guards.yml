@@ -49,7 +49,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # gitleaks scans history, not just the tip
       # Point gitleaks at the repo's .gitleaks.toml ONLY if it exists. A GITLEAKS_CONFIG
@@ -90,7 +90,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       # The loosening logic is foundry's scripts/ruleset_guard.py. Fetch it from foundry
@@ -100,7 +100,7 @@ jobs:
       # repo + sha (a tag pin like @v2 resolves to its sha), so script and workflow stay
       # in lockstep. foundry is public, so the caller's GITHUB_TOKEN can read it.
       - name: Fetch the guard script from foundry (pinned to this workflow's ref)
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
