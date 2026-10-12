@@ -55,7 +55,7 @@ on:
         default: "1.5.0"
       mise_version:
         type: string
-        default: "2026.9.2"
+        default: "2026.9.3"
       base_branch:
         type: string
         default: "main"
