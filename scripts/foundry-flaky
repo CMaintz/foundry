@@ -32,8 +32,9 @@ Baseline (flaky-baseline.json), committed, may only shrink:
   { "quarantined": [ { "id": "<test id>", "reason": "...", "since": "<ref/date>" } ] }
 
 Test id format (match the baseline to these):
-  JUnit XML  -> "<classname>.<name>"      (Gradle/PHPUnit/JUnit)
+  JUnit XML  -> "<classname>.<name>"      (Gradle/PHPUnit/JUnit/pytest)
   vitest     -> the assertion "fullName"  (ancestor titles + test title, space-joined)
+  TRX        -> the UnitTestResult testName (dotnet: the fully-qualified method)
 """
 import glob
 import json
@@ -74,6 +75,10 @@ def parse_report(path):
         fh.seek(0)
         body = fh.read()
     if head.lstrip().startswith("<"):
+        # JUnit and TRX (dotnet) are both XML; a TRX report's root is <TestRun> in the
+        # VisualStudio TeamTest namespace, so the head carries one marker or the other.
+        if "<TestRun" in head or "VisualStudio/TeamTest" in head:
+            return _parse_trx(body)
         return _parse_junit(body)
     return _parse_vitest(body)
 
@@ -88,6 +93,29 @@ def _parse_junit(text):
         all_ids.append(tid)
         # JUnit marks a failed case with a direct <failure> or <error> child.
         if case.find("failure") is not None or case.find("error") is not None:
+            failed.append(tid)
+    return failed, len(all_ids), all_ids
+
+
+# Outcomes that gate as a failure. Passed and NotExecuted (skipped) / Inconclusive do not,
+# mirroring how the JUnit parser ignores <skipped> - only a genuine failure fails the gate.
+_TRX_FAILURE = {"Failed", "Error", "Timeout", "Aborted"}
+
+
+def _parse_trx(text):
+    # dotnet's `dotnet test --logger trx` writes one TRX file; each <UnitTestResult> carries
+    # testName (already the fully-qualified method the baseline matches) and an outcome. Match
+    # the tag by local name so a declared default namespace doesn't hide the elements. Inner
+    # results of data-driven tests count too; that can inflate `total` but never changes the
+    # gate decision, which is id-based.
+    failed, all_ids = [], []
+    root = ET.fromstring(text)
+    for el in root.iter():
+        if el.tag.rsplit("}", 1)[-1] != "UnitTestResult":
+            continue
+        tid = el.get("testName", "")
+        all_ids.append(tid)
+        if el.get("outcome", "") in _TRX_FAILURE:
             failed.append(tid)
     return failed, len(all_ids), all_ids
 
