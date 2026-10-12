@@ -29,10 +29,9 @@ for stack in "${STACKS[@]}"; do
     bash "$ROOT/scripts/foundry-init.sh" "$stack" > first.log 2>&1 || { cat first.log; fail "init exited non-zero"; }
 
     expected=(mise.toml .habit-hooks/config.toml .gitleaks.toml renovate.json
-      scripts/foundry-verb-wrap
       .github/workflows/gate.yml .github/workflows/security.yml .github/workflows/ratchet.yml)
     case "$stack" in
-      ts) expected+=(tsconfig.json .jscpd.json scripts/npm-audit-ratchet.mjs .github/workflows/bootstrap.yml) ;;
+      ts) expected+=(tsconfig.json .jscpd.json .github/workflows/bootstrap.yml) ;;
       java) expected+=(pmd/ruleset.xml config/pmd/no-var.xml .jscpd.json .github/workflows/bootstrap.yml) ;;
       dotnet) expected+=(Directory.Build.props .editorconfig .github/workflows/bootstrap.yml) ;;
       php) expected+=(.github/workflows/bootstrap.yml) ;;
@@ -44,7 +43,6 @@ for stack in "${STACKS[@]}"; do
         grep -q "\"$d\"" package.json || fail "package.json missing structural-smell devDep: $d"
       done
     fi
-    [ -x scripts/foundry-verb-wrap ] || fail "foundry-verb-wrap is not executable"
     grep -qxF '.foundry/' .gitignore || fail ".gitignore lacks .foundry/"
     if [ "$stack" = python ]; then
       grep -qxF '.venv/' .gitignore || fail ".gitignore lacks .venv/"
