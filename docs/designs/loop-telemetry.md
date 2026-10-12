@@ -6,12 +6,13 @@
 **Implemented & tested (in isolation):** `scripts/foundry-verb-wrap` - times a verb,
 appends one JSONL line (`ts, ms, verb, scope, placement, exit, duration_ms`), always
 propagates the verb's exit (telemetry failure can't change the outcome; validated across
-success/fail/unwritable-path). `scripts/foundry-loop-report` - offline summariser: per-verb
+success/fail/unwritable-path). The offline summariser (per-verb
 time/fails/**regressions (thrash)**, time-sink, latest-red, placement/scope breakdown;
-handles missing/empty/torn logs. Wired into `mise/ts.toml` + `mise/java.toml` (gate wraps
-each verb; `FOUNDRY_TELEMETRY` + `scripts/` on PATH via `{{config_root}}`; array form kept
-so the CONTRACT's sequential-not-`depends` rule holds). `foundry-init` vendors both scripts
-+ gitignores `.foundry/`. `/loop-report` skill added to cmaintz-skills.
+handles missing/empty/torn logs) ships with the cmaintz-skills plugin as
+`scripts/foundry-loop-report`, behind the `/loop-report` skill. The wrapper is wired into
+`mise/ts.toml` + `mise/java.toml` (gate wraps each verb; `FOUNDRY_TELEMETRY` + `scripts/`
+on PATH via `{{config_root}}`; array form kept so the CONTRACT's sequential-not-`depends`
+rule holds). `foundry-init` vendors the wrapper + gitignores `.foundry/`.
 **Not yet:** end-to-end run on a live `mise` project (only the scripts are validated here -
 no mise runtime in this env); smell-count emission from the habit-hooks Stop hook (the
 smell-trend convergence signal - a follow-on); `gh run` CI mining lives in the skill.

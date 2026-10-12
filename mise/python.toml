@@ -70,7 +70,7 @@ _.path = [
     "{{config_root}}/scripts",
 ]
 # Loop telemetry: each gate verb appends one JSONL line here (see designs/loop-telemetry.md).
-# Read it with `foundry-loop-report`. foundry-init installs the wrapper.
+# Read it with the `foundry:loop-report` skill. foundry-init installs the wrapper.
 FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
 
 # -- Jev (advisory layer; opt-in, OFF unless set) --------------------------

@@ -27,7 +27,7 @@ _.path = [
 ]
 
 # Loop telemetry: each gate verb appends one JSONL line here (see designs/loop-telemetry.md).
-# Gitignore `.foundry/`. Read it with `foundry-loop-report`. The gate calls
+# Gitignore `.foundry/`. Read it with the `foundry:loop-report` skill. The gate calls
 # `foundry-verb-wrap` (installed by foundry-init, on PATH via scripts/ above).
 FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
 
@@ -257,7 +257,7 @@ description = "The authoritative composite - the oracle. Nothing merges without 
 # Each verb is wrapped by `foundry-verb-wrap`, which times it, appends one JSONL line
 # to FOUNDRY_TELEMETRY, then propagates the verb's exit code unchanged - telemetry
 # never changes the outcome, and a failing verb still stops the sequence. Read the log
-# with `foundry-loop-report`. The wrapper is required (foundry-init installs it, on
+# with the `foundry:loop-report` skill. The wrapper is required (foundry-init installs it, on
 # PATH via scripts/ - see [env]); it is NOT on the six-verb contract.
 run = [
     "foundry-verb-wrap lint      -- mise run lint",

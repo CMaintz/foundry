@@ -54,16 +54,16 @@ resolve_stack() {
 # mono_jobid <dir> - a workflow-safe job id for a package dir (job ids forbid / and .).
 mono_jobid() { printf '%s' "$1" | tr '/.' '--'; }
 
-fetch_package_core() { # <stack> <wd> - verbs, smells config, loop telemetry scripts
+fetch_package_core() { # <stack> <wd> - verbs, smells config, verb-telemetry wrapper
   local stack="$1" wd="$2"
   resolve_stack "$stack"
   fetch "mise/$stack.toml" "$wd/mise.toml"
   fetch "presets/habit-hooks/$R_HH.toml" "$wd/.habit-hooks/config.toml"
-  # Loop telemetry lives in $wd/scripts (= config_root/scripts, on PATH via the mise
-  # template), NOT repo-root scripts/ - a package with wd=backend must find them too.
+  # The verb wrapper lives in $wd/scripts (= config_root/scripts, on PATH via the mise
+  # template), NOT repo-root scripts/ - a package with wd=backend must find it too. The
+  # reader (foundry-loop-report) ships with the cmaintz-skills plugin, not here.
   fetch "scripts/foundry-verb-wrap" "$wd/scripts/foundry-verb-wrap"
-  fetch "scripts/foundry-loop-report" "$wd/scripts/foundry-loop-report"
-  chmod +x "$wd/scripts/foundry-verb-wrap" "$wd/scripts/foundry-loop-report" 2>/dev/null || true
+  chmod +x "$wd/scripts/foundry-verb-wrap" 2>/dev/null || true
 }
 
 # ensure_ts_devdeps <wd> - add the structural-smell sensor tools to the consumer's
@@ -266,11 +266,6 @@ repo_level_once() { # shared presets + repo-wide setup that runs once, not per p
   # ruleset_guard.py is NOT vendored: the security/ratchet reusable workflows fetch it
   # from foundry at their pinned ref, so it never drifts from the workflow version.
   fetch "presets/github/PULL_REQUEST_TEMPLATE.md" ".github/PULL_REQUEST_TEMPLATE.md"
-  # One-shot, non-blocking PR check reporter the pr-ci-watch flow calls once CI has
-  # finished. Repo-scoped (gh pr checks on the branch's PR), so it lands once at repo
-  # root, not per package.
-  fetch "scripts/foundry-pr-report" "scripts/foundry-pr-report"
-  chmod +x scripts/foundry-pr-report 2>/dev/null || true
   ensure_gitignore
   set_windows_mise_shell
   setup_labels
