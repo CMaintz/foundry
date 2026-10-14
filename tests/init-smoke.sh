@@ -44,6 +44,7 @@ for stack in "${STACKS[@]}"; do
       done
     fi
     grep -qxF '.foundry/' .gitignore || fail ".gitignore lacks .foundry/"
+    grep -qxF '.claude/worktrees/' .gitignore || fail ".gitignore lacks .claude/worktrees/"
     if [ "$stack" = python ]; then
       grep -qxF '.venv/' .gitignore || fail ".gitignore lacks .venv/"
       python3 -c 'import tomllib; tomllib.load(open("ruff.toml", "rb"))' || fail "ruff.toml does not parse"

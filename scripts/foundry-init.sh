@@ -167,14 +167,19 @@ scaffold_package() { # <stack> <wd> - everything one package needs (not repo-lev
   if [ "$stack" = python ]; then fetch_python_extras "$wd"; fi
 }
 
-ensure_gitignore() { # the telemetry log is local-only observability, never committed
+ensure_ignored() { # <pattern> <comment> - append to .gitignore unless already listed
   if [ ! -f .gitignore ]; then
-    printf '# Foundry loop telemetry (local observability)\n.foundry/\n' > .gitignore
-    echo "  wrote: .gitignore (+.foundry/)"
-  elif ! grep -qxF '.foundry/' .gitignore 2>/dev/null; then
-    printf '\n# Foundry loop telemetry (local observability)\n.foundry/\n' >> .gitignore
-    echo "  updated: .gitignore (+.foundry/)"
+    printf '# %s\n%s\n' "$2" "$1" > .gitignore
+    echo "  wrote: .gitignore (+$1)"
+  elif ! grep -qxF "$1" .gitignore 2>/dev/null; then
+    printf '\n# %s\n%s\n' "$2" "$1" >> .gitignore
+    echo "  updated: .gitignore (+$1)"
   fi
+}
+
+ensure_gitignore() { # local-only agent state, never committed
+  ensure_ignored .foundry/ "Foundry loop telemetry (local observability)"
+  ensure_ignored .claude/worktrees/ "Claude Code worktrees: full repo copies that habit-hooks --branch would scan as duplicates"
 }
 
 set_windows_mise_shell() { # tasks only run under bash if this is in GLOBAL mise config
