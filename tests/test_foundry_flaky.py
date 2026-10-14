@@ -34,6 +34,15 @@ VITEST = json.dumps({
     }]
 })
 
+TRX = """<?xml version="1.0" encoding="UTF-8"?>
+<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Results>
+    <UnitTestResult testName="MyApp.Tests.CartTests.AddsItem" outcome="Passed"/>
+    <UnitTestResult testName="MyApp.Tests.CartTests.RecalculatesTotal" outcome="Failed"/>
+    <UnitTestResult testName="MyApp.Tests.CartTests.Skipped" outcome="NotExecuted"/>
+  </Results>
+</TestRun>"""
+
 
 class TestParse:
     def test_junit_file(self, tmp_path):
@@ -48,6 +57,14 @@ class TestParse:
         failed, total, all_ids = flaky.parse_report(str(p))
         assert total == 2
         assert failed == ["cart recalculates total after concurrent add"]
+
+    def test_trx_file(self, tmp_path):
+        p = tmp_path / "r.trx"; p.write_text(TRX)
+        failed, total, all_ids = flaky.parse_report(str(p))
+        assert total == 3
+        # Only the Failed outcome gates; NotExecuted (skipped) does not.
+        assert failed == ["MyApp.Tests.CartTests.RecalculatesTotal"]
+        assert "MyApp.Tests.CartTests.Skipped" in all_ids
 
     def test_directory_of_junit_is_merged(self, tmp_path):
         d = tmp_path / "test-results"; d.mkdir()
