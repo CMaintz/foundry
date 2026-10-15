@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Foundry</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+:root{
+  --bg:#0E1216; --panel:#151C23; --panel2:#1A2229; --line:#242E38;
+  --ink:#EDF2F7; --mute:#8A98A7; --dim:#5E6B79;
+  --ember:#FF8B3D; --ok:#4FD1A1; --bad:#FF5F6B; --cool:#74A9FF;
+}
+@page{size:1080px 1350px;margin:0}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+html,body{background:#000}
+body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+.slide{
+  width:1080px;height:1350px;background:var(--bg);color:var(--ink);
+  position:relative;overflow:hidden;page-break-after:always;break-after:page;
+  padding:76px 78px 72px;display:flex;flex-direction:column;
+}
+.slide:last-child{page-break-after:auto;break-after:auto}
+.slide::before{content:"";position:absolute;left:0;top:0;width:100%;height:5px;
+  background:linear-gradient(90deg,var(--ember) 0%,var(--ember) 22%,var(--line) 22%)}
+
+/* header */
+.hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:34px}
+.kicker{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:500;
+  letter-spacing:.19em;text-transform:uppercase;color:var(--ember)}
+.num{font-family:'JetBrains Mono',monospace;font-size:19px;color:var(--dim);letter-spacing:.08em}
+
+h1{font-size:68px;line-height:1.06;font-weight:800;letter-spacing:-.025em}
+h2{font-size:54px;line-height:1.1;font-weight:700;letter-spacing:-.022em}
+.sub{font-size:28px;line-height:1.42;color:var(--mute);font-weight:400;margin-top:24px;max-width:860px}
+.body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:30px}
+.body.top{justify-content:flex-start;padding-top:12px}
+em{color:var(--ink);font-style:italic}
+b{font-weight:700;color:#fff}
+code,.mono{font-family:'JetBrains Mono',monospace}
+
+/* footer */
+.ft{display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--line);padding-top:24px;margin-top:30px;
+  font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--dim);letter-spacing:.04em}
+.ft .nm{color:var(--mute)}
+
+/* building blocks */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px 34px}
+.card.lift{border-left:4px solid var(--ember)}
+.card.ok{border-left:4px solid var(--ok)}
+.card.bad{border-left:4px solid var(--bad)}
+.dense .card{padding:24px 28px}
+.dense .ct{margin-bottom:11px;font-size:17px}
+.dense .cb{font-size:24px;line-height:1.4}
+.ct{font-family:'JetBrains Mono',monospace;font-size:18px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--mute);margin-bottom:16px}
+.cb{font-size:26px;line-height:1.45;color:#D7E0EA}
+.cb.lg{font-size:30px;line-height:1.4}
+
+table{width:100%;border-collapse:collapse}
+th{font-family:'JetBrains Mono',monospace;font-size:17px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--mute);text-align:left;font-weight:500;
+  padding:0 16px 16px 0;border-bottom:1px solid var(--line)}
+td{font-size:25px;line-height:1.35;padding:22px 16px 22px 0;
+  border-bottom:1px solid var(--line);color:#CFD9E4;vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.k{font-family:'JetBrains Mono',monospace;color:var(--ember);font-size:23px;font-weight:500;white-space:nowrap}
+td.n{font-family:'JetBrains Mono',monospace;color:var(--mute);font-size:22px;white-space:nowrap}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.verb{display:flex;align-items:baseline;gap:26px;padding:21px 0;border-bottom:1px solid var(--line)}
+.verb:last-child{border-bottom:none}
+.verb .v{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:700;
+  color:var(--ink);width:272px;flex:none}
+.verb .d{font-size:25px;color:var(--mute);line-height:1.34}
+.verb.orc{background:linear-gradient(90deg,rgba(255,139,61,.13),transparent);
+  margin:10px -18px 0;padding:24px 18px;border:1px solid rgba(255,139,61,.3);border-radius:12px}
+.verb.orc .v{color:var(--ember)}
+.verb.orc .d{color:#D7E0EA}
+
+.pull{font-size:36px;line-height:1.32;font-weight:600;letter-spacing:-.015em;color:#fff}
+.pull .hl{color:var(--ember)}
+.note{font-size:23px;line-height:1.45;color:var(--dim)}
+
+ul{list-style:none;display:flex;flex-direction:column;gap:19px}
+li{font-size:26px;line-height:1.42;color:#CFD9E4;padding-left:36px;position:relative}
+li::before{content:"";position:absolute;left:4px;top:11px;width:11px;height:11px;
+  border-radius:3px;background:var(--ember)}
+li .l{font-family:'JetBrains Mono',monospace;color:#fff;font-weight:500}
+
+/* thrash loop */
+.step{display:flex;gap:24px;align-items:flex-start;padding:20px 26px;background:var(--panel);
+  border:1px solid var(--line);border-radius:14px}
+.step .ix{font-family:'JetBrains Mono',monospace;font-size:21px;color:var(--dim);
+  flex:none;width:34px;padding-top:4px}
+.step .tx{font-size:26px;line-height:1.4;color:#CFD9E4}
+.step.r{border-color:rgba(255,95,107,.4)}
+.arw{font-family:'JetBrains Mono',monospace;font-size:22px;color:var(--ember);
+  padding-left:60px;letter-spacing:.06em}
+
+.stack{display:flex;flex-direction:column;gap:14px}
+.tag{font-family:'JetBrains Mono',monospace;font-size:19px;padding:7px 14px;border-radius:7px;
+  background:var(--panel2);border:1px solid var(--line);color:var(--mute);display:inline-block}
+.tag.ok{color:var(--ok);border-color:rgba(79,209,161,.35)}
+.tag.bad{color:var(--bad);border-color:rgba(255,95,107,.35)}
+
+.big{font-size:88px;font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--ember);
+  font-family:'JetBrains Mono',monospace}
+.cover-mark{font-family:'JetBrains Mono',monospace;font-size:21px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--ember)}
+.rule{height:1px;background:var(--line);margin:4px 0}
+.gridn{display:grid;grid-template-columns:auto 1fr;gap:20px 28px;align-items:baseline}
+.gridn .g{font-family:'JetBrains Mono',monospace;font-size:24px;color:var(--ember);white-space:nowrap}
+.gridn .t{font-size:25px;line-height:1.38;color:#CFD9E4}
+.swipe{font-family:'JetBrains Mono',monospace;font-size:19px;color:var(--ember);letter-spacing:.14em}
+</style></head><body>
+
+<!-- 1 COVER -->
+<section class="slide">
+  <div class="hd"><div class="cover-mark">Foundry</div><div class="num">01 / 12</div></div>
+  <div class="body">
+    <h1>Your CI pipeline and your<br>“AI coding standards”<br>are the <span style="color:var(--ember)">same rule set</span>.</h1>
+    <div class="sub">Most people build them as two things. They drift, and the agent
+      ping-pongs between them. So I built one gate and ran it in three
+      places — in the agent's loop, before the push, and on the PR.</div>
+    <div class="rule" style="margin:14px 0"></div>
+    <div class="note">What follows: the thrash that started it, the six-verb contract that
+      fixed it, the guard that stops an agent gaming the metric — and the threshold
+      I had to walk back.</div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">Swipe →</span></div>
+</section>
+
+<!-- 2 THRASH -->
+<section class="slide">
+  <div class="hd"><div class="kicker">The thing that started it</div><div class="num">02 / 12</div></div>
+  <h2>Four commits. Net change:<br>nothing.</h2>
+  <div class="body" style="gap:16px">
+    <div class="step"><div class="ix">01</div><div class="tx">My local hook flags <code>oversized-function</code>.
+      The agent splits the function in two.</div></div>
+    <div class="arw">│</div>
+    <div class="step r"><div class="ix">02</div><div class="tx">CI flags <code>high-complexity</code> —
+      a rule the local hook <b>never ran</b>. The agent collapses the branch back inline.</div></div>
+    <div class="arw">│</div>
+    <div class="step r"><div class="ix">03</div><div class="tx">The local hook flags
+      <code>oversized-function</code> again. We are now in a cycle.</div></div>
+    <div class="arw">└──▶ repeat until I notice</div>
+    <div class="card bad" style="margin-top:14px">
+      <div class="cb lg">This isn't the agent being dumb. It optimised exactly what it was
+      shown, and it was shown <b>two different rule sets</b>.</div>
+    </div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">02</span></div>
+</section>
+
+<!-- 3 THREE SYMPTOMS -->
+<section class="slide">
+  <div class="hd"><div class="kicker">Three symptoms, one cause</div><div class="num">03 / 12</div></div>
+  <h2>Every one of these is a placement bug.</h2>
+  <div class="body" style="gap:22px">
+    <div class="card lift">
+      <div class="ct">Symptom 01 — thrash</div>
+      <div class="cb">The agent fixes what the hook flagged, CI flags something else, it
+        fixes that and regresses the first.<br>
+        <span style="color:var(--ember)">Cause:</span> three placements, three rule sets.</div>
+    </div>
+    <div class="card lift">
+      <div class="ct">Symptom 02 — “done” meant nothing</div>
+      <div class="cb">“I've fixed the failing tests and everything passes now.” It hadn't.
+        So I hand-verified everything, which is the work I was trying to delegate.<br>
+        <span style="color:var(--ember)">Cause:</span> no single authority on <em>done</em>.</div>
+    </div>
+    <div class="card lift">
+      <div class="ct">Symptom 03 — the rules decayed</div>
+      <div class="cb">My standards lived in <code>CLAUDE.md</code>. They were followed early
+        in a session and quietly ignored by the end of it.<br>
+        <span style="color:var(--ember)">Cause:</span> prose is advisory. I'd picked the
+        wrong enforcement layer.</div>
+    </div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">03</span></div>
+</section>
+
+<!-- 4 ONE RULE SET -->
+<section class="slide">
+  <div class="hd"><div class="kicker">The one idea</div><div class="num">04 / 12</div></div>
+  <h2>One rule set. Three placements.<br>No second definition.</h2>
+  <div class="body" style="gap:34px">
+    <table>
+      <tr><th style="width:230px">Placement</th><th>Fires</th><th>Talks to</th><th>Budget</th></tr>
+      <tr><td class="k">in-loop</td><td>while the agent edits</td><td>the agent, mid-task</td><td class="n">&lt; 30s</td></tr>
+      <tr><td class="k">pre-push</td><td>before code leaves my machine</td><td>me</td><td class="n">&lt; 60s</td></tr>
+      <tr><td class="k">CI</td><td>on the pull request</td><td>the permanent record</td><td class="n">&lt; 5 min</td></tr>
+    </table>
+    <div class="card">
+      <div class="cb lg">Same rules, different <em>audience</em> and different <em>latency
+      budget</em>. A disagreement between two placements is a bug in my setup —
+      never a fact to work around.</div>
+    </div>
+    <div class="note">Practical consequence: don't write a CI pipeline and then separately
+      write a hooks setup. Write one gate behind a narrow interface and call it from all three.</div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">04</span></div>
+</section>
+
+<!-- 5 VERBS -->
+<section class="slide">
+  <div class="hd"><div class="kicker">The interface</div><div class="num">05 / 12</div></div>
+  <h2>The narrow interface is six verbs.</h2>
+  <div class="body" style="gap:26px">
+    <div>
+      <div class="verb"><span class="v">mise run fix</span><span class="d">apply every mechanically safe fix — never a judgement call</span></div>
+      <div class="verb"><span class="v">mise run lint</span><span class="d">style + structural smells</span></div>
+      <div class="verb"><span class="v">mise run typecheck</span><span class="d">static types</span></div>
+      <div class="verb"><span class="v">mise run test</span><span class="d">tests + the coverage floor</span></div>
+      <div class="verb"><span class="v">mise run audit</span><span class="d">vulnerabilities, secrets, SAST</span></div>
+      <div class="verb orc"><span class="v">mise run gate</span><span class="d"><b>all of the above, in order. The oracle.</b></span></div>
+    </div>
+    <div class="card lift">
+      <div class="cb lg">Callers invoke <b>verbs, never tools</b>. A skill says
+        <code>mise run lint</code>. It never says <code>eslint</code> or <code>phpstan</code>.
+        That one indirection is why a single skill library serves a Kotlin repo
+        and a React repo.</div>
+    </div>
+    <div class="note">A verb with nothing to do is still defined, as a no-op that exits 0.
+      A caller must never have to ask whether a verb exists.</div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">05</span></div>
+</section>
+
+<!-- 6 ORACLE -->
+<section class="slide">
+  <div class="hd"><div class="kicker">Who is allowed to decide</div><div class="num">06 / 12</div></div>
+  <h2>The model proposes.<br>The exit code disposes.</h2>
+  <div class="body" style="gap:24px">
+    <div class="two">
+      <div class="card ok">
+        <div class="ct" style="color:var(--ok)">Deterministic — the oracle</div>
+        <div class="cb">Linters, types, tests, scanners. Pinned, reproducible, offline-capable.
+          <b>These decide pass/fail. Nothing else does.</b></div>
+      </div>
+      <div class="card bad">
+        <div class="ct" style="color:var(--bad)">Probabilistic — a proposer</div>
+        <div class="cb">A model's output is a <em>patch</em>. It's accepted only if the gate
+          then passes from a clean tree.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">And the three model roles stay separate</div>
+      <div class="cb"><code style="color:var(--ember)">fixer</code> — failure + coaching in, patch out. Bounded.<br>
+        <code style="color:var(--ember)">reviewer</code> — naming, domain drift, “is this the right seam”. <b>Advisory, never blocking.</b><br>
+        <code style="color:var(--ember)">triager</code> — flaky vs real, dedupe, route to a ticket.</div>
+    </div>
+    <div class="pull">A model's <span class="hl">claim</span> that it fixed something
+      is not evidence. The <span class="hl">exit code</span> is.</div>
+    <div class="note">The reviewer is advisory by construction. The moment a model can block
+      a merge, you start arguing with it instead of shipping.</div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">06</span></div>
+</section>
+
+<!-- 7 RATCHET -->
+<section class="slide">
+  <div class="hd"><div class="kicker">Surviving contact with a real repo</div><div class="num">07 / 12</div></div>
+  <h2>Ratchet, don't gate.</h2>
+  <div class="body" style="gap:26px">
+    <div class="card bad">
+      <div class="ct" style="color:var(--bad)">What everyone tries first</div>
+      <div class="cb lg">Point a good linter at an existing codebase. Everything is red on
+        day one. You turn it off in week two. I've done this more than once.</div>
+    </div>
+    <div class="card ok">
+      <div class="ct" style="color:var(--ok)">What actually survives</div>
+      <div class="cb lg">Record today's violations as an <b>accepted baseline</b>, commit it,
+        and allow it to <b>only ever shrink</b>. New code is held to the full standard;
+        legacy is held to “no worse”.</div>
+    </div>
+    <div class="gridn">
+      <div class="g">eslint --suppress-all</div><div class="t">bulk-records existing violations; <code>--prune-suppressions</code> removes them permanently as you fix them</div>
+      <div class="g">habit-snooze</div><div class="t">same ratchet for structural smells</div>
+      <div class="g">coverage floor</div><div class="t">set to today's measured number, not an aspiration</div>
+    </div>
+    <div class="note">Both tools already had this built in. The lesson that cost me the least
+      and saved the most: check whether the ratchet exists before hand-rolling one.</div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">07</span></div>
+</section>
+
+<!-- 8 GUARD -->
+<section class="slide">
+  <div class="hd"><div class="kicker">The obvious attack</div><div class="num">08 / 12</div></div>
+  <h2>The cheapest fix for<br><code>high-complexity</code> is<br><code>// eslint-disable</code>.</h2>
+  <div class="body" style="gap:26px">
+    <div class="card">
+      <div class="cb lg">Any ratchet invites the same move: don't fix the code, weaken the
+        rule. Asking nicely in a prompt does not solve this — it's not a discipline
+        problem, it's an incentive.</div>
+    </div>
+    <div class="card lift">
+      <div class="ct">So it's enforced, not requested</div>
+      <div class="cb lg"><code>ruleset-guard</code>: a PR that touches a ruleset file
+        <em>and</em> production source <b>fails</b> — unless a human applies the
+        <code>ruleset-change</code> label. Weakening a rule gets its own PR, with a name on it.</div>
+    </div>
+    <div class="card">
+      <div class="ct">And it's tightening-aware, because the risk is one-directional</div>
+      <div class="cb"><span class="tag bad">loosening</span> needs a human.
+        <span class="tag ok">tightening</span> and
+        <span class="tag ok">no semantic change</span> never do.<br><br>
+        A suppression baseline whose count only shrank, a snooze list that only got
+        shorter, a pure line-ending flip — all pass unlabelled. That's what lets
+        <code>mise run fix</code> prune the baseline and ship it in the same PR as the fix.</div>
+    </div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">08</span></div>
+</section>
+
+<!-- 9 HABITS -->
+<section class="slide">
+  <div class="hd"><div class="kicker">Why hooks and not documentation</div><div class="num">09 / 12</div></div>
+  <h2>A habit you have to<br>remember isn't a habit.</h2>
+  <div class="body" style="gap:28px">
+    <table>
+      <tr><th style="width:290px">Layer</th><th>Mechanism</th><th>Character</th></tr>
+      <tr><td class="k">reflex</td><td>hooks</td><td>involuntary — fires unbidden</td></tr>
+      <tr><td class="k">practice</td><td>skills</td><td>invoked, procedural, has judgement</td></tr>
+      <tr><td class="k">standing context</td><td><code>AGENTS.md</code></td><td>ambient shared vocabulary</td></tr>
+    </table>
+    <div class="card lift">
+      <div class="cb lg">Picking the wrong layer is why most “AI coding standards” documents
+        end up ignored. My standards were prose, so they decayed. Now the mechanical half
+        is a hook and the prose only carries the judgement.</div>
+    </div>
+    <div class="card">
+      <div class="ct">Placement follows cost — this part is not optional</div>
+      <div class="cb">A single-file <code>prettier</code> run is sub-second → fire it on
+        <b>every edit</b>.<br>
+        The smell sensor costs ~25s cold, ~6s warm → fire it <b>once, before the agent
+        declares done</b>.<br>
+        Gradle's JVM start-up is seconds → the Java formatter is <b>once per turn</b>, not per edit.</div>
+    </div>
+    <div class="note">Get the cadence wrong and the right check becomes a tax you disable.</div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">09</span></div>
+</section>
+
+<!-- 10 WHAT I GOT WRONG -->
+<section class="slide">
+  <div class="hd"><div class="kicker">What I got wrong</div><div class="num">10 / 12</div></div>
+  <h2>I shipped a threshold<br>without its reason.</h2>
+  <div class="body" style="gap:20px">
+    <div class="card bad">
+      <div class="ct" style="color:var(--bad)">The over-correction</div>
+      <div class="cb lg">The smell gate flagged long functions, so the agent made functions
+        short. Every coherent step became a two-line helper. Technically green,
+        measurably worse to read — I'd traded one real problem for a pile of
+        incohesive fragments.</div>
+    </div>
+    <div class="card ok">
+      <div class="ct" style="color:var(--ok)">The fix wasn't a looser number</div>
+      <div class="cb lg">It was writing down what the number is <em>for</em>:
+        <b>cohesion is the goal; length and complexity are the honest signals that
+        you don't have it.</b> Don't chase the number. A straight-line sequence of
+        steps at one level is fine as one function — not every step wants to be a helper.</div>
+    </div>
+    <div class="card">
+      <div class="ct">What changed</div>
+      <div class="cb">file-length default 200 → 300 lines · the standard now carries its
+        rationale and a litmus test (<em>a helper needing five parameters means the seam
+        is wrong</em>) · plus an allow-marker for what the gate can't judge</div>
+    </div>
+    <div class="pull" style="font-size:34px">A threshold with no stated rationale
+      <span class="hl">will</span> be optimised against — by an agent, and eventually by me.</div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">10</span></div>
+</section>
+
+<!-- 11 FIELD NOTES -->
+<section class="slide">
+  <div class="hd"><div class="kicker">Field notes</div><div class="num">11 / 12</div></div>
+  <h2>Five that cost real time.</h2>
+  <div class="body dense" style="gap:18px">
+    <div class="card">
+      <div class="ct">01 · a required check that's path-filtered out never arrives</div>
+      <div class="cb">A docs-only PR shouldn't run the TS gate — but a <em>required</em> check
+        filtered out reports <code>Expected</code> forever and the PR can't merge. Require a
+        tiny always-running aggregate job that <code>needs:</code> the real ones. Skipped ≠ failed.</div>
+    </div>
+    <div class="card">
+      <div class="ct">02 · pin the tool, not just the action</div>
+      <div class="cb">I pinned the setup action by SHA. It still resolved the tool itself from
+        a version endpoint that advertised a release before its assets existed. Both jobs
+        died in under ten seconds.</div>
+    </div>
+    <div class="card">
+      <div class="ct">03 · required-check names match the rendered string, exactly</div>
+      <div class="cb">Renaming a job to add “(report-only)” silently detached its branch
+        protection. PRs hung waiting on a check that was never coming.</div>
+    </div>
+    <div class="card">
+      <div class="ct">04 · the test environment was the whole test bill</div>
+      <div class="cb">Defaulting to a node environment and opting into jsdom per file took a
+        suite from <b>20.0s to 2.6s</b>. In-loop feedback lives or dies on this.</div>
+    </div>
+    <div class="card">
+      <div class="ct">05 · a bare exclusion pattern matched nothing — and scanned nothing</div>
+      <div class="cb">The smell config looked correct and was silently a no-op for days.
+        A check that can pass vacuously is worse than no check at all.</div>
+    </div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">11</span></div>
+</section>
+
+<!-- 12 FLYWHEEL + CLOSE -->
+<section class="slide">
+  <div class="hd"><div class="kicker">The part that compounds</div><div class="num">12 / 12</div></div>
+  <h2>Route every lesson to the<br>layer that enforces it.</h2>
+  <div class="body" style="gap:26px">
+    <div class="card lift">
+      <div class="ct">At the end of a session, in priority order</div>
+      <div class="cb lg"><b style="color:var(--ember)">1.</b> a deterministic check — makes
+        the mistake <em>impossible</em><br>
+        <b style="color:var(--ember)">2.</b> <code>AGENTS.md</code> — standing context<br>
+        <b style="color:var(--ember)">3.</b> a new skill — a reusable procedure<br>
+        <b style="color:var(--ember)">4.</b> a memory note — last resort</div>
+    </div>
+    <div class="card">
+      <div class="cb lg">That ordering <em>is</em> the whole thesis as a procedure: prefer the
+        placement that makes a mistake impossible over the one that reminds you not to
+        make it. A one-off fix today becomes a rule the next session can't skip.</div>
+    </div>
+    <div class="rule"></div>
+    <div class="cb" style="color:var(--mute)">Two repos, one seam. <code>foundry</code> is the
+      CI half, consumed by repositories. <code>cmaintz-skills</code> is the agent half,
+      consumed as a plugin. The verb contract is copied verbatim into both — if those
+      copies ever need to differ, the split was wrong.<br><br>
+      Proven on TypeScript and Java (a Spring Boot + Angular monorepo). Python, PHP,
+      Kotlin and .NET have templates. MIT, and the links are in the post.</div>
+  </div>
+  <div class="ft"><span class="nm">Christoffer Maintz · Foundry</span><span class="swipe">github.com/CMaintz/foundry</span></div>
+</section>
+
+<script>
+window.__report=function(){var o=[];document.querySelectorAll('.slide').forEach(function(s,i){
+var inner=s.scrollHeight; var body=s.querySelector('.body');
+o.push((i+1)+':'+inner+(inner>1350?' OVERFLOW+'+(inner-1350):''));});
+return o.join(' | ');};
+document.title=window.__report();
+</script></body></html>
