@@ -119,7 +119,7 @@ jobs:
             if [ "$moved" -eq 0 ]; then
               echo "_No baseline changed._"
             else
-              echo "_A negative Δ is the goal - baselines only shrink. A positive Δ should only appear on a PR labelled \`ruleset-change\`._"
+              echo "_✅ marks a baseline that moved the right way (suppressions and snoozes shrink, tests grow); ⚠️ marks a regression, which should only appear on a PR labelled \`ruleset-change\`._"
             fi
           } > body.md
 
