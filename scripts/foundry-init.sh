@@ -64,22 +64,22 @@ fetch_package_core() { # <stack> <wd> - mise verbs, smells config
   # mise template's setup:foundry-scripts task - see mise/<stack>.toml.
 }
 
-# ensure_ts_devdeps <wd> - add the structural-smell sensor tools to the consumer's
-# devDependencies if absent, so the habit-hooks typescript (knip, ts-morph) and generic
-# (jscpd) sensors seed against real findings instead of a missing-tool error. Caret-pinned;
+# ensure_ts_devdeps <wd> - add the TS gate's tools to the consumer's devDependencies if
+# absent: prettier for fix/lint, and the habit-hooks typescript (knip, ts-morph) and generic
+# (jscpd) sensors, so smells seed against real findings instead of a missing-tool error. Caret-pinned;
 # Renovate bumps them. Never overwrites an existing pin; no-ops with a NOTE when there's no
 # package.json yet (bootstrap also `npm ci`s + PATHs node_modules/.bin before seeding).
 ensure_ts_devdeps() {
   local wd="$1" nv name have
   if [ ! -f "$wd/package.json" ]; then
-    echo "  NOTE: no $wd/package.json - add knip, ts-morph, jscpd to devDependencies so the TS smell sensors run"
+    echo "  NOTE: no $wd/package.json - add prettier, knip, ts-morph, jscpd to devDependencies so the TS gate runs"
     return 0
   fi
   if ! command -v npm > /dev/null 2>&1; then
-    echo "  NOTE: npm not on PATH - add knip, ts-morph, jscpd to devDependencies so the TS smell sensors run"
+    echo "  NOTE: npm not on PATH - add prettier, knip, ts-morph, jscpd to devDependencies so the TS gate runs"
     return 0
   fi
-  for nv in "knip@^6.39.0" "ts-morph@^28.0.0" "jscpd@^5.4.0"; do
+  for nv in "prettier@^3.9.9" "knip@^6.39.0" "ts-morph@^28.0.0" "jscpd@^5.4.0"; do
     name="${nv%@*}"
     have="$( (cd "$wd" && npm pkg get "devDependencies.$name") 2>/dev/null || true)"
     case "$have" in

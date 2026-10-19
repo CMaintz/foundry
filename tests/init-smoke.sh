@@ -24,7 +24,7 @@ for stack in "${STACKS[@]}"; do
     cd "$dir"
     git init -q
     # A TS repo onboarding already has a package.json; seed one so init can inject the
-    # structural-smell sensor devDeps (knip/ts-morph/jscpd) into it.
+    # gate devDeps (prettier, knip/ts-morph/jscpd) into it.
     if [ "$stack" = ts ]; then printf '{"name":"smoke","version":"0.0.0","private":true}\n' > package.json; fi
     bash "$ROOT/scripts/foundry-init.sh" "$stack" > first.log 2>&1 || { cat first.log; fail "init exited non-zero"; }
 
@@ -39,8 +39,8 @@ for stack in "${STACKS[@]}"; do
     esac
     for f in "${expected[@]}"; do [ -s "$f" ] || fail "missing or empty: $f"; done
     if [ "$stack" = ts ]; then
-      for d in knip ts-morph jscpd; do
-        grep -q "\"$d\"" package.json || fail "package.json missing structural-smell devDep: $d"
+      for d in knip ts-morph jscpd prettier; do
+        grep -q "\"$d\"" package.json || fail "package.json missing TS gate devDep: $d"
       done
     fi
     grep -qxF '.foundry/' .gitignore || fail ".gitignore lacks .foundry/"
