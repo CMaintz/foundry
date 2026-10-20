@@ -6,6 +6,17 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.12.0](https://github.com/CMaintz/foundry/compare/v2.11.1...v2.12.0) (2026-10-20)
+
+### Features
+
+* parse dotnet TRX reports in foundry-flaky (e09e265)
+* wrap gate verbs with foundry-verb-wrap on dotnet/kotlin/php (843738a)
+
+### Bug Fixes
+
+* gitignore Claude Code worktrees in onboarded repos (603917e)
+
 ## [2.11.1](https://github.com/CMaintz/foundry/compare/v2.11.0...v2.11.1) (2026-10-11)
 
 ### Bug Fixes
