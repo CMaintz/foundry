@@ -21,7 +21,7 @@ on:
           mise.jdx.dev/VERSION for "latest", which can advertise a version whose
           GitHub release assets are not published yet.
         type: string
-        default: "2026.9.3"
+        default: "2026.9.4"
       working_directory:
         description: Directory containing mise.toml and package.json.
         type: string
@@ -61,7 +61,7 @@ jobs:
           fetch-depth: 0 # `lint` now runs habit-hooks --branch, which diffs vs the PR base
       # Python for the habit-hooks venv that mise's setup:habit-hooks postinstall builds -
       # BEFORE mise-action so `mise install` can create it. (Same pin as the habits job.)
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       # Restore that venv so the postinstall no-ops on a hit. The key reads the workflow
@@ -72,7 +72,7 @@ jobs:
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
         with:
           version: ${{ inputs.mise_version }}
       # Cache node_modules keyed on the lockfile and skip npm ci on a hit. npm ci
@@ -168,11 +168,11 @@ jobs:
           fi
       # Pin Python like the other stacks, instead of the runner's default. BEFORE
       # mise-action so the mise setup:habit-hooks postinstall can build its venv with it.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         if: steps.baseline.outputs.have == 'true'
         with:
           python-version: '3.12'
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
         if: steps.baseline.outputs.have == 'true'
         with:
           version: ${{ inputs.mise_version }}
