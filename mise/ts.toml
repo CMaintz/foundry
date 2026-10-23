@@ -110,6 +110,7 @@ description = "Auto-fix what is mechanically fixable; never opinionated"
 # what makes the baseline a one-way ratchet: fix an `any`, and it can never be
 # silently re-suppressed.
 run = [
+    "prettier --write .",
     "eslint . --fix",
     "eslint . --prune-suppressions",
 ]
@@ -165,27 +166,32 @@ echo "smells: $("$hh" --version) --branch base=$mb"
 '''
 
 [tasks.lint]
-description = "Style and smells; non-mutating"
+description = "Formatting, style and smells; non-mutating"
 # Fails on new violations AND on stale suppressions, so the baseline cannot rot.
 # eslint-suppressions.json holds the accepted debt - it is committed, and it may
 # only ever shrink. Never add to it by hand; never delete it to make lint pass.
+# prettier --check fails on any unformatted file, so drift can't reach main and later
+# leak into an unrelated branch through `mise run fix`.
 # Honours FOUNDRY_SINCE (see [env]): scoped to changed files at the fast placements,
-# whole-tree in CI. eslint findings are file-local, so scoping is safe; the
-# whole-tree CI run still catches stale suppressions repo-wide.
-# Array form: the eslint block + the structural-smell check (`mise run smells`), each a
-# separate command run in order. `exec eslint` inside the first element only replaces
-# that element's subshell, so the second element still runs.
+# whole-tree in CI. Both checks are file-local, so scoping is safe; the whole-tree CI
+# run still catches stale suppressions repo-wide. prettier gets every changed file
+# (--ignore-unknown skips types it can't format), eslint only the JS/TS ones.
+# Array form: the eslint/prettier block + the structural-smell check (`mise run smells`),
+# each a separate command run in order.
 run = ['''
 set -eu
-if [ -z "${FOUNDRY_SINCE+x}" ]; then exec eslint .; fi
+whole() { eslint .; prettier --check .; }
+if [ -z "${FOUNDRY_SINCE+x}" ]; then whole; exit 0; fi
 base="${FOUNDRY_SINCE:-origin/main}"
 mb=$(git merge-base "$base" HEAD 2>/dev/null || true)
-if [ -z "$mb" ]; then echo "changed-scope lint: cannot resolve '$base'; whole-tree"; exec eslint .; fi
-changed=$(git diff --name-only --diff-filter=ACMR "$mb" -- '*.ts' '*.tsx' '*.js' '*.cjs' '*.mjs' 2>/dev/null || true)
-untracked=$(git ls-files --others --exclude-standard -- '*.ts' '*.tsx' '*.js' '*.cjs' '*.mjs' 2>/dev/null || true)
+if [ -z "$mb" ]; then echo "changed-scope lint: cannot resolve '$base'; whole-tree"; whole; exit 0; fi
+changed=$(git diff --name-only --diff-filter=ACMR "$mb" 2>/dev/null || true)
+untracked=$(git ls-files --others --exclude-standard 2>/dev/null || true)
 files=$(printf '%s\n%s\n' "$changed" "$untracked" | sort -u | sed '/^$/d')
-if [ -z "$files" ]; then echo "changed-scope lint: no changed JS/TS since $mb"; exit 0; fi
-printf '%s\n' "$files" | xargs -d '\n' eslint
+if [ -z "$files" ]; then echo "changed-scope lint: nothing changed since $mb"; exit 0; fi
+js=$(printf '%s\n' "$files" | grep -E '\.(ts|tsx|js|cjs|mjs)$' || true)
+if [ -n "$js" ]; then printf '%s\n' "$js" | xargs -d '\n' eslint; fi
+printf '%s\n' "$files" | xargs -d '\n' prettier --check --ignore-unknown
 ''', "mise run smells"]
 
 [tasks.typecheck]
