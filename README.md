@@ -9,22 +9,15 @@ usually live in several places that disagree: the editor, a pre-push hook, and C
 different tools with different settings. The result is work that passes locally and fails on the
 pull request, and agents that fix one complaint only to trigger another.
 
-Foundry gives every repo the same small set of commands (`fix`, `lint`, `typecheck`, `test`,
-`audit`, `gate`) backed by one shared configuration, so the exact same checks run while code is
-being written, before it's pushed, and in CI. It also keeps existing technical debt from growing:
-known problems are recorded in a baseline that is allowed to shrink but not grow.
+![One rule set, three placements: in-loop Claude Code hooks while the agent edits, /foundry:ship or the git pre-push hook before code leaves the machine, and gate.yml plus security.yml on the pull request. Pre-push and CI run mise run gate (lint, typecheck, test, audit); the exit code decides and baselines only shrink.](docs/readme-visual.png)
 
-![mise run gate - lint, typecheck, test, audit - the one deterministic gate](docs/gate-demo.svg)
+## The method
 
-Companion repo: **[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** - the agent half (skills, hooks). The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
+Foundry is a small set of beliefs about how to let agents write code you can trust, turned into tooling.
 
-> **New here? Read [OVERVIEW.md](./docs/OVERVIEW.md)** - the full narrative tour of how the gates, habit sensors, skills, and the self-improving `learn` loop fit together.
->
-> **[FEATURES.md](./docs/FEATURES.md)** is the canonical inventory of everything Foundry provides - and the backport checklist: anything non-language-specific built in a consumer repo comes back here.
+**Deterministic is the oracle; probabilistic only proposes.** Linters, types, tests and scanners decide pass/fail. A model produces a *patch*, which is accepted only if the deterministic gate then passes. A model's claim that it fixed something is not evidence - the exit code is. The advisory Jev layer obeys the same rule: the gate may run Jev's own unit tests, but never calls Jev for a verdict, and a boundary test enforces it.
 
-## The idea
-
-A CI pipeline and a set of agent habits usually get built as two separate things. I think they should be one rule set, placed in three spots:
+**One rule set, three placements.** A CI pipeline and a set of agent habits usually get built as two separate things. They should be one rule set, placed in three spots:
 
 | Placement | When | Feedback to | Cost |
 |---|---|---|---|
@@ -33,6 +26,26 @@ A CI pipeline and a set of agent habits usually get built as two separate things
 | CI | on pull request | the permanent record | free tier |
 
 Run different rules in each and you get "passes locally, fails in CI", plus a failure mode specific to agents: the agent fixes what the hook reported, CI complains about something else, the agent fixes that and regresses the first.
+
+**Ratchet, don't gate.** Retrofitting linters onto a real codebase means everything is red on day one, and you abandon it in week two. Record the existing violations as an accepted baseline that may only ever shrink. ESLint 9.24+ (`--suppress-all` / `--prune-suppressions`) and habit-hooks (`habit-snooze`) both have this built in.
+
+**Guard the guards.** An agent under pressure will find the cheapest way to green, and the cheapest fix for `high-complexity` is `// eslint-disable-next-line`. `ruleset-guard` fails a PR that loosens a baseline alongside source, adds an inline suppression or deletes a test, unless a human labels it (`ruleset-change` or `suppression`) and says why.
+
+**The ticket is the real prompt.** An agent's output is capped by its input, so tickets have a schema: intent, a checklist of acceptance criteria, a Definition of Done, scope boundaries and pointers. Acceptance criteria are best written as executable Given-When-Then scenarios (acceptance-test-driven development): the contract the agent works to, with nothing left to guess. A ticket becomes `agent:ready` only once its owner has explicitly approved it.
+
+**Green is not correct.** A passing gate says the code is clean, not that it does the job. The work is checked item by item against the ticket's acceptance criteria and Definition of Done, then reviewed by a fresh-context agent that sees only the diff and the ticket. Model reviewers advise; only deterministic checks block.
+
+**Foundry eats its own cooking.** Foundry runs its own six verbs from a root `mise.toml`, so the same `feature` and `ship` loop works on Foundry tickets.
+
+The full write-up, from beliefs to the agent loop, ticket schema, team rollout and evaluating the harness: [Agentic Engineering: Harnesses and Workflows for Teams](./docs/agentic-engineering.md). Design rationale: [DESIGN.md](./docs/DESIGN.md).
+
+## How it fits with cmaintz-skills
+
+**[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** is the agent half, a Claude Code plugin. Its skills drive the loop around this gate (`spec` writes the ticket, `feature` loops on `mise run gate` until green, `ship` reviews and opens the PR) and its hooks are the in-loop placement. Foundry decides *whether* a change is good enough; cmaintz-skills is how an agent gets it there. The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
+
+> **New here? Read [OVERVIEW.md](./docs/OVERVIEW.md)** - the full narrative tour of how the gates, habit sensors, skills, and the self-improving `learn` loop fit together.
+>
+> **[FEATURES.md](./docs/FEATURES.md)** is the canonical inventory of everything Foundry provides - and the backport checklist: anything non-language-specific built in a consumer repo comes back here.
 
 ## The verbs
 
@@ -46,6 +59,13 @@ mise run gate       # all of the above, in order. The oracle.
 ```
 
 Callers invoke **verbs, never tools**. That's what lets one skill library serve a Kotlin repo and a React repo. Full rules in [CONTRACT.md](./CONTRACT.md).
+
+Every verb in `gate` runs through `foundry-verb-wrap`, which logs its time and result for cmaintz-skills' `loop-report` without changing the outcome. Auxiliary tasks sit next to the verbs, off the contract:
+
+- `smells` - the repo's pinned habit-hooks structural-smell check.
+- `test:flaky` - tests with quarantined flakes reported but not gating (`foundry-flaky`, shrink-only `flaky-baseline.json`).
+- `arch` (ts, python) - architecture fitness: no cross-layer imports, no cycles.
+- `codemap:check` - an advisory check that the codemap from cmaintz-skills still cites real code, plus how stale each slice is. Not part of `gate`.
 
 ## Using it in a repo
 
@@ -96,7 +116,10 @@ Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` 
 
 ### Auto-merging the baseline prune PR
 
-`bootstrap.yml` opens a PR whenever a prune shrinks the snooze baseline, and arms auto-merge on it. Opened with `GITHUB_TOKEN`, though, GitHub treats `github-actions[bot]` as a first-time contributor: the PR's checks wait for someone to click **Approve**, so nothing merges on its own. To skip that, give it a GitHub App of your own to open the PR as:
+`bootstrap.yml` opens a PR whenever a prune shrinks the snooze baseline, and arms auto-merge on it. Opened with `GITHUB_TOKEN`, though, GitHub treats `github-actions[bot]` as a first-time contributor: the PR's checks wait for someone to click **Approve**, so nothing merges on its own. To skip that, give it a GitHub App of your own to open the PR as.
+
+<details>
+<summary>Setting up the GitHub App</summary>
 
 1. Create the App at <https://github.com/settings/apps/new> (or your org's settings):
    - **Webhook:** untick **Active**.
@@ -127,6 +150,8 @@ Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` 
          app_client_id: ${{ vars.BOOTSTRAP_APP_CLIENT_ID }}
    ```
 
+</details>
+
 Without the App it still works; the PR just says its checks need one approval. Repos also need **Allow auto-merge** on and required status checks on the base branch.
 
 ### Presets
@@ -141,15 +166,19 @@ Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-i
 | [`typecheck/tsconfig.json`](./presets/typecheck/tsconfig.json) | strict, check-only tsconfig for the `ts` stack, covering src, scripts and tests. The `ts` template's `typecheck` refuses to run without a tsconfig, and checks Deno code (Supabase Edge Functions) with `deno check` via `FOUNDRY_DENO_PATHS` |
 | [`gitleaks.toml`](./presets/security/gitleaks.toml) · [`renovate.json`](./presets/renovate.json) | secret-scan allowlist starting point + the dependency-update path the "pin everything" rule needs |
 | [`code-standards.md`](./presets/agent/code-standards.md) · [`collaboration.md`](./presets/agent/collaboration.md) · [`agent-loop.md`](./presets/agent/agent-loop.md) | agent-facing standing docs - clean code (functions do one thing / SRP), working discipline (branch hygiene + sub-agents), and the self-correcting loop (observe → fix the cause → verify → repeat until green *and* honest) |
-| [`ticket-schema.md`](./presets/tickets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) | the GitHub-Issue ticket the `/feature` driver works - intent, an acceptance-criteria checklist, scope, pointers. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
+| [`ticket-schema.md`](./presets/tickets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) | the GitHub-Issue ticket the `/feature` driver works - intent, an acceptance-criteria checklist, a Definition of Done, scope, pointers. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
+| [`lint/ruff.toml`](./presets/lint/ruff.toml) · [`dotnet/Directory.Build.props`](./presets/dotnet/Directory.Build.props) | the python stack's default ruff hard gate, and the .NET build props the scaffold places |
+| [`arch/`](./presets/arch/) | architecture-fitness rules per stack (dependency-cruiser, import-linter, ArchUnit) - [SETUP.md](./presets/arch/SETUP.md) |
+| [`prompt-eval/`](./presets/prompt-eval/) | an offline regression harness for prompts and agent output, run under `test`; the fixture count may only grow |
+| [`baselines/flaky-baseline.example.json`](./presets/baselines/flaky-baseline.example.json) | starting point for the `test:flaky` quarantine list |
 
 ### From ticket to PR - the `/feature` driver
 
-Foundry answers *"when is a change done?"* - a green gate. The **`/feature`** driver is the thing in front of that - **ticket in, PR out** - the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./docs/designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above); the driver:
+Foundry answers *"when is a change done?"* - a green gate. The **`/feature`** driver is the thing in front of that - **ticket in, PR out** - the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./docs/designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above). Tickets come from cmaintz-skills' `spec` skill or by hand. The driver:
 
 1. **Claim** an `agent:ready` ticket - a GitHub Issue on the [`agent-feature`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) form ([schema](./presets/tickets/ticket-schema.md)) - flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`.
 2. **Loop to the gate** - implement → `mise run gate` → act on the failure + habit-hooks coaching → retry, *bounded* (≤ 5 cycles; bail early on no progress, posting the stuck state to the issue thread and flipping `agent:blocked`).
-3. **Verify** the result against the ticket's acceptance-criteria checklist - green ≠ correct.
+3. **Verify** the result against every acceptance criterion and Definition of Done item - green ≠ correct.
 4. **Hand to `/ship`** - which re-gates, runs a fresh-context review against the linked issue, commits, and opens the PR. The driver never opens a PR itself, so there's one trusted path to `main`.
 
 It re-implements none of the standards: the gate is the oracle, `ruleset-guard` + habit-hooks stop the loop gaming the metric, `/ship` is the handoff. Run it supervised - `/feature <ref>` - or as a backlog puller - `/loop <interval> /feature`.
@@ -183,18 +212,6 @@ creates the GitHub release, and advances the `vX` alias - deterministically, in 
 auditable step. It **refuses** a non-major bump when it sees a breaking commit, so
 semver can't silently slip. (This replaced release-please, whose separate manifest
 state could desync from the tags.)
-
-## Design
-
-Two ideas do most of the work:
-
-**Deterministic is the oracle; probabilistic only proposes.** Linters, types, tests and scanners decide pass/fail. A model produces a *patch*, which is accepted only if the deterministic gate then passes. A model's claim that it fixed something is not evidence - the exit code is.
-
-**Ratchet, don't gate.** Retrofitting linters onto a real codebase means everything is red on day one, and you abandon it in week two. Record the existing violations as an accepted baseline that may only ever shrink. ESLint 9.24+ (`--suppress-all` / `--prune-suppressions`) and habit-hooks (`habit-snooze`) both have this built in - don't hand-roll it.
-
-The corollary is enforced rather than requested: a PR that changes the ruleset *and* production source fails `ruleset-guard` unless a human labels it `ruleset-change`. Otherwise the cheapest fix for `high-complexity` is `// eslint-disable-next-line`.
-
-Full rationale: [DESIGN.md](./docs/DESIGN.md).
 
 ## Status
 
