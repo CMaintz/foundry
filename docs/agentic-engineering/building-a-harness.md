@@ -258,27 +258,22 @@ My setup grew around one person working across many stacks. A team on TypeScript
 
 ### Checks for the boundaries
 
-- **Thin handlers, testable core.** Business logic lives in plain TypeScript; the handler only parses the event, calls the core and shapes the response. Agents get fast unit tests, and an architecture check keeps logic out of handlers.
-- **Schemas at every boundary.** API payloads, queue and event messages, and DynamoDB items are validated against shared schemas, with contract tests between services so a change that compiles but breaks a consumer is caught.
-- **Access patterns as tests.** With single-table DynamoDB design the access patterns are the schema, so each one gets an integration test against DynamoDB Local.
-- **Infrastructure in the gate.** The infrastructure code is synthesised and checked for misconfigurations on every change, with a bundle-size ratchet per function so cold starts can't creep up.
-- **Guard IAM like lint rules.** A change that broadens permissions fails the gate unless a human labels it with a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
+In a serverless codebase much of what breaks lives outside the function body: event and API contracts, the data access patterns, the infrastructure definition and permissions. The harness work is making sure the agent gets a fast, deterministic signal when a change breaks one of those, so it loops against them like any other check. Concretely, on a TypeScript, Lambda and DynamoDB stack:
+
+- **Thin handlers:** an architecture check keeps business logic out of the handlers, so the logic sits in plain modules with fast unit tests the agent can run every turn.
+- **Contracts:** API and event payloads are checked against shared schemas, with contract tests between services, so a change that compiles but breaks a consumer goes red in the loop.
+- **Access patterns:** each DynamoDB access pattern has an integration test, so an agent refactoring keys or indexes finds out before the PR, not in production.
+- **Infrastructure:** the infrastructure code is synthesised and scanned for misconfigurations in the gate, and each function's bundle size is ratcheted like any other baseline, so cold starts can't creep up unnoticed.
+- **Permissions:** a change that broadens permissions is handled like a ruleset change: allowed, but only with a human label and a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
 
 ### Environments
 
-The gate is the same everywhere; each environment adds a more realistic sensor, and the agent's reach ends where the risk begins.
+The gate is the same everywhere; each environment adds a more realistic check, and the agent's reach stops partway.
 
-| Environment            | What runs there                                                                                        | Who can deploy              |
-| ---------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------- |
-| Local                  | the gate, unit tests, DynamoDB Local                                                                   | developer and agent         |
-| Personal sandbox stack | the developer's or agent's own copy in a sandbox account, for real AWS feedback while building         | developer and agent         |
-| PR preview             | an ephemeral stack per PR; the Given-When-Then acceptance tests run against it, then it is torn down   | the pipeline                |
-| Staging                | long-lived and production-like; deploys on merge, reruns the acceptance suite and smoke tests          | the pipeline                |
-| Production             | the same build artefact promoted from staging after human approval, with alarms and automatic rollback | the pipeline, with approval |
-
-The PR preview is where Farley's argument gets a proper runner: unit tests prove the logic, and the acceptance suite proves the deployed system does what the ticket asked. Build once and promote the same artefact, with configuration per environment rather than per branch. An escaped defect in staging or production goes back through `learn` as a regression test and, where possible, a new check.
-
-Credentials follow the same rule as the gate: no long-lived keys. CI assumes short-lived, least-privilege roles through OIDC, agents only ever get the sandbox account, and a hook denies any deploy aimed anywhere else.
+- **Local:** the gate and fast tests. This is the agent's inner loop.
+- **Sandbox stack:** the first real-AWS feedback, and the furthest an agent can deploy.
+- **PR preview:** the Given-When-Then acceptance tests run against a deployed system. This is the check that proves the ticket was done, not just that the code is clean.
+- **Staging and production:** the pipeline only. Anything that escapes here comes back through `learn` as a new test or check.
 
 ### Where a team needs more than a solo setup
 
