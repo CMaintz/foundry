@@ -1,0 +1,76 @@
+# Foundry's own six verbs (CONTRACT.md), over the checks its CI runs, so `feature` and
+# `ship` can work foundry tickets and the same checks run locally and in self-gate.yml.
+# Deliberately not a copy of mise/ts.toml: foundry gates its own repo hygiene, not a
+# product stack, so no telemetry wrap, habit-hooks or setup tasks.
+
+[tools]
+actionlint = "1.7.12"
+shellcheck = "0.11.0"
+typos = "1.49.0"
+ruff = "0.16.10"
+python = "3.12.15"
+# The pipx backend needs uv (or pipx) to install pytest; uv keeps it inside mise.
+uv = "0.12.24"
+# Without --python, uv builds the pytest venv on whatever interpreter it finds first (a
+# system 3.13 here), so the tests would not run on the pinned python. Keep it == python.
+"pipx:pytest" = { version = "8.4.2", uvx_args = "--python 3.12.15" }
+node = "22.23.4"
+gitleaks = "8.24.3"
+
+[tasks.fix]
+description = "Auto-fix what is mechanically fixable; never opinionated"
+run = [
+    "ruff format --config presets/lint/ruff.toml scripts/ruleset_guard.py",
+    "ruff check --fix --config presets/lint/ruff.toml scripts/ruleset_guard.py",
+]
+
+[tasks.lint]
+description = "actionlint, shellcheck, typos, and ruff on the vendored ruleset guard"
+# Pinned to bash because mise's default inline shell on Windows is cmd, which neither
+# expands the globs nor honours the single quotes around actionlint's -ignore pattern.
+shell = "bash -c"
+run = [
+    # Embedded shellcheck stays off so enabling it doesn't red-wall every `run:` block at
+    # once. actionlint 1.7.12's `job` schema predates job.workflow_sha /
+    # job.workflow_repository, which are valid; ignore only that stale-schema message.
+    "actionlint -shellcheck= -ignore 'property \"workflow_(repository|sha)\" is not defined'",
+    # foundry-verb-wrap is an extensionless shell script that *.sh misses.
+    "shellcheck scripts/*.sh tests/*.sh scripts/foundry-verb-wrap",
+    "typos",
+    # ruleset_guard.py is vendored into every consumer and linted by their python gate with
+    # this preset, so keep it conformant here or the vendored copy drifts.
+    "ruff format --check --config presets/lint/ruff.toml scripts/ruleset_guard.py",
+    "ruff check --config presets/lint/ruff.toml scripts/ruleset_guard.py",
+]
+
+[tasks.typecheck]
+description = "No-op: nothing in foundry is type-checked"
+# The shipped code is bash, plain .mjs and untyped Python; there is no type checker to
+# run, but the contract requires the verb to exist and pass.
+run = "exit 0"
+
+[tasks.test]
+description = "pytest over the shipped scripts, and the Jev layer's own unit tests"
+# init-smoke stays in test.yml: it scaffolds a throwaway repo per stack and is too slow
+# for the local loop.
+run = [
+    # Bare `pytest`, not `python -m pytest`: the pipx tool venv is isolated from mise's
+    # python. The tests import their scripts by path, so cwd on sys.path isn't needed.
+    "pytest -q tests",
+    "node --test scripts/jev/*.test.mjs",
+]
+
+[tasks.audit]
+description = "Secret scan (gitleaks) over the repo"
+run = "gitleaks git --no-banner --redact"
+
+[tasks.gate]
+description = "The whole verdict: lint, typecheck, test, audit in sequence"
+# A sequential array, not `depends`: mise runs dependencies in parallel with no ordering,
+# which makes the output unreadable and hides which check failed first.
+run = [
+    "mise run lint",
+    "mise run typecheck",
+    "mise run test",
+    "mise run audit",
+]
