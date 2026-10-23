@@ -248,46 +248,47 @@ It is tightening-aware: making the gate stricter never needs a label, only loose
 
 ## Applying it to a TypeScript serverless team
 
-My own setup grew around one person working across many stacks, so parts of it exist for problems a single-stack team doesn't have, and a team on TypeScript, Lambda and DynamoDB has problems my setup never had to solve. This is how I'd approach that team's harness with everything I've learned, rather than copying mine.
+My setup grew around one person working across many stacks. A team on TypeScript, Lambda and DynamoDB has one stack, more people and real cloud environments, so this is how I'd approach that team's harness with what I've learned, rather than copying mine.
 
-### What carries over unchanged
+### Keep, cut, add
 
-- **The beliefs.** The model proposes, deterministic checks decide. Ratchet, don't wall. Guard the guards. Reviewers advise, never block.
-- **The six verbs and three placements.** `fix`, `lint`, `typecheck`, `test`, `audit` and `gate`, running the same checks in the agent's loop, before push and in CI.
-- **The ticket as the real prompt,** with acceptance criteria and a Definition of Done, owned by the product owner.
-- **The ticket-to-PR loop,** the fresh-context review before the PR, and `learn` turning repeated mistakes into checks.
-- **The evaluation method.** Measure a baseline, change one thing, measure again.
+- **Keep:** the beliefs, the six verbs in three placements, the ticket as the real prompt (acceptance criteria and a Definition of Done), the ticket-to-PR loop with a fresh-context review, `learn`, and the evaluation method.
+- **Cut:** the multi-language presets (one strict TypeScript preset is enough), and most of the agent half at first. Start with `spec`, `feature`, `ship` and `review`, the formatter and smell hooks, and the PR guard; add the rest only when a measured problem asks for it.
+- **Add:** checks that reach the boundaries, because a Lambda function is mostly wiring and most of what goes wrong lives in events, permissions, the data model and the cloud itself.
 
-### What I'd simplify
+### Checks for the boundaries
 
-- **One stack, one preset.** Foundry carries presets for six languages; this team needs one strict TypeScript preset (typed ESLint rules, Prettier, strict `tsconfig`, Vitest), owned in one place and versioned like a library.
-- **Fewer moving parts in the agent half.** The skills and hooks that matter are the loop (`spec`, `feature`, `ship`, `review`), the formatter and smell hooks, and the PR guard. I'd start there and add the rest only when a measured problem asks for it.
+- **Thin handlers, testable core.** Business logic lives in plain TypeScript; the handler only parses the event, calls the core and shapes the response. Agents get fast unit tests, and an architecture check keeps logic out of handlers.
+- **Schemas at every boundary.** API payloads, queue and event messages, and DynamoDB items are validated against shared schemas, with contract tests between services so a change that compiles but breaks a consumer is caught.
+- **Access patterns as tests.** With single-table DynamoDB design the access patterns are the schema, so each one gets an integration test against DynamoDB Local.
+- **Infrastructure in the gate.** The infrastructure code is synthesised and checked for misconfigurations on every change, with a bundle-size ratchet per function so cold starts can't creep up.
+- **Guard IAM like lint rules.** A change that broadens permissions fails the gate unless a human labels it with a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
 
-### What I'd add for serverless
+### Environments
 
-The biggest difference is that a Lambda function is mostly wiring: most of what can go wrong lives at the boundaries (events, permissions, the data model, the cloud itself), not in the function body. So the harness has to reach those boundaries.
+The gate is the same everywhere; each environment adds a more realistic sensor, and the agent's reach ends where the risk begins.
 
-- **Thin handlers, testable core.** Business logic lives in plain TypeScript modules; the Lambda handler only parses the event, calls the core and shapes the response. Agents get fast unit tests on the core, and the handler stays too thin to hide logic. This is a structural rule the smell sensor and an architecture check can enforce.
-- **Schemas at every boundary.** API Gateway payloads, EventBridge and SQS messages, and DynamoDB items are validated against shared schemas (for example zod) in one place. Contract tests between services (Pact, or schema snapshot tests for events) catch the change that compiles but breaks a consumer.
-- **The data model as executable access patterns.** With single-table DynamoDB design, the access patterns are the schema. Each one gets an integration test against DynamoDB Local, so an agent refactoring keys or indexes finds out in the loop, not in production.
-- **Infrastructure in the gate.** The IaC (CDK, SAM or SST) is synthesised and checked on every change: `cdk synth` plus cdk-nag or cfn-lint for misconfigurations, and a bundle-size ratchet per function so cold starts can't creep up unnoticed.
-- **Guard IAM like lint rules.** `cdk diff --security-only --fail` fails when a change broadens IAM permissions or network access. That is the same anti-gaming control as `ruleset-guard`: allowed, but only with a human label and a reason, because "grant `*`" is exactly the shortcut an agent takes to make an error go away.
-- **Executable acceptance tests against a real stack.** This is where Farley's argument gets a proper runner. Every PR deploys an ephemeral preview stack to a sandbox account, the Given-When-Then acceptance tests run against it, and it is torn down on merge. Unit tests prove the logic; the acceptance suite proves the deployed system does what the ticket asked.
-- **Observability the agent can read.** Powertools for AWS Lambda gives structured logs, traces and metrics. Pointing the agent at the preview stack's logs turns "it fails in AWS" from a guess into a sensor.
+| Environment            | What runs there                                                                                        | Who can deploy              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------- |
+| Local                  | the gate, unit tests, DynamoDB Local                                                                   | developer and agent         |
+| Personal sandbox stack | the developer's or agent's own copy in a sandbox account, for real AWS feedback while building         | developer and agent         |
+| PR preview             | an ephemeral stack per PR; the Given-When-Then acceptance tests run against it, then it is torn down   | the pipeline                |
+| Staging                | long-lived and production-like; deploys on merge, reruns the acceptance suite and smoke tests          | the pipeline                |
+| Production             | the same build artefact promoted from staging after human approval, with alarms and automatic rollback | the pipeline, with approval |
 
-### Credentials and blast radius
+The PR preview is where Farley's argument gets a proper runner: unit tests prove the logic, and the acceptance suite proves the deployed system does what the ticket asked. Build once and promote the same artefact, with configuration per environment rather than per branch. An escaped defect in staging or production goes back through `learn` as a regression test and, where possible, a new check.
 
-My CI runs with no model and no cloud keys. A serverless team's CI must deploy, so the rule becomes: no long-lived keys anywhere. CI assumes a short-lived, least-privilege role through GitHub OIDC, scoped to the sandbox account for preview stacks and to a separate, human-approved path for production. Agents get the sandbox account only, and a deterministic hook denies any deploy or AWS CLI call that targets another profile. A decision model like Jev can still triage risky commands, but the hard stop is the hook and the IAM boundary.
+Credentials follow the same rule as the gate: no long-lived keys. CI assumes short-lived, least-privilege roles through OIDC, agents only ever get the sandbox account, and a hook denies any deploy aimed anywhere else.
 
-### Where a team needs more than I do
+### Where a team needs more than a solo setup
 
-- **Shared ownership.** Per-service `AGENTS.md` files and CODEOWNERS, reviewed like code, so standing context doesn't turn into one person's preferences.
-- **Team-level metrics.** The DORA measures (lead time, deployment frequency, change failure rate, time to restore) alongside gate rounds and escaped defects, compared for agent-authored and human-authored PRs. That is how the team learns whether the harness helps, rather than whether it feels like it does.
-- **One open decision: AI review in CI.** I keep model review local, before the PR, so CI stays deterministic and keyless. A team may want a shared review bot on every PR instead. It is a reasonable choice, as long as it stays advisory and its key is scoped to that one job.
+- **Shared ownership:** per-service `AGENTS.md` files and code owners, reviewed like code.
+- **Team metrics:** the DORA measures alongside gate rounds and escaped defects, compared for agent-authored and human-authored PRs.
+- **One open decision:** I keep AI review local so CI stays keyless. A team may prefer a shared review bot on every PR; fine, as long as it stays advisory.
 
 ### Where I'd start
 
-A pilot with one team and one service, in this order: the gate with baselines, the ticket template, the formatter and PR hooks, then the ticket-to-PR loop, and only then preview stacks and acceptance tests. Measure gate rounds and escaped defects from the first week, and run the evaluation suite before and after each harness change.
+One team, one service: the gate with baselines, the ticket template, the formatter and PR hooks, then the ticket-to-PR loop, and only then preview stacks and acceptance tests. Measure from week one, and run the evaluation suite before and after each harness change.
 
 ## Sources
 
@@ -304,10 +305,6 @@ A pilot with one team and one service, in this order: the gate with baselines, t
 - Hamel Husain, [Your AI Product Needs Evals](https://hamel.dev/blog/posts/evals/), 29 March 2024
 - [ESLint RuleTester](https://eslint.org/docs/latest/integrate/nodejs-api#ruletester) and [Semgrep: Testing rules](https://semgrep.dev/docs/writing-rules/testing-rules)
 - TypeSafe, [System One models and Jev](https://docs.typesafe.ai/concepts/system-one)
-- AWS, [cdk diff](https://docs.aws.amazon.com/cdk/v2/guide/ref-cli-cmd-diff.html) (`--security-only`, `--fail`), [cdk-nag](https://github.com/cdklabs/cdk-nag) and [cfn-lint](https://github.com/aws-cloudformation/cfn-lint)
-- AWS, [DynamoDB Local](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html) and [Powertools for AWS Lambda (TypeScript)](https://docs.powertools.aws.dev/lambda/typescript/latest/)
-- GitHub, [Configuring OpenID Connect in Amazon Web Services](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
-- [Pact](https://docs.pact.io/): consumer-driven contract testing
 
 ---
 
