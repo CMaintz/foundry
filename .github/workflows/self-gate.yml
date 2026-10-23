@@ -1,0 +1,27 @@
+# foundry runs its own six-verb gate (mise.toml) - the same checks `feature` and `ship`
+# run locally, so a green local gate means a green check here. A trigger, not reusable:
+# no workflow_call, so consumers can't call foundry's self-checks.
+name: self-gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # audit's gitleaks scans history, not just the tip
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
+        with:
+          # Pin the mise CLI too, or the action resolves "latest" and can 404 on an
+          # unpublished release.
+          version: "2026.9.4" # keep == the reusable workflows' mise_version default
+          cache: true
+      - run: mise run gate

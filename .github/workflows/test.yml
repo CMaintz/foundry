@@ -1,7 +1,6 @@
-# Tests for the code foundry ships to consumer repos:
-#   - pytest - scripts/ruleset_guard.py, the loosening check every consumer's security gate runs.
-#   - init-smoke - scripts/foundry-init.sh scaffolds a throwaway repo per stack from THIS
-#     checkout; asserts the files land, parse, pass actionlint, and a re-run changes nothing.
+# init-smoke: scripts/foundry-init.sh scaffolds a throwaway repo per stack from THIS
+# checkout; asserts the files land, parse, pass actionlint, and a re-run changes nothing.
+# Kept out of self-gate.yml (`mise run gate`) because it is too slow for the local loop.
 name: test
 
 on:
@@ -13,23 +12,6 @@ permissions:
   contents: read
 
 jobs:
-  pytest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
-        with:
-          python-version: '3.12'
-      - run: pip install --disable-pip-version-check pytest==8.4.2
-      - run: python -m pytest -q tests
-      # ruleset_guard.py is vendored into every consumer and linted by their python gate
-      # with foundry's shipped ruff preset (line-length 120). Keep it conformant HERE so a
-      # consumer's `ruff format --check` / `ruff check` never trips on the vendored copy -
-      # foundry is not otherwise ruff-gated, so without this the script would drift.
-      - run: pip install --disable-pip-version-check ruff==0.16.10
-      - run: ruff format --check --config presets/lint/ruff.toml scripts/ruleset_guard.py
-      - run: ruff check --config presets/lint/ruff.toml scripts/ruleset_guard.py
-
   init-smoke:
     runs-on: ubuntu-latest
     steps:
