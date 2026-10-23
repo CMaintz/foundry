@@ -37,7 +37,7 @@ Run different rules in each and you get "passes locally, fails in CI", plus a fa
 
 **Foundry eats its own cooking.** Foundry runs its own six verbs from a root `mise.toml`, so the same `feature` and `ship` loop works on Foundry tickets.
 
-The full write-up, from beliefs to the agent loop, ticket schema, team rollout and evaluating the harness: [Agentic Engineering: Harnesses and Workflows for Teams](./docs/agentic-engineering.md). Design rationale: [DESIGN.md](./docs/DESIGN.md).
+The full write-up, from beliefs to the agent loop, ticket schema, team rollout and evaluating the harness: [Agentic Engineering: Harnesses and Workflows for Teams](./docs/agentic-engineering/README.md). Design rationale: [DESIGN.md](./docs/DESIGN.md).
 
 ## How it fits with cmaintz-skills
 
