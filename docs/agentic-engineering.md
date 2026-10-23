@@ -23,7 +23,7 @@ The system is built on eight beliefs. Each one exists because its opposite cost 
 3. **A habit you have to remember is not a habit.** Prose in an instruction file is advisory and fades as the agent's context fills up. A hook or a CI check is enforcement. So every rule is placed in the strongest mechanism that can carry it.
 4. **Ratchet, don't wall.** Turn strict linters on in a real codebase and everything is red on day one; the team abandons it by week two. Instead, record today's problems as an accepted baseline that may only shrink. New code meets the bar; old debt can't grow.
 5. **Agents game metrics, so the metric must be guarded.** The cheapest fix for "this function is too complex" is a comment that switches the check off. Any PR that weakens a rule, suppresses a warning or deletes a test is blocked unless a human labels it and writes why.
-6. **A reviewer must not share the author's context.** An agent reviewing its own work reviews its intent, not its diff. Reviews run in a fresh sub-agent that sees only the diff and the ticket.
+6. **A reviewer must not share the author's context.** An agent reviewing its own work reviews its intent, not its diff. Reviews run in a fresh sub-agent that sees only the diff, the ticket and the repo's written rules.
 7. **Reviewers advise; they never block.** The moment a model can block a merge, people argue with it instead of shipping. Blocking is reserved for deterministic checks.
 8. **Prefer scripts over agents for mechanical work.** Fetching, sorting and transforming data is a script's job: cheaper, repeatable and auditable. Agents are reserved for judgement: design, review, diagnosis.
 
@@ -68,7 +68,9 @@ Skills are reusable playbooks the agent loads when the task matches. My own set 
 
 ### Codemap: a verified picture of the codebase
 
-Without it, every session starts by re-reading the repo and guessing. The `codemap` skill writes a committed map instead. A deterministic census script lists manifests, entry points, schemas, env vars and git churn, and proposes slices of the codebase. I confirm the slice plan. Then one agent per slice writes up its purpose, entities and main flows, traced from entry point to database, and every claim must cite a file or symbol. A verifier spot-checks the citations before anything is written. Each file is stamped with the commit it describes, and `refresh` re-audits only the slices whose cited files changed. On the Foundry side, `codemap:check` fails when a citation no longer resolves and reports how stale each slice is, so map drift shows up in the PR that caused it. `spec` draws pointers and edge-case questions from the map and rejects pointers to files that don't exist, `feature` reads the owning slices before coding, and `review` asks a question when a diff reaches into a slice the ticket never mentioned. Without a codemap, all three behave as they do today.
+Without it, every session starts by re-reading the repo and guessing. The `codemap` skill writes a committed map instead, under `docs/codemap/`: an `INDEX.md`, one file per domain slice, and three lens files for the data model, integrations, and runtime and deploy. A deterministic census script lists manifests, entry points, schemas, env vars, churn and files that change together, and proposes slices from the directory layout and co-change. I confirm or edit the slice plan before any agent starts. Then one fresh agent per slice, plus one per lens, traces the main flows from entry point to persistence to side effects. Every claim must cite a file or `file#Symbol`, and anything it can't confirm becomes a question under "Unknowns". A verifier checks that every citation resolves and spot-checks at least five claims per file. Nothing is written until it passes, and a refuted claim is fixed or turned into a question. Each file is stamped with the commit it was checked against, and `codemap refresh` re-audits only the slices whose cited files changed since that stamp. The map describes and never judges: smells and risks belong to `repo-align` and `hotspot-rec`. It lands as its own docs PR through `ship`.
+
+The delivery skills read it. `spec` draws pointers from slice citations, edge-case questions from the traced side effects, and the scope-out from neighbouring slices. `feature` reads the slices its pointers touch before coding, and warns when a slice's cited files changed since its stamp, so the code wins over a stale map. `review` asks a question whenever a diff reaches into a slice the ticket never mentioned. In a repo without a codemap, all three skip this step.
 
 ### Memory and the `learn` flywheel
 
@@ -83,7 +85,7 @@ That ordering is the whole thesis in one list: prefer the placement that makes a
 
 ## Foundry: the shared gate
 
-Foundry is a set of reusable CI workflows, task templates and config presets that every repo inherits, so one quality bar applies across TypeScript, Java, PHP, .NET, Python and Kotlin (Kotlin has the verbs but no shared CI workflow yet). It answers one question for humans and agents alike: when is a change done?
+Foundry is a set of reusable CI workflows, task templates and config presets that every repo inherits, so one quality bar applies across TypeScript, Java, PHP, .NET, Python and Kotlin. It answers one question for humans and agents alike: when is a change done?
 
 ### Six verbs, one interface
 
@@ -135,9 +137,10 @@ It is tightening-aware: making the gate stricter never needs a label, only loose
 - **Security facade:** secret scanning over full history (gitleaks), the guard above, and diff-aware static analysis (Semgrep) that only flags new findings.
 - **Supply chain:** every action and tool pinned by version or commit SHA; Renovate opens the update PRs.
 - **Speed:** superseded runs cancel themselves, and a monorepo classifier rebuilds only the packages a PR touched. One always-running aggregate check (`gate-ok`) is what branch protection requires, so skipped jobs never wedge a merge.
+- **Autofix on a label:** adding the `autofix` label to a red PR makes CI run `mise run fix`, commit the result to the branch and drop the label. It runs only on same-repo PRs, never on forks.
 - **Releases:** one script cuts a semver tag from conventional commits and refuses a non-major bump if it sees a breaking change. Consumers pin `@v2` and ride non-breaking updates.
 - **Backport discipline:** anything non-language-specific built in a consumer repo comes back to Foundry the same session, so every repo benefits.
-- **Dogfooding:** the harness repos use their own gate. cmaintz-skills runs `mise run gate` locally and in CI, and Foundry runs on the same six verbs, so my own tickets go through `feature` and `ship` like anyone else's.
+- **Dogfooding:** the harness repos use their own gate. Each has a root `mise.toml` with the six verbs, the same `mise run gate` runs locally and in CI (`gate.yml` in cmaintz-skills, `self-gate.yml` in Foundry), and branch protection requires it before anything merges. So my own tickets go through `feature` and `ship` like anyone else's.
 
 ## The agent loop
 
@@ -156,7 +159,7 @@ flowchart LR
     human --> learn["Learn: a repeated mistake becomes<br/>a hook or gate check for the next loop"]
 ```
 
-The loop is bounded: if two rounds make no progress, the agent stops, posts its stuck state on the ticket and flips it to `agent:blocked` for a human. There is exactly one sanctioned way to open a PR (`ship`). A hook blocks a bare `gh pr create`, which closes the common shortcut, and branch protection is the hard stop: no PR merges without the CI gate. So no change reaches review without passing the gate and a fresh-context review first. CI watching runs in the background, so a red PR is fixed and re-pushed without anyone asking.
+The loop is bounded: if two rounds make no progress, the agent stops, posts its stuck state on the ticket and flips it to `agent:blocked` for a human. There is exactly one sanctioned way to open a PR (`ship`). A hook blocks a bare `gh pr create`, which closes the common shortcut, and branch protection is the hard stop: no PR merges without the CI gate. So no change reaches review without passing the gate and a fresh-context review first. `ship` opens the PR through one script that pushes, opens it as a draft, watches CI in the background and marks it ready once green. On red, the agent fixes the cause and re-runs the same script, which pushes the new commit and watches the existing PR again, without anyone asking.
 
 ## Prompting and working practices
 
@@ -165,7 +168,7 @@ The biggest prompting lever is not phrasing; it is giving the agent a target it 
 ### Prompting
 
 - **Give a verifiable target.** "Make `mise run gate` green and satisfy these three acceptance criteria" converges. "Clean this up" wanders.
-- **Spec before code.** The `spec` skill turns a rough idea into a ticket through a short back-and-forth: intent, an acceptance-criteria checklist, scope boundaries and pointers to the relevant code, plus a Definition of Done (below). Product owners can write these; agents can claim them.
+- **Spec before code.** The `spec` skill turns a rough idea into a ticket through a short back-and-forth: intent, an acceptance-criteria checklist, scope boundaries and pointers to the relevant code (each checked to exist in the tree), plus a Definition of Done (below). Product owners can write these; agents can claim them.
 - **Done means more than behaviour.** Every ticket carries a Definition of Done next to its acceptance criteria: the non-behavioural conditions this ticket needs and the pipeline doesn't already check, such as a migration with a working down step or updated docs. Anything the gate or `ship` already enforces stays out. If the criteria already say it all, the DoD is the single line "None beyond the acceptance criteria." A ticket without one can't be claimed. `spec` drafts it with you, `feature` checks every item, and `review` holds the diff to it.
 - **Separate questions from instructions.** "Would X be better?" should get an answer, not a code change. Stating this explicitly in standing context removes a whole class of surprise edits.
 - **Brief sub-agents like a new colleague.** A sub-agent knows only its prompt: state the goal, what is already ruled out, which files to read, and the narrow scope. If you can't write the brief, you don't understand the task yet.
@@ -177,12 +180,12 @@ The biggest prompting lever is not phrasing; it is giving the agent a target it 
 
 The practice I lean on hardest follows Dave Farley's case for acceptance-test-driven development with AI. Natural language is too loose to specify software on its own, and vague prompts produce vague software. So the acceptance criteria stop being prose and become executable.
 
-- **Contracts beat vibe coding.** Each acceptance criterion is a Given-When-Then scenario that runs. It is the contract the agent works to, and a fitness function in the evolutionary-architecture sense: the change either passes it or it doesn't.
+- **Contracts beat vibe coding.** Each acceptance criterion is written as a Given-When-Then scenario and backed by a test that proves it. It is the contract the agent works to, and a fitness function in the evolutionary-architecture sense: the change either passes it or it doesn't.
 - **Executables as prompts.** Scenarios written in a small domain-specific language for the product are the most precise prompt there is. "Given a customer with an expired card, when they renew, then they are sent to update their payment details" leaves the agent nothing to guess.
 - **Behaviour over boilerplate.** Nobody reads compiler output any more; we check that the program behaves. Review shifts the same way: people read the specifications and the design, and the pipeline proves the generated code meets them, instead of humans auditing every line.
 - **Autonomy earned one passing spec at a time.** An agent can loop against the acceptance suite on its own, and trust grows with each scenario it turns green. The guardrails make that safe: the gate, the ratchets and `ruleset-guard` stop it passing by drifting, weakening tests or piling up debt.
 
-This slots straight into the loop: `spec` writes the scenarios with the product owner, they become the ticket's acceptance criteria, `feature` turns each one red and then green, and `ship`'s review checks the result against the intent.
+In my loop, `spec` pushes every acceptance criterion towards something observable with the product owner: an input, an action, an expected result, machine-checkable where possible. Given-When-Then is the shape I write them in. `feature` implements against that checklist, loops the gate to green, then walks every criterion and every Definition of Done item and reports each as pass or fail. The fresh-context review checks the diff against the same list. Writing the failing test first is a standing rule and the `tdd` skill's job, so each criterion becomes executable through the test that proves it.
 
 ### What a ticket looks like
 
@@ -255,7 +258,7 @@ The system measures itself with deterministic, local data, so that improving the
 
 Two principles govern this data. First, telemetry never changes an outcome: if logging fails, the verb's own exit code still wins. Second, evals ratchet like any other baseline: adding a fixture is free, removing one counts as loosening the gate and needs a human label.
 
-The feedback reaches the system through `learn` (lessons become hooks or rules), `loop-report` (a short verdict: converging or thrashing, what's slow, the next action), and `hotspot-rec` (one design improvement grounded in git history). Several of these are new and still being proven on live projects; the telemetry wrapper and flaky triager are tested, while smell-trend tracking is a planned follow-on.
+The feedback reaches the system through `learn` (lessons become hooks or rules), `loop-report` (a short verdict: converging or thrashing, what's slow, the next action), and `hotspot-rec` (one design improvement grounded in git history). Telemetry is written by `foundry-verb-wrap` on every verb, and the flaky classifier is `foundry-flaky`, which reruns failures and re-arms a quarantined test after 10 consecutive greens.
 
 ## What the industry recommends
 
@@ -340,7 +343,7 @@ The ten steps above describe the loop. This section shows what building the indi
 Start from what the team already enforces, not from a blank page. Most of a harness already exists in the repo, partly wired up.
 
 - **Stack:** languages, build tool, test runners, package managers, CI provider, and how a developer runs things locally.
-- **Written rules:** linter and formatter configs (ESLint, PHPStan and PHP_CodeSniffer sniffs, Roslyn analyzers and `.editorconfig`, Checkstyle), type-checker strictness, security scanners, coverage settings, CONTRIBUTING and PR templates.
+- **Written rules:** linter and formatter configs (ESLint, PHPStan and PHP\_CodeSniffer sniffs, Roslyn analyzers and `.editorconfig`, Checkstyle), type-checker strictness, security scanners, coverage settings, CONTRIBUTING and PR templates.
 - **Unwritten rules:** what reviewers keep saying. Mine the review history for them (Ivett Ördög's `build-project-review` does this), and mine git history for hotspots (`hotspot-rec`). These are the rules nobody has encoded yet.
 - **Current state:** run every existing tool once and count the findings for each rule. That count becomes the baseline you ratchet down, and it shows which rules people already ignore.
 
@@ -352,7 +355,7 @@ For each rule, ask these questions in order and stop at the first yes. The earli
 
 1. Can a command decide it with no false positives? Then it is a deterministic check, and it blocks.
 2. Can a command decide most of it? Then it is still a deterministic check that blocks, but with an escape hatch that needs a label and a reason (a suppression, policed by `ruleset-guard`).
-3. Is it a bounded judgment needed often and cheaply, such as on every tool call? A bounded judgment is a yes/no, a pick from a list, or a score. Then it goes to a decision model like Jev, which returns typed answers with probabilities. It runs as an advisory sensor with a tuned threshold.
+3. Is it a bounded judgment needed often and cheaply, such as on every tool call? A bounded judgment is a yes/no, a pick from a list, or a score. Then it goes to a decision model like Jev, which returns typed answers with probabilities. It runs as an advisory sensor with a tuned threshold. In my setup Jev does this in three places, all opt-in and off without an API key: tool-call triage at the end of a turn, a pre-filter that routes each diff hunk to the review lens that should look at it, and a `feature` pre-check that catches a diff that obviously misses an acceptance criterion before the full verify runs. None of them can pass or fail anything.
 4. Does it need to read the ticket, the design or the wider change? Then it goes to an LLM reviewer before the PR, which is the `review` step inside `ship`. The reviewer runs in a fresh context, is advisory only, and ties every finding to a line and a concrete failure.
 5. If none of these fit, it is a matter of taste or strategy. It goes to human review, and the rule lives in `AGENTS.md` as a guide.
 
