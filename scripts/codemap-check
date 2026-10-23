@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""codemap-check - does the codemap still point at real code, and how stale is each slice?
+
+    codemap-check [dir]        dir defaults to docs/codemap at the repo root
+
+Reads every `<dir>/*.md` written by the `codemap` skill (grammar: cmaintz-skills
+plugins/foundry/skills/codemap/FORMAT.md) and does two things, no model involved:
+
+  resolve    Each citation's path must be tracked by git, and for `path#Symbol` every
+             dotted segment of Symbol must appear as a whole word in that file. A broken
+             citation prints as `file:line citation reason`; any broken citation exits 1.
+  staleness  For each file, the number of commits since its frontmatter `sha:` that
+             touched the paths it cites. Advisory only: it never changes the exit code,
+             and a missing or unknown `sha:` prints "staleness unknown".
+
+Exit 0 when every citation resolves (or there is no map dir), 1 on a broken citation,
+2 when not run inside a git repo or when a named dir does not exist.
+"""
+
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+IDENT = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*\Z")
+# A code span as CommonMark delimits it: a backtick run closed by a run of the same
+# length. Matching runs, not single ticks, keeps a double-backtick span (how FORMAT.md
+# quotes a citation as an example) from being read as the citation it shows.
+SPAN = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
+FENCE = re.compile(r"\s*(```|~~~)")
+
+
+def git(root, *args):
+    # git emits paths as UTF-8; the locale default (cp1252 on Windows) would garble them.
+    r = subprocess.run(["git", *args], cwd=root, capture_output=True, encoding="utf-8", errors="replace")
+    return r.stdout if r.returncode == 0 else None
+
+
+def path_set(listing):
+    """Files from a NUL-separated git listing, plus every directory that holds one."""
+    paths = set()
+    for f in filter(None, (listing or "").split("\0")):
+        paths.add(f)
+        parts = f.split("/")
+        for i in range(1, len(parts)):
+            paths.add("/".join(parts[:i]))
+    return paths
+
+
+def read_sha(lines):
+    """The frontmatter `sha:` value, or "" when there is no frontmatter or no sha."""
+    if not lines or lines[0].strip() != "---":
+        return ""
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        key, _, value = line.partition(":")
+        if key.strip() == "sha":
+            return value.split("#", 1)[0].strip().strip("'\"")
+    return ""
+
+
+def body_lines(lines):
+    """(line number, text) for each line outside the frontmatter and fenced code."""
+    start = 0
+    if lines and lines[0].strip() == "---":
+        start = next((i + 1 for i in range(1, len(lines)) if lines[i].strip() == "---"), len(lines))
+    fenced = False
+    for i in range(start, len(lines)):
+        if FENCE.match(lines[i]):
+            fenced = not fenced
+        elif not fenced:
+            yield i + 1, lines[i]
+
+
+def citations(lines, known_paths):
+    """(line, span, path, symbol) per citation; symbol is None for a bare path.
+
+    A span is a citation when its path part contains `/` or `.` and it either has a
+    `#` or names a path in `known_paths` (the tree at the file's sha), per FORMAT.md.
+    """
+    for lineno, text in body_lines(lines):
+        for _, span in SPAN.findall(text):
+            if any(c.isspace() or c == "`" for c in span):
+                continue
+            path, hash_, symbol = span.partition("#")
+            if "/" not in path and "." not in path:
+                continue
+            path = path.rstrip("/")
+            if hash_ or path in known_paths:
+                yield lineno, span, path, symbol if hash_ else None
+
+
+def whole_word(segment, text):
+    # \b is no use here: `$` is an identifier character in the grammar but not a word one.
+    return re.search(r"(?<![A-Za-z0-9_$])" + re.escape(segment) + r"(?![A-Za-z0-9_$])", text)
+
+
+def resolve(root, tracked, path, symbol):
+    """Why the citation is broken, or None when it resolves."""
+    if path not in tracked:
+        return "path not tracked by git"
+    if symbol is None:
+        return None
+    segments = symbol.split(".")
+    if not all(IDENT.match(s) for s in segments):
+        return "malformed symbol"
+    file = root / path
+    if file.is_dir():
+        return "symbol cited on a directory"
+    if not file.is_file():
+        return "file missing from working tree"
+    text = file.read_text(encoding="utf-8", errors="replace")
+    missing = [s for s in segments if not whole_word(s, text)]
+    return f"symbol segment not found: {', '.join(missing)}" if missing else None
+
+
+def staleness(root, sha, paths):
+    if not sha or git(root, "cat-file", "-e", f"{sha}^{{commit}}") is None:
+        return "staleness unknown (" + ("no sha:" if not sha else f"sha {sha[:12]} not in this repo") + ")"
+    if not paths:
+        return "0 commits (cites nothing)"
+    count = git(root, "rev-list", "--count", f"{sha}..HEAD", "--", *sorted(paths))
+    if count is None:
+        return "staleness unknown (git rev-list failed)"
+    n = int(count)
+    return f"{n} commit{'' if n == 1 else 's'} since {sha[:12]} touched its cited paths"
+
+
+def main(argv):
+    top = git(Path.cwd(), "rev-parse", "--show-toplevel")
+    if top is None:
+        print("codemap-check: not inside a git repository", file=sys.stderr)
+        return 2
+    root = Path(top.strip())
+    map_dir = Path(argv[0]) if argv else root / "docs" / "codemap"
+    if not map_dir.is_dir():
+        # No map at all is a repo that hasn't adopted codemap yet; a named dir that is
+        # missing is a typo, which must not pass as a clean check.
+        if argv:
+            print(f"codemap-check: {argv[0]} is not a directory", file=sys.stderr)
+            return 2
+        print("codemap-check: no docs/codemap/ found; nothing to check")
+        return 0
+
+    tracked = path_set(git(root, "ls-files", "-z"))
+    trees = {}
+    broken, checked, report = [], 0, []
+    for md in sorted(map_dir.glob("*.md")):
+        shown = Path(os.path.relpath(md.resolve(), root.resolve())).as_posix()
+        lines = md.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+        sha = read_sha(lines)
+        if sha not in trees:
+            listing = git(root, "ls-tree", "-r", "-z", "--name-only", sha) if sha else None
+            # An unknown sha has no tree to classify bare paths against; fall back to HEAD.
+            trees[sha] = path_set(listing) if listing is not None else tracked
+        cited = set()
+        for lineno, span, path, symbol in citations(lines, trees[sha]):
+            checked += 1
+            cited.add(path)
+            reason = resolve(root, tracked, path, symbol)
+            if reason:
+                broken.append(f"{shown}:{lineno} {span} {reason}")
+        report.append(f"{shown}: {staleness(root, sha, cited)}")
+
+    for line in broken:
+        print(line)
+    for line in report:
+        print(line)
+    print(f"codemap-check: {checked} citation(s) checked, {len(broken)} broken")
+    return 1 if broken else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
