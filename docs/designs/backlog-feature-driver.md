@@ -86,8 +86,8 @@ Labels are the state; the issue thread is the durable work log.
              claim (atomic)          gate green + verify + ship
  agent:ready ───────────────▶ agent:working ───────────────────▶ (PR open, label cleared)
       ▲                            │
-      │ 30-min stale reset         │ inner-loop exhausted / no-progress
-      │ (working, no branch/PR)    ▼
+      │ stale reset                │ inner-loop exhausted / no-progress
+      │ (working, 2h inactive)     ▼
       └──────────────────────  agent:blocked  (stuck-state posted to thread)
 ```
 
@@ -132,9 +132,13 @@ strict:
 - **Worktree per ticket.** Each claim gets its own worktree off `origin/main`, so
   the loop honours `collaboration.md` (own branch off `origin/main`, one branch →
   one PR) without touching the main checkout. Removed on success or abandon.
-- **Stale-claim recovery.** A ticket `agent:working` with **no branch and no PR**
-  for **30 minutes** resets to `agent:ready`. Without this, one crashed session
-  strands a ticket forever. (Threshold tunable; 30 min is the starting default.)
+- **Stale-claim recovery.** A ticket `agent:working` **inactive for over 2 hours**
+  resets to `agent:ready` and is resumed from its thread and any open PR, not
+  restarted. Without this, one crashed session strands a ticket forever.
+  Inactivity is the most recent of the issue's last timeline event, its linked
+  PR's last update and the working branch's last commit. It keys off inactivity,
+  not "has no branch/PR", so a session that opened a PR and then died is still
+  recovered.
 
 ## 8. Inner-loop bounds - so "loop until solved" actually terminates
 
@@ -179,7 +183,7 @@ This honours the signed-off semi-auto goal without shipping an unexercised loop.
 
 ## 11. v1 scope, non-goals, open questions
 
-**In scope (v1):** GitHub Issues as the transport; WIP = 1; 30-min stale reset;
+**In scope (v1):** GitHub Issues as the transport; WIP = 1; 2-hour inactivity stale reset;
 5-cycle + no-progress inner loop; supervised dogfood then puller.
 
 **Non-goals (v1):** multi-ticket parallelism; a bespoke tracker integration
