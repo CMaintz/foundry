@@ -10,9 +10,11 @@ title = "gitleaks config"
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Confirmed non-secrets only."
-paths = [
-  # '''frontend/src/environments/environment\.ts$''',   # public Firebase web config
-  # '''.*/src/test/.*Fixture\.java$''',                  # dummy test values
-]
+# Newer gitleaks (8.30 does) rejects an empty [allowlist] ("must contain at least one check"), so it stays
+# commented out until the first confirmed non-secret needs an entry.
+# [allowlist]
+# description = "Confirmed non-secrets only."
+# paths = [
+#   # '''frontend/src/environments/environment\.ts$''',   # public Firebase web config
+#   # '''.*/src/test/.*Fixture\.java$''',                  # dummy test values
+# ]
