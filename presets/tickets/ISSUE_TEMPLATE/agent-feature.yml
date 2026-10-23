@@ -28,6 +28,15 @@ body:
     validations:
       required: true
   - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: Ticket-specific done-conditions beyond behaviour that the gate and ship don't already enforce (a reversible migration, updated docs, a flag off by default). If there are none, write "None beyond the acceptance criteria."
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
     id: scope
     attributes:
       label: Scope boundaries
