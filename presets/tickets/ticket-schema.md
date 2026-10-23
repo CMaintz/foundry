@@ -39,7 +39,8 @@ The driver moves a ticket through three labels; the issue thread is its work log
 
 - `agent:ready` - groomed, complete, free to claim. Applied only after the owner
   explicitly approves the full ticket, Definition of Done included.
-- `agent:working` - claimed and assigned; exactly one at a time per worker (WIP = 1).
+- `agent:working` - claimed and assigned; exactly one at a time per session
+  (WIP = 1), the session named by the ticket's latest `claimed by` comment.
 - `agent:blocked` - escalated to a human, with the reason already posted to the
   thread.
 
