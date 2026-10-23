@@ -258,7 +258,13 @@ My setup grew around one person working across many stacks. A team on TypeScript
 
 ### Checks for the boundaries
 
-In a serverless codebase much of what breaks lives outside the function body: event and API contracts, the data access patterns, the infrastructure definition and permissions. The harness work is making sure the agent gets a fast, deterministic signal when a change breaks one of those. Whatever the team already uses to test them belongs in the gate, so the agent loops against it like any other check. The one I'd add if it's missing is a guard on broadened permissions, handled like a ruleset change: allowed, but only with a human label and a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
+In a serverless codebase much of what breaks lives outside the function body: event and API contracts, the data access patterns, the infrastructure definition and permissions. The harness work is making sure the agent gets a fast, deterministic signal when a change breaks one of those, so it loops against them like any other check. Concretely, on a TypeScript, Lambda and DynamoDB stack:
+
+- **Thin handlers:** an architecture check keeps business logic out of the handlers, so the logic sits in plain modules with fast unit tests the agent can run every turn.
+- **Contracts:** API and event payloads are checked against shared schemas, with contract tests between services, so a change that compiles but breaks a consumer goes red in the loop.
+- **Access patterns:** each DynamoDB access pattern has an integration test, so an agent refactoring keys or indexes finds out before the PR, not in production.
+- **Infrastructure:** the infrastructure code is synthesised and scanned for misconfigurations in the gate, and each function's bundle size is ratcheted like any other baseline, so cold starts can't creep up unnoticed.
+- **Permissions:** a change that broadens permissions is handled like a ruleset change: allowed, but only with a human label and a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
 
 ### Environments
 
