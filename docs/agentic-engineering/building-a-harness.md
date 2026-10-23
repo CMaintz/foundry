@@ -258,15 +258,11 @@ My setup grew around one person working across many stacks. A team on TypeScript
 
 ### Checks for the boundaries
 
-- **Thin handlers, testable core.** Business logic lives in plain TypeScript; the handler only parses the event, calls the core and shapes the response. Agents get fast unit tests, and an architecture check keeps logic out of handlers.
-- **Schemas at every boundary.** API payloads, queue and event messages, and DynamoDB items are validated against shared schemas, with contract tests between services so a change that compiles but breaks a consumer is caught.
-- **Access patterns as tests.** With single-table DynamoDB design the access patterns are the schema, so each one gets an integration test against DynamoDB Local.
-- **Infrastructure in the gate.** The infrastructure code is synthesised and checked for misconfigurations on every change, with a bundle-size ratchet per function so cold starts can't creep up.
-- **Guard IAM like lint rules.** A change that broadens permissions fails the gate unless a human labels it with a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
+In a serverless codebase much of what breaks lives outside the function body: event and API contracts, the data access patterns, the infrastructure definition and permissions. The harness work is making sure the agent gets a fast, deterministic signal when a change breaks one of those. Whatever the team already uses to test them belongs in the gate, so the agent loops against it like any other check. The one I'd add if it's missing is a guard on broadened permissions, handled like a ruleset change: allowed, but only with a human label and a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
 
 ### Environments
 
-The gate is the same in every environment; each one only adds a more realistic sensor, from local tests to a real stack in a sandbox account to a production-like staging. Agents can deploy to their own sandbox and no further: everything past that goes through the pipeline, on short-lived credentials. The interesting one is the per-PR preview stack, because that is where the Given-When-Then acceptance tests finally run against a deployed system. And a defect that escapes to staging or production goes back through `learn` as a regression test and, where possible, a new check.
+The gate is the same in every environment; each one only adds a more realistic sensor, from local tests to a real deployed stack to a production-like staging. Agents can deploy to a sandbox and no further: everything past that goes through the pipeline. The interesting one is the per-PR preview stack, because that is where the Given-When-Then acceptance tests finally run against a deployed system. And a defect that escapes to staging or production goes back through `learn` as a regression test and, where possible, a new check.
 
 ### Where a team needs more than a solo setup
 
