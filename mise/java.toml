@@ -38,7 +38,7 @@ HABIT_HOOKS_PLUGIN = "habit-hooks-java"
 # setup:foundry-scripts into a cache dir at this ref, not vendored (see that task).
 # Renovate tracks the pin via the comment above it.
 # renovate: datasource=github-tags depName=CMaintz/foundry
-FOUNDRY_SCRIPTS_REF = "v2.12.0"
+FOUNDRY_SCRIPTS_REF = "v2.13.0"
 # PMD + the habit-hooks venv bin (Linux `bin/`, Windows `Scripts/` - a missing one on PATH
 # is harmless), the Foundry scripts cache (so the gate runs `foundry-verb-wrap` by
 # name), and the repo's own scripts/ last.

@@ -20,7 +20,7 @@ HABIT_HOOKS_PLUGIN = "habit-hooks-typescript"
 # vendored into the repo (see that task for why). Renovate tracks the pin via the comment
 # above it.
 # renovate: datasource=github-tags depName=CMaintz/foundry
-FOUNDRY_SCRIPTS_REF = "v2.12.0"
+FOUNDRY_SCRIPTS_REF = "v2.13.0"
 
 # Put local binaries on PATH so tasks call `eslint`, not `npx eslint`; the habit-hooks venv
 # bin (Linux `bin/`, Windows `Scripts/` - a missing one on PATH is harmless); the Foundry
