@@ -41,7 +41,7 @@ The full write-up, from beliefs to the agent loop, ticket schema, team rollout a
 
 ## How it fits with cmaintz-skills
 
-**[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** is the agent half, a Claude Code plugin. Its skills drive the loop around this gate (`spec` writes the ticket, `feature` loops on `mise run gate` until green, `ship` reviews and opens the PR) and its hooks are the in-loop placement. Foundry decides *whether* a change is good enough; cmaintz-skills is how an agent gets it there. The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
+**[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** is the agent half, a Claude Code plugin. Its skills drive the loop around this gate (`spec` writes the ticket, `feature` loops on `mise run gate` until green, `ship` reviews and opens the PR) and its hooks are the in-loop placement. Its `codemap` skill gives `spec`, `feature` and `review` a cited, SHA-stamped map of the repo; a Foundry `codemap:check` task that flags dead citations is planned ([#111](https://github.com/CMaintz/foundry/issues/111)). Foundry decides *whether* a change is good enough; cmaintz-skills is how an agent gets it there. The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
 
 > **New here? Read [OVERVIEW.md](./docs/OVERVIEW.md)** - the full narrative tour of how the gates, habit sensors, skills, and the self-improving `learn` loop fit together.
 >
@@ -65,7 +65,6 @@ Every verb in `gate` runs through `foundry-verb-wrap`, which logs its time and r
 - `smells` - the repo's pinned habit-hooks structural-smell check.
 - `test:flaky` - tests with quarantined flakes reported but not gating (`foundry-flaky`, shrink-only `flaky-baseline.json`).
 - `arch` (ts, python) - architecture fitness: no cross-layer imports, no cycles.
-- `codemap:check` - an advisory check that the codemap from cmaintz-skills still cites real code, plus how stale each slice is. Not part of `gate`.
 
 ## Using it in a repo
 
@@ -166,22 +165,22 @@ Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-i
 | [`typecheck/tsconfig.json`](./presets/typecheck/tsconfig.json) | strict, check-only tsconfig for the `ts` stack, covering src, scripts and tests. The `ts` template's `typecheck` refuses to run without a tsconfig, and checks Deno code (Supabase Edge Functions) with `deno check` via `FOUNDRY_DENO_PATHS` |
 | [`gitleaks.toml`](./presets/security/gitleaks.toml) · [`renovate.json`](./presets/renovate.json) | secret-scan allowlist starting point + the dependency-update path the "pin everything" rule needs |
 | [`code-standards.md`](./presets/agent/code-standards.md) · [`collaboration.md`](./presets/agent/collaboration.md) · [`agent-loop.md`](./presets/agent/agent-loop.md) | agent-facing standing docs - clean code (functions do one thing / SRP), working discipline (branch hygiene + sub-agents), and the self-correcting loop (observe → fix the cause → verify → repeat until green *and* honest) |
-| [`ticket-schema.md`](./presets/tickets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) | the GitHub-Issue ticket the `/feature` driver works - intent, an acceptance-criteria checklist, a Definition of Done, scope, pointers. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
+| [`ticket-schema.md`](./presets/tickets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) | the GitHub-Issue ticket the `/foundry:feature` driver works - intent, an acceptance-criteria checklist, a Definition of Done, scope, pointers. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
 | [`lint/ruff.toml`](./presets/lint/ruff.toml) · [`dotnet/Directory.Build.props`](./presets/dotnet/Directory.Build.props) | the python stack's default ruff hard gate, and the .NET build props the scaffold places |
 | [`arch/`](./presets/arch/) | architecture-fitness rules per stack (dependency-cruiser, import-linter, ArchUnit) - [SETUP.md](./presets/arch/SETUP.md) |
 | [`prompt-eval/`](./presets/prompt-eval/) | an offline regression harness for prompts and agent output, run under `test`; the fixture count may only grow |
 | [`baselines/flaky-baseline.example.json`](./presets/baselines/flaky-baseline.example.json) | starting point for the `test:flaky` quarantine list |
 
-### From ticket to PR - the `/feature` driver
+### From ticket to PR - the `/foundry:feature` driver
 
-Foundry answers *"when is a change done?"* - a green gate. The **`/feature`** driver is the thing in front of that - **ticket in, PR out** - the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./docs/designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above). Tickets come from cmaintz-skills' `spec` skill or by hand. The driver:
+Foundry answers *"when is a change done?"* - a green gate. The **`/foundry:feature`** driver is the thing in front of that - **ticket in, PR out** - the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./docs/designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above). Tickets come from cmaintz-skills' `spec` skill or by hand. The driver:
 
-1. **Claim** an `agent:ready` ticket - a GitHub Issue on the [`agent-feature`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) form ([schema](./presets/tickets/ticket-schema.md)) - flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`.
+1. **Claim** an `agent:ready` ticket - a GitHub Issue on the [`agent-feature`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) form ([schema](./presets/tickets/ticket-schema.md)) - flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`, then reads the codemap slices the ticket touches when the repo has one.
 2. **Loop to the gate** - implement → `mise run gate` → act on the failure + habit-hooks coaching → retry, *bounded* (≤ 5 cycles; bail early on no progress, posting the stuck state to the issue thread and flipping `agent:blocked`).
 3. **Verify** the result against every acceptance criterion and Definition of Done item - green ≠ correct.
-4. **Hand to `/ship`** - which re-gates, runs a fresh-context review against the linked issue, commits, and opens the PR. The driver never opens a PR itself, so there's one trusted path to `main`.
+4. **Hand to `/foundry:ship`** - which re-gates, runs a fresh-context review against the linked issue, commits, and opens the PR. The driver never opens a PR itself, so there's one trusted path to `main`.
 
-It re-implements none of the standards: the gate is the oracle, `ruleset-guard` + habit-hooks stop the loop gaming the metric, `/ship` is the handoff. Run it supervised - `/feature <ref>` - or as a backlog puller - `/loop <interval> /feature`.
+It re-implements none of the standards: the gate is the oracle, `ruleset-guard` + habit-hooks stop the loop gaming the metric, `/foundry:ship` is the handoff. Run it supervised - `/foundry:feature <ref>` - or as a backlog puller - `/loop <interval> /foundry:feature`.
 
 ### Versioning
 
