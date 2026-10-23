@@ -13,13 +13,13 @@ php = "8.3"
 # `habit_hooks_version` default (1.5.0).
 HABIT_HOOKS_VERSION = "1.5.0"
 HABIT_HOOKS_PLUGIN = "habit-hooks-php"
-# The Foundry gate scripts (foundry-verb-wrap, foundry-flaky) are provisioned by setup:foundry-scripts
-# into a cache dir at this ref, not vendored (see that task). Renovate tracks the pin via
-# the comment above it.
+# The Foundry scripts (foundry-verb-wrap, foundry-flaky, codemap-check) are provisioned by
+# setup:foundry-scripts into a cache dir at this ref, not vendored (see that task). Renovate
+# tracks the pin via the comment above it.
 # renovate: datasource=github-tags depName=CMaintz/foundry
 FOUNDRY_SCRIPTS_REF = "v2.12.0"
 # The habit-hooks venv bin on PATH (Linux `bin/`, Windows `Scripts/` - a missing one is
-# harmless), the Foundry gate scripts cache (so the gate runs `foundry-verb-wrap` by name),
+# harmless), the Foundry scripts cache (so the gate runs `foundry-verb-wrap` by name),
 # then the repo's scripts/.
 _.path = [
     "{{env.HOME}}/.local/opt/{{env.HABIT_HOOKS_PLUGIN}}-{{env.HABIT_HOOKS_VERSION}}/bin",
@@ -51,7 +51,7 @@ FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
 # LEASH_ENABLED = "0"                 # 1 runs Leash turn checks (repos with the leash.sh hook)
 
 [hooks]
-# Provision the pinned habit-hooks and the cached Foundry gate scripts on `mise install`
+# Provision the pinned habit-hooks and the cached Foundry scripts on `mise install`
 # (local and CI alike), like setup:pmd. Array form, as the java/python templates use.
 postinstall = ["mise run setup:habit-hooks", "mise run setup:foundry-scripts"]
 
@@ -126,21 +126,29 @@ vendor/bin/phpunit --log-junit "$rep" || true
 foundry-flaky gate "$rep" flaky-baseline.json
 '''
 
+# Codemap drift check (advisory auxiliary, deliberately not in `gate` or `lint`): every
+# citation in docs/codemap/*.md must still resolve, and each slice prints how many commits
+# touched its cited files since its `sha:`. Exits 0 with a notice when there is no map.
+# `codemap-check` is a python3 script on PATH via the setup:foundry-scripts cache dir.
+[tasks."codemap:check"]
+description = "Advisory: codemap citations still resolve, and how stale each slice is"
+run = "codemap-check"
+
 [tasks.audit]
 description = "Dependency vulnerabilities"
 run = "composer audit"
 
-# Fetch the pinned Foundry gate scripts into a cache dir, rather than vendoring copies into
+# Fetch the pinned Foundry scripts into a cache dir, rather than vendoring copies into
 # the repo (agent/CI plumbing, not the repo's code; a vendored copy drifts and needs a
 # re-sync on every bump). Pinned to FOUNDRY_SCRIPTS_REF, provisioned once via postinstall.
 # Offline-safe: no network call when every script is already cached at this ref, so the
 # gate hot path never depends on the network; a ref bump needs the network once.
 [tasks."setup:foundry-scripts"]
-description = "Fetch the pinned Foundry gate scripts into a cache dir (de-vendored)"
+description = "Fetch the pinned Foundry scripts into a cache dir (de-vendored)"
 run = '''
 set -eu
 dst="$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF"
-scripts="foundry-verb-wrap foundry-flaky"
+scripts="foundry-verb-wrap foundry-flaky codemap-check"
 need=""
 for s in $scripts; do [ -f "$dst/$s" ] || need="$need $s"; done
 [ -z "$need" ] && exit 0

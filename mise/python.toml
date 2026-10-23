@@ -58,13 +58,13 @@ IMPORT_LINTER_VERSION = "2.15"
 # Coverage floor for `test`. Override per repo (a legacy repo can start lower and
 # ratchet up); CI inherits whatever you set here.
 FOUNDRY_COV_MIN = "90"
-# The Foundry gate scripts (foundry-verb-wrap, foundry-flaky) are provisioned by setup:foundry-scripts
-# into a cache dir at this ref, not vendored (see that task). Renovate tracks the pin via
-# the comment above it.
+# The Foundry scripts (foundry-verb-wrap, foundry-flaky, codemap-check) are provisioned by
+# setup:foundry-scripts into a cache dir at this ref, not vendored (see that task). Renovate
+# tracks the pin via the comment above it.
 # renovate: datasource=github-tags depName=CMaintz/foundry
 FOUNDRY_SCRIPTS_REF = "v2.12.0"
 # The project .venv first (so mypy/pytest/pip-audit resolve to the pinned ones), then the
-# habit-hooks venv (so `smells` finds the pinned habit-hooks), then the Foundry gate scripts
+# habit-hooks venv (so `smells` finds the pinned habit-hooks), then the Foundry scripts
 # cache (so the gate runs `foundry-verb-wrap` by name), then the repo's own scripts/. Both
 # venv bin layouts are listed (bin on Linux/macOS, Scripts on Windows); the absent one is ignored.
 _.path = [
@@ -100,7 +100,7 @@ FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
 
 [hooks]
 # The provisioning tasks on `mise install` (local and CI alike): the project .venv tools,
-# the pinned habit-hooks venv, and the cached Foundry gate scripts - the array form the java
+# the pinned habit-hooks venv, and the cached Foundry scripts - the array form the java
 # template uses for setup:pmd.
 postinstall = ["mise run setup:pytools", "mise run setup:habit-hooks", "mise run setup:foundry-scripts"]
 
@@ -271,23 +271,31 @@ pytest --cov --cov-fail-under=${FOUNDRY_COV_MIN:-90} --junit-xml="$rep" || true
 foundry-flaky gate "$rep" flaky-baseline.json
 '''
 
+# Codemap drift check (advisory auxiliary, deliberately not in `gate` or `lint`): every
+# citation in docs/codemap/*.md must still resolve, and each slice prints how many commits
+# touched its cited files since its `sha:`. Exits 0 with a notice when there is no map.
+# `codemap-check` is a python3 script on PATH via the setup:foundry-scripts cache dir.
+[tasks."codemap:check"]
+description = "Advisory: codemap citations still resolve, and how stale each slice is"
+run = "codemap-check"
+
 [tasks.audit]
 description = "Dependency vulnerabilities (pip-audit over the project .venv)"
 # --skip-editable: do not audit the editable project itself (it has no release to match);
 # runtime + dev deps installed in the .venv are audited.
 run = "pip-audit --skip-editable"
 
-# Fetch the pinned Foundry gate scripts into a cache dir, rather than vendoring copies into
+# Fetch the pinned Foundry scripts into a cache dir, rather than vendoring copies into
 # the repo (agent/CI plumbing, not the repo's code; a vendored copy drifts and needs a
 # re-sync on every bump). Pinned to FOUNDRY_SCRIPTS_REF, provisioned once like setup:pytools.
 # Offline-safe: no network call when every script is already cached at this ref, so the
 # gate hot path never depends on the network; a ref bump needs the network once.
 [tasks."setup:foundry-scripts"]
-description = "Fetch the pinned Foundry gate scripts into a cache dir (de-vendored)"
+description = "Fetch the pinned Foundry scripts into a cache dir (de-vendored)"
 run = '''
 set -eu
 dst="$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF"
-scripts="foundry-verb-wrap foundry-flaky"
+scripts="foundry-verb-wrap foundry-flaky codemap-check"
 need=""
 for s in $scripts; do [ -f "$dst/$s" ] || need="$need $s"; done
 [ -z "$need" ] && exit 0

@@ -78,9 +78,9 @@ Two details that matter:
   are tier-a (the contract). Tier-b is verb *composition* - `lint` folds in a
   `smells` task so the structural scan rides the same verb locally and in CI.
   Tier-c is auxiliary, opt-in, repo-local tasks that are explicitly *not* the
-  contract: `arch` (architecture fitness), `spotbugs`, `novar`, `test:flaky`, the
-  `setup:*` tasks. A seventh verb would have to be both universal and not fit any
-  existing verb; none has qualified.
+  contract: `arch` (architecture fitness), `spotbugs`, `novar`, `test:flaky`,
+  `codemap:check`, the `setup:*` tasks. A seventh verb would have to be both
+  universal and not fit any existing verb; none has qualified.
 
 `mise` also pins the toolchain (`node = "22.14.0"`, the JDK, PHP, Python, etc.) in
 the same file that defines the tasks, so "works on my machine" is closed by the
@@ -253,14 +253,15 @@ flow without a re-sync. Two things are fetched at a pinned ref rather than copie
 into each repo:
 
 - **The gate scripts** (`foundry-verb-wrap`, `foundry-flaky`,
-  `npm-audit-ratchet.mjs`). Each template has a `setup:foundry-scripts` task that
-  fetches them into `$HOME/.local/opt/foundry-scripts-<FOUNDRY_SCRIPTS_REF>` and
-  puts that directory on `_.path` **cache-first**. It is offline-safe: zero network
+  `npm-audit-ratchet.mjs`), plus the advisory `codemap-check`. Each template has a
+  `setup:foundry-scripts` task that fetches them into
+  `$HOME/.local/opt/foundry-scripts-<FOUNDRY_SCRIPTS_REF>` and puts that directory
+  on `_.path` **cache-first**. It is offline-safe: zero network
   calls when every script is already present at the ref; a ref bump needs the
   network once. `FOUNDRY_SCRIPTS_REF` is a Renovate-tracked pin
   (`# renovate: datasource=github-tags depName=CMaintz/foundry`). Which scripts a
-  stack fetches differs: ts fetches all three, java fetches verb-wrap + flaky, and
-  python/dotnet/php/kotlin fetch only verb-wrap.
+  stack fetches differs: every stack fetches verb-wrap, flaky and codemap-check, and
+  ts also fetches npm-audit-ratchet.mjs.
 - **`ruleset_guard.py`**. The security and ratchet workflows sparse-checkout it from
   `job.workflow_repository @ job.workflow_sha` into `.foundry/`, so the guard logic
   and the workflow that runs it always move together at the exact pinned ref.
@@ -439,7 +440,7 @@ skill stops early if `mise run gate` is not defined).
 ~/.claude/settings.json          # global: the habit-hooks Stop hook + PR-guard wiring
 ~/.claude/hooks/                 # the hook scripts (copied from the plugin by hand)
 $HOME/.local/opt/
-  foundry-scripts-<ref>/         # cached gate scripts (verb-wrap, flaky, npm-audit)
+  foundry-scripts-<ref>/         # cached scripts (verb-wrap, flaky, npm-audit, codemap)
   <plugin>-<ver>/                # the pinned habit-hooks venv
 
 <repo>/mise.toml                 # the six verbs + the pins + setup tasks for this repo
