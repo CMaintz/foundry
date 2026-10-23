@@ -41,7 +41,7 @@ The full write-up, from beliefs to the agent loop, ticket schema, team rollout a
 
 ## How it fits with cmaintz-skills
 
-**[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** is the agent half, a Claude Code plugin. Its skills drive the loop around this gate (`spec` writes the ticket, `feature` loops on `mise run gate` until green, `ship` reviews and opens the PR) and its hooks are the in-loop placement. Its `codemap` skill gives `spec`, `feature` and `review` a cited, SHA-stamped map of the repo; a Foundry `codemap:check` task that flags dead citations is planned ([#111](https://github.com/CMaintz/foundry/issues/111)). Foundry decides *whether* a change is good enough; cmaintz-skills is how an agent gets it there. The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
+**[cmaintz-skills](https://github.com/CMaintz/cmaintz-skills)** is the agent half, a Claude Code plugin. Its skills drive the loop around this gate (`spec` writes the ticket, `feature` loops on `mise run gate` until green, `ship` reviews and opens the PR) and its hooks are the in-loop placement. Its `codemap` skill gives `spec`, `feature` and `review` a cited, SHA-stamped map of the repo, and Foundry's `codemap:check` flags citations that no longer resolve. Foundry decides *whether* a change is good enough; cmaintz-skills is how an agent gets it there. The seam between them is [CONTRACT.md](./CONTRACT.md), which is copied verbatim into both.
 
 > **New here? Read [OVERVIEW.md](./docs/OVERVIEW.md)** - the full narrative tour of how the gates, habit sensors, skills, and the self-improving `learn` loop fit together.
 >
@@ -65,6 +65,7 @@ Every verb in `gate` runs through `foundry-verb-wrap`, which logs its time and r
 - `smells` - the repo's pinned habit-hooks structural-smell check.
 - `test:flaky` - tests with quarantined flakes reported but not gating (`foundry-flaky`, shrink-only `flaky-baseline.json`).
 - `arch` (ts, python) - architecture fitness: no cross-layer imports, no cycles.
+- `codemap:check` - advisory: every citation in the codemap (`docs/codemap/*.md`, written by cmaintz-skills) must still resolve, and each slice prints how many commits it is behind. Not part of `gate` or `lint`.
 
 ## Using it in a repo
 
@@ -175,7 +176,7 @@ Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-i
 
 Foundry answers *"when is a change done?"* - a green gate. The **`/foundry:feature`** driver is the thing in front of that - **ticket in, PR out** - the [`feature`](https://github.com/CMaintz/cmaintz-skills) skill in cmaintz-skills, specified in [designs/backlog-feature-driver.md](./docs/designs/backlog-feature-driver.md). Foundry ships the intake it consumes (the schema + issue template above). Tickets come from cmaintz-skills' `spec` skill or by hand. The driver:
 
-1. **Claim** an `agent:ready` ticket - a GitHub Issue on the [`agent-feature`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) form ([schema](./presets/tickets/ticket-schema.md)) - flipping it to `agent:working` (atomic, WIP = 1) in its own worktree off `origin/main`, then reads the codemap slices the ticket touches when the repo has one.
+1. **Claim** an `agent:ready` ticket - a GitHub Issue on the [`agent-feature`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) form ([schema](./presets/tickets/ticket-schema.md)) - flipping it to `agent:working` (atomic, WIP = 1 per session) in its own worktree off `origin/main`, then reads the codemap slices the ticket touches when the repo has one.
 2. **Loop to the gate** - implement → `mise run gate` → act on the failure + habit-hooks coaching → retry, *bounded* (≤ 5 cycles; bail early on no progress, posting the stuck state to the issue thread and flipping `agent:blocked`).
 3. **Verify** the result against every acceptance criterion and Definition of Done item - green ≠ correct.
 4. **Hand to `/foundry:ship`** - which re-gates, runs a fresh-context review against the linked issue, commits, and opens the PR. The driver never opens a PR itself, so there's one trusted path to `main`.
