@@ -19,6 +19,16 @@ required field is not `agent:ready` - in puller mode it is skipped; in supervise
   where possible, machine-checkable. This is the load-bearing field: the driver's
   behavioural `verify` step and `ship`'s spec review both walk it item by item. No
   checklist, no claim.
+- **Definition of Done** - a `- [ ]` checklist of ticket-specific done-conditions
+  that are not behaviour, held to the same rule as the acceptance criteria: each
+  item verifiable. It covers what this ticket needs and nothing in the standard
+  pipeline does, so leave out anything the gate or `ship` already enforces (lint,
+  tests passing, a conventional commit, a reviewed PR). "The migration has a
+  working down step" belongs; "the gate is green" does not. When the acceptance
+  criteria already say everything, write the sentinel
+  `None beyond the acceptance criteria.` - that is a valid DoD. A ticket with no
+  DoD section at all is not claimable: the puller skips it, supervised mode
+  interviews for it.
 - **Scope boundaries** - explicit "do not touch X". The guard against silent scope
   creep.
 - **Pointers** - relevant files, modules, or prior art the agent should start from.
@@ -27,7 +37,8 @@ required field is not `agent:ready` - in puller mode it is skipped; in supervise
 
 The driver moves a ticket through three labels; the issue thread is its work log.
 
-- `agent:ready` - groomed, complete, free to claim.
+- `agent:ready` - groomed, complete, free to claim. Applied only after the owner
+  explicitly approves the full ticket, Definition of Done included.
 - `agent:working` - claimed and assigned; exactly one at a time per worker (WIP = 1).
 - `agent:blocked` - escalated to a human, with the reason already posted to the
   thread.
