@@ -92,7 +92,7 @@ Labels are the state; the issue thread is the durable work log.
 ```
 
 - `agent:ready` - groomed, has a checklist, free to claim.
-- `agent:working` - claimed and assigned; exactly one at a time (WIP = 1).
+- `agent:working` - claimed and assigned; exactly one at a time per session (WIP = 1).
 - `agent:blocked` - escalated to a human, with the reason already in the thread.
 
 ## 6. The driver flow
@@ -123,8 +123,12 @@ strict:
   any code is written. Never pick a ticket already `agent:working`. On GitHub this
   is a labelled+assigned edit; a claim that loses a race (label already moved) is
   abandoned, not forced.
-- **WIP limit = 1** to start. One in-flight ticket per machine. Raise only after
-  the loop has earned trust.
+- **WIP limit = 1 per session.** Every session shares one GitHub identity, so
+  the claim also posts a marker comment naming the session's branch and worktree
+  (`claimed by feat/<slug>-<n> at ../_wt/<slug>-<n>`); the latest marker is the
+  owner. A session counts only its own markers, so parallel sessions in their own
+  worktrees each hold one ticket without blocking each other. Raise the limit
+  only after the loop has earned trust.
 - **Worktree per ticket.** Each claim gets its own worktree off `origin/main`, so
   the loop honours `collaboration.md` (own branch off `origin/main`, one branch →
   one PR) without touching the main checkout. Removed on success or abandon.
