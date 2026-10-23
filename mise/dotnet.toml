@@ -23,7 +23,7 @@ dotnet = "8.0"
 # `habit_hooks_version` default (1.5.0).
 HABIT_HOOKS_VERSION = "1.5.0"
 HABIT_HOOKS_PLUGIN = "foundry-habit-hooks-dotnet"
-# The Foundry gate scripts (foundry-verb-wrap) are provisioned by setup:foundry-scripts
+# The Foundry gate scripts (foundry-verb-wrap, foundry-flaky) are provisioned by setup:foundry-scripts
 # into a cache dir at this ref, not vendored (see that task). Renovate tracks the pin via
 # the comment above it.
 # renovate: datasource=github-tags depName=CMaintz/foundry
@@ -135,6 +135,20 @@ run = "dotnet build -warnaserror"
 description = "Tests (wire a coverage floor via coverlet + a threshold)"
 run = "dotnet test --no-build"
 
+[tasks."test:flaky"]
+description = "Tests, with quarantined flakes reported but not gating (flaky-baseline.json)"
+# dotnet emits TRX (foundry-flaky parses it); --no-build mirrors the `test` verb (the build
+# ran in typecheck, so run typecheck first for a standalone invocation).
+run = '''
+set -eu
+mkdir -p .foundry
+rep=".foundry/flaky.trx"
+rm -f "$rep"
+dotnet test --no-build --logger "trx;LogFileName=flaky.trx" --results-directory .foundry || true
+[ -f "$rep" ] || { echo "test:flaky: no TRX report at $rep - the suite did not run (missing build? run typecheck first); not gating on absent results." >&2; exit 1; }
+foundry-flaky gate "$rep" flaky-baseline.json
+'''
+
 [tasks.audit]
 description = "Dependency vulnerabilities"
 # `dotnet list --vulnerable` exits 0 even with findings, so fail explicitly when the
@@ -160,7 +174,7 @@ description = "Fetch the pinned Foundry gate scripts into a cache dir (de-vendor
 run = '''
 set -eu
 dst="$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF"
-scripts="foundry-verb-wrap"
+scripts="foundry-verb-wrap foundry-flaky"
 need=""
 for s in $scripts; do [ -f "$dst/$s" ] || need="$need $s"; done
 [ -z "$need" ] && exit 0

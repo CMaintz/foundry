@@ -6,7 +6,7 @@
 java = "21" # Kotlin compiles on the JVM; pin to what the repo targets
 
 [env]
-# The Foundry gate scripts (foundry-verb-wrap) are provisioned by setup:foundry-scripts
+# The Foundry gate scripts (foundry-verb-wrap, foundry-flaky) are provisioned by setup:foundry-scripts
 # into a cache dir at this ref, not vendored (see that task). Renovate tracks the pin via
 # the comment above it.
 # renovate: datasource=github-tags depName=CMaintz/foundry
@@ -55,7 +55,7 @@ description = "Fetch the pinned Foundry gate scripts into a cache dir (de-vendor
 run = '''
 set -eu
 dst="$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF"
-scripts="foundry-verb-wrap"
+scripts="foundry-verb-wrap foundry-flaky"
 need=""
 for s in $scripts; do [ -f "$dst/$s" ] || need="$need $s"; done
 [ -z "$need" ] && exit 0
@@ -88,6 +88,24 @@ run = "./gradlew compileKotlin"
 [tasks.test]
 description = "Tests (wire a coverage floor via kover or jacoco)"
 run = "./gradlew test"
+
+[tasks."test:flaky"]
+description = "Tests, with quarantined flakes reported but not gating (flaky-baseline.json)"
+# foundry-flaky is a python3 script, so this opt-in task needs python3 on PATH - the rest of
+# the Kotlin gate does not.
+run = '''
+set -eu
+dir="build/test-results/test"
+# Clear stale per-class XML first: `|| true` swallows a compile failure, and Gradle leaves
+# old files behind, so stale XML could otherwise pass the glob and gate green on old results.
+rm -rf "$dir"
+./gradlew test || true
+if ! ls "$dir"/*.xml >/dev/null 2>&1; then
+  echo "test:flaky: no JUnit XML under $dir - the suite did not run (compile error?)." >&2
+  exit 1
+fi
+foundry-flaky gate "$dir" flaky-baseline.json
+'''
 
 [tasks.audit]
 description = "Dependency CVEs via osv-scanner over a Gradle lockfile (needs osv-scanner on PATH)"

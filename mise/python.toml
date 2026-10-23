@@ -58,7 +58,7 @@ IMPORT_LINTER_VERSION = "2.15"
 # Coverage floor for `test`. Override per repo (a legacy repo can start lower and
 # ratchet up); CI inherits whatever you set here.
 FOUNDRY_COV_MIN = "90"
-# The Foundry gate scripts (foundry-verb-wrap) are provisioned by setup:foundry-scripts
+# The Foundry gate scripts (foundry-verb-wrap, foundry-flaky) are provisioned by setup:foundry-scripts
 # into a cache dir at this ref, not vendored (see that task). Renovate tracks the pin via
 # the comment above it.
 # renovate: datasource=github-tags depName=CMaintz/foundry
@@ -259,6 +259,18 @@ description = "Tests with a coverage floor (default 90; override FOUNDRY_COV_MIN
 # pytest skips .venv by default (norecursedirs covers dot-dirs).
 run = "pytest --cov --cov-fail-under=${FOUNDRY_COV_MIN:-90}"
 
+[tasks."test:flaky"]
+description = "Tests, with quarantined flakes reported but not gating (flaky-baseline.json)"
+run = '''
+set -eu
+mkdir -p .foundry
+rep=".foundry/pytest-junit.xml"
+rm -f "$rep"
+pytest --cov --cov-fail-under=${FOUNDRY_COV_MIN:-90} --junit-xml="$rep" || true
+[ -f "$rep" ] || { echo "test:flaky: no JUnit report at $rep - the suite did not run (collection error?); not gating on absent results." >&2; exit 1; }
+foundry-flaky gate "$rep" flaky-baseline.json
+'''
+
 [tasks.audit]
 description = "Dependency vulnerabilities (pip-audit over the project .venv)"
 # --skip-editable: do not audit the editable project itself (it has no release to match);
@@ -275,7 +287,7 @@ description = "Fetch the pinned Foundry gate scripts into a cache dir (de-vendor
 run = '''
 set -eu
 dst="$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF"
-scripts="foundry-verb-wrap"
+scripts="foundry-verb-wrap foundry-flaky"
 need=""
 for s in $scripts; do [ -f "$dst/$s" ] || need="$need $s"; done
 [ -z "$need" ] && exit 0
