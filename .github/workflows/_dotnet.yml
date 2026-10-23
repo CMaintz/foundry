@@ -17,7 +17,7 @@ on:
     inputs:
       mise_version:
         type: string
-        default: "2026.9.3"
+        default: "2026.9.4"
       working_directory:
         description: Directory containing mise.toml and the solution/project + .habit-hooks/.
         type: string
@@ -59,7 +59,7 @@ jobs:
       # BEFORE mise-action so `mise install` can create it. The cache key reads the workflow
       # input; the venv PATH in mise.toml reads HABIT_HOOKS_VERSION ([env]) - they default
       # equal and are both Renovate-managed, so a mismatch is a cache miss, not a wrong version.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - name: Cache habit-hooks
@@ -67,7 +67,7 @@ jobs:
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
         with:
           version: ${{ inputs.mise_version }}
           cache: true
@@ -155,7 +155,7 @@ jobs:
       # Python for the habit-hooks venv comes from setup-python (the dotnet mise.toml does not
       # pin python as a tool, unlike the python stack); cache the venv on the same key as the
       # gate job so it doesn't rebuild each run.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - name: Cache habit-hooks
@@ -163,7 +163,7 @@ jobs:
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
         with:
           version: ${{ inputs.mise_version }}
           cache: true

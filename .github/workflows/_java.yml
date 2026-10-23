@@ -21,7 +21,7 @@ on:
     inputs:
       mise_version:
         type: string
-        default: "2026.9.3"
+        default: "2026.9.4"
       working_directory:
         description: Directory containing mise.toml, gradlew and .habit-hooks/.
         type: string
@@ -53,7 +53,7 @@ on:
         default: false
       osv_scanner_version:
         type: string
-        default: "2.6.0"
+        default: "2.7.0"
       pmd_version:
         type: string
         default: "7.28.0"
@@ -85,7 +85,7 @@ jobs:
       # setup:habit-hooks postinstall no-ops on a hit. The cache key reads the workflow
       # input; the venv PATH in mise.toml reads HABIT_HOOKS_VERSION ([env]) - they default
       # equal and are both Renovate-managed, so a mismatch is a cache miss, not a wrong version.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - name: Cache habit-hooks
@@ -93,7 +93,7 @@ jobs:
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
         with:
           version: ${{ inputs.mise_version }}
           cache: true
@@ -194,11 +194,11 @@ jobs:
             echo "have=false" >> "$GITHUB_OUTPUT"
           fi
       # Python BEFORE mise-action so the mise setup:habit-hooks postinstall can build its venv.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         if: steps.baseline.outputs.have == 'true'
         with:
           python-version: '3.12'
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
         if: steps.baseline.outputs.have == 'true'
         with:
           version: ${{ inputs.mise_version }}
@@ -272,10 +272,10 @@ jobs:
       # Python before mise-action: `mise install` runs the setup:habit-hooks postinstall,
       # which builds a venv even though SpotBugs doesn't use it. Giving it a venv-capable
       # Python keeps that provisioning from failing the job.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
         with:
           version: ${{ inputs.mise_version }}
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0

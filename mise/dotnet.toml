@@ -27,7 +27,7 @@ HABIT_HOOKS_PLUGIN = "foundry-habit-hooks-dotnet"
 # into a cache dir at this ref, not vendored (see that task). Renovate tracks the pin via
 # the comment above it.
 # renovate: datasource=github-tags depName=CMaintz/foundry
-FOUNDRY_SCRIPTS_REF = "v2.11.1"
+FOUNDRY_SCRIPTS_REF = "v2.12.0"
 # The habit-hooks venv bin on PATH (Linux `bin/`, Windows `Scripts/` - a missing one is
 # harmless), the Foundry gate scripts cache (so the gate runs `foundry-verb-wrap` by name),
 # then the repo's scripts/.
