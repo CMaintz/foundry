@@ -68,7 +68,7 @@ Skills are reusable playbooks the agent loads when the task matches. My own set 
 
 ### Codemap: a verified picture of the codebase
 
-Without it, every session starts by re-reading the repo and guessing. The `codemap` skill writes a committed map instead, under `docs/codemap/`: an `INDEX.md`, one file per domain slice, and three lens files for the data model, integrations, and runtime and deploy. A deterministic census script lists manifests, entry points, schemas, env vars, churn and files that change together, and proposes slices from the directory layout and co-change. I confirm or edit the slice plan before any agent starts. Then one fresh agent per slice, plus one per lens, traces the main flows from entry point to persistence to side effects. Every claim must cite a file or `file#Symbol`, and anything it can't confirm becomes a question under "Unknowns". A verifier checks that every citation resolves and spot-checks at least five claims per file. Nothing is written until it passes, and a refuted claim is fixed or turned into a question. Each file is stamped with the commit it was checked against, and `codemap refresh` re-audits only the slices whose cited files changed since that stamp. The map describes and never judges: smells and risks belong to `repo-align` and `hotspot-rec`. It lands as its own docs PR through `ship`.
+Without it, every session starts by re-reading the repo and guessing. The `codemap` skill writes a committed map instead, under `docs/codemap/`: an `INDEX.md`, one file per domain slice, and three lens files for the data model, integrations, and runtime and deploy. A deterministic census script lists manifests, entry points, schemas, env vars, churn and files that change together, and proposes slices from the directory layout and co-change. I confirm or edit the slice plan before any agent starts. Then one fresh agent per slice, plus one per lens, traces the main flows from entry point to persistence to side effects. Every claim must cite a file or `file#Symbol`, and anything it can't confirm becomes a question under "Unknowns". A verifier checks that every citation resolves and spot-checks at least five claims per file. Nothing is written until it passes, and a refuted claim is fixed or turned into a question. Each file is stamped with the commit it was checked against, and `codemap refresh` re-audits only the slices whose cited files changed since that stamp. On the Foundry side, `mise run codemap:check` confirms every citation in the map still resolves and prints how many commits each slice has fallen behind. It is advisory and deliberately kept out of the gate, so a drifting map warns rather than blocks. The map describes and never judges: smells and risks belong to `repo-align` and `hotspot-rec`. It lands as its own docs PR through `ship`.
 
 The delivery skills read it. `spec` draws pointers from slice citations, edge-case questions from the traced side effects, and the scope-out from neighbouring slices. `feature` reads the slices its pointers touch before coding, and warns when a slice's cited files changed since its stamp, so the code wins over a stale map. `review` asks a question whenever a diff reaches into a slice the ticket never mentioned. In a repo without a codemap, all three skip this step.
 
@@ -498,6 +498,18 @@ Public scores move by several points with the harness alone (one report shows th
 - **On a schedule:** weekly against the current model and harness, to catch drift when a model or tool updates underneath you.
 - **In production:** the real eval is delivery. Track change failure rate, reverted PRs, review rework and escaped defects for agent-authored PRs versus human ones. If the suite improves and these don't, the suite is measuring the wrong thing.
 
+## Recommended watching and reading
+
+If you only have an hour or two, start here. These shaped more of my thinking than anything else in the list below.
+
+- **Birgitta Böckeler, [Harness Engineering for Coding Agent Users](https://martinfowler.com/articles/harness-engineering.html)** (martinfowler.com, 2 April 2026). The clearest map of the territory I've found. Her split between guides, which steer the agent before it acts, and sensors, which catch it afterwards, plus computational versus inferential checks, is the vocabulary I use to decide where every rule in my setup lives. If you read one thing, read this.
+- **Birgitta Böckeler, [Harness Engineering: first thoughts](https://www.martinfowler.com/articles/exploring-gen-ai/harness-engineering-memo.html)** (martinfowler.com, 17 February 2026). The short memo where she first sketched the idea. Worth reading to see the thinking before it settled into the longer article.
+- **Kent Beck, [Features vs. Futures: Software Design in the Age of AI](https://www.youtube.com/watch?v=K7Z8Wa83Wgo)** (ShipSummit, 17 April 2026). Kent on why codebases rot faster than ever when you let the genie run unchecked: every feature spends some future optionality, and the real engineering happens in the small, deliberate steps between features that buy it back. It's the best argument I know for why my ratchets and tidy-up PRs exist.
+- **Dave Farley, [Vibe Coding Is The WORST IDEA Of 2025](https://www.youtube.com/watch?v=1A6uPztchXk)** (Modern Software Engineering). Dave at his bluntest. Natural language is too ambiguous to program in, and AI speeds up the easy part, typing code, while making the hard parts, specifying and verifying, harder. This is the diagnosis behind my acceptance-tests-as-contract section.
+- **Dave Farley, [The Industry Is Catching Up: The Only Way to Generate AI Code That Works](https://www.youtube.com/watch?v=EkH_uoybj8k)** (Modern Software Engineering). The follow-up, and the one I'd watch first. Prompts fail, markdown specs drift, so the specification has to be executable. He walks through the rest of the industry arriving where he's been for decades, and it's exactly where I'm taking my own loop.
+- **Dave Farley on the Hangar DX podcast, [Engineering Discipline in the AI Era](https://aviator.co/podcast/engineering-discipline-dave-farley)** (12 February 2026). A longer, calmer conversation. His point that AI amplifies whatever team you already are, so good teams get better and weak teams build worse software faster, matches what DORA found, and it's why I built the gate before I let the agents loose.
+- **InfoQ, [Automated Acceptance Testing Supports Continuous Delivery](https://www.infoq.com/news/2017/04/acceptance-testing-delivery)** (28 April 2017). Farley again, from long before any of this, with still the best one-line definition I know: "A good acceptance test is an executable specification of the behaviour of the system." AI didn't change that. It just made it urgent.
+
 ## Sources
 
 My own systems:
@@ -513,8 +525,6 @@ Built on:
 
 Industry research:
 
-- Birgitta Böckeler, [Harness Engineering for Coding Agent Users](https://martinfowler.com/articles/harness-engineering.html), martinfowler.com, 2 April 2026
-- Birgitta Böckeler, [Harness Engineering: first thoughts](https://www.martinfowler.com/articles/exploring-gen-ai/harness-engineering-memo.html), martinfowler.com, 17 February 2026
 - InfoQ, [OpenAI's harness engineering with Codex](https://www.infoq.com/news/2026/02/openai-harness-engineering-codex), February 2026 (summary of [OpenAI's post](https://openai.com/index/harness-engineering/))
 - Anthropic, [Best practices for Claude Code](https://code.claude.com/docs/en/best-practices)
 - Google DORA, [State of AI-assisted Software Development 2025](https://dora.dev/dora-report-2025/), with the [InfoQ summary](https://www.infoq.com/news/2025/09/dora-state-of-ai-in-dev-2025)
@@ -529,9 +539,6 @@ Evaluation:
 Implementing and testing harness elements:
 
 - Mitchell Hashimoto, [My AI Adoption Journey](https://mitchellh.com/writing/my-ai-adoption-journey), 5 February 2026 (step 5, "Engineer the Harness")
-- Kent Beck, [Features vs. Futures: Software Design in the Age of AI](https://www.youtube.com/watch?v=K7Z8Wa83Wgo), ShipSummit (Rise8), 17 April 2026
-- Dave Farley, [Vibe Coding Is The WORST IDEA Of 2025](https://www.youtube.com/watch?v=1A6uPztchXk), Modern Software Engineering (YouTube)
-- InfoQ, [Automated Acceptance Testing Supports Continuous Delivery](https://www.infoq.com/news/2017/04/acceptance-testing-delivery), 28 April 2017 (Farley: "A good acceptance test is an executable specification of the behaviour of the system")
 - Anthropic, [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents), 19 December 2024
 - Anthropic, [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents), 29 September 2025
 - Simon Willison, [Designing agentic loops](https://simonwillison.net/2025/Sep/30/designing-agentic-loops/), 30 September 2025
