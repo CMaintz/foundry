@@ -31,6 +31,15 @@
     },
     {
       "customType": "regex",
+      "description": "mise CLI version pinned directly on a jdx/mise-action step (self-gate.yml), kept in step with the mise_version defaults above. Only comment lines may sit between `with:` and `version:`, so the match can't run on into a later step.",
+      "fileMatch": ["^\\.github/workflows/.*\\.ya?ml$"],
+      "matchStrings": ["jdx/mise-action@[^\\n]*\\n\\s+with:\\n(?:\\s+#[^\\n]*\\n)*\\s+version:\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "jdx/mise",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
       "description": "habit-hooks version pinned as a default in the reusable workflows (core and plugins release in lockstep)",
       "fileMatch": ["^\\.github/workflows/.*\\.ya?ml$"],
       "matchStrings": ["habit_hooks_version:[\\s\\S]*?default:\\s*\"(?<currentValue>[^\"]+)\""],

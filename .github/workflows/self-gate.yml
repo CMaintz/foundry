@@ -22,6 +22,6 @@ jobs:
         with:
           # Pin the mise CLI too, or the action resolves "latest" and can 404 on an
           # unpublished release.
-          version: "2026.9.4" # keep == the reusable workflows' mise_version default
+          version: "2026.9.4" # Renovate bumps this with the mise_version defaults
           cache: true
       - run: mise run gate
