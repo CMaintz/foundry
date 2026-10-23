@@ -268,7 +268,12 @@ In a serverless codebase much of what breaks lives outside the function body: ev
 
 ### Environments
 
-The gate is the same in every environment; each one only adds a more realistic sensor, from local tests to a real deployed stack to a production-like staging. Agents can deploy to a sandbox and no further: everything past that goes through the pipeline. The interesting one is the per-PR preview stack, because that is where the Given-When-Then acceptance tests finally run against a deployed system. And a defect that escapes to staging or production goes back through `learn` as a regression test and, where possible, a new check.
+The gate is the same everywhere; each environment adds a more realistic check, and the agent's reach stops partway.
+
+- **Local:** the gate and fast tests. This is the agent's inner loop.
+- **Sandbox stack:** the first real-AWS feedback, and the furthest an agent can deploy.
+- **PR preview:** the Given-When-Then acceptance tests run against a deployed system. This is the check that proves the ticket was done, not just that the code is clean.
+- **Staging and production:** the pipeline only. Anything that escapes here comes back through `learn` as a new test or check.
 
 ### Where a team needs more than a solo setup
 
