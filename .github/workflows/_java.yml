@@ -166,7 +166,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Publish test report
         if: always() # a failing run is exactly when the report is worth having
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: java-test-report
           path: ${{ inputs.working_directory }}/build/reports/tests/test
