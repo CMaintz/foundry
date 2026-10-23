@@ -1,0 +1,139 @@
+<!doctype html>
+<!--
+  Source of docs/readme-visual.png. Palette and type follow the maintz.dev brand
+  (cmaintz-site global.css). Render at 2x so it stays crisp at README width:
+  msedge --headless=new --hide-scrollbars --window-size=1760,880 --virtual-time-budget=8000
+    --screenshot=docs/readme-visual.png file:///<abs path>/docs/readme-visual.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Foundry readme visual</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;800&family=JetBrains+Mono:wght@500;600&family=Silkscreen&display=block">
+<style>
+  :root {
+    --bg: #121212; --bg-2: #1b1b1b; --bg-3: #242424; --fg: #f2f0ea; --fg-dim: #a9a79f; --fg-faint: #6d6b66;
+    --line: #3a3a38; --edge: #4a4a47; --accent: #f386a1; --accent-2: #2cc9bb; --accent-3: #d45bb6; --ok: #3ddc84;
+    --glow: 0 0 22px rgb(243 134 161 / 0.4);
+    --sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --mono: "JetBrains Mono", "Cascadia Code", monospace;
+    --pixel: "Silkscreen", "JetBrains Mono", monospace;
+  }
+  html, body { margin: 0; background: var(--bg); }
+  .canvas { position: relative; width: 1760px; height: 880px; overflow: hidden; background: var(--bg); color: var(--fg); font-family: var(--sans); }
+  .dots { position: absolute; inset: 0; image-rendering: pixelated; width: 100%; height: 100%; opacity: 0.55;
+    mask-image: linear-gradient(90deg, #000 0%, transparent 9%, transparent 91%, #000 100%); }
+  .win { position: absolute; left: 70px; top: 44px; width: 1620px; height: 784px; box-sizing: border-box;
+    background: var(--bg-2); border: 2px solid var(--edge); box-shadow: 10px 10px 0 #000; }
+  .bar { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 16px; border-bottom: 2px solid var(--edge);
+    background: repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px 4px) center / calc(100% - 32px) 14px no-repeat, var(--bg-3);
+    font: 400 20px/1 var(--pixel); text-transform: uppercase; letter-spacing: 0.06em; }
+  .bar i { width: 16px; height: 16px; border: 2px solid var(--fg-dim); box-sizing: border-box; }
+  .bar i:first-child { background: var(--accent); border-color: var(--accent); }
+  .bar span { margin: 0 auto; padding: 0 12px; background: var(--bg-3); }
+  .body { padding: 34px 56px 0; }
+  .label { font: 600 28px/1 var(--mono); color: var(--fg-dim); }
+  .label b, .cmd b { color: var(--accent); font-weight: 600; }
+  h1 { margin: 18px 0 0; font-size: 72px; line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; text-transform: uppercase; }
+  .pink { color: var(--accent); text-shadow: var(--glow); }
+  .teal { color: var(--accent-2); }
+
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; margin-top: 40px; }
+  .card { position: relative; border: 2px solid var(--edge); background: var(--bg); padding: 22px 26px 24px; }
+  .card .n { font: 400 20px/1 var(--pixel); color: var(--accent); letter-spacing: 0.06em; }
+  .card h2 { margin: 10px 0 4px; font-size: 40px; font-weight: 800; letter-spacing: -0.02em; }
+  .card .when { font: 500 23px/1.3 var(--mono); color: var(--fg-dim); }
+  .card ul { list-style: none; margin: 18px 0 0; padding: 16px 0 0; border-top: 2px dashed var(--line); }
+  .card li { font: 500 23px/1.55 var(--mono); color: var(--fg); white-space: nowrap; }
+  .card li::before { content: "> "; color: var(--accent-2); }
+  .card .to { margin-top: 14px; font: 600 24px/1.2 var(--sans); color: var(--fg-dim); }
+  .card .to strong { color: var(--fg); font-weight: 800; }
+  .card:not(:last-child)::after { content: ""; position: absolute; right: -30px; top: 50%; width: 26px; height: 2px; background: var(--accent); }
+
+  .gate { margin-top: 36px; display: flex; align-items: center; gap: 22px; padding: 22px 26px; border: 2px solid var(--accent); background: var(--bg); }
+  .cmd { font: 600 32px/1 var(--mono); white-space: nowrap; }
+  .verbs { display: flex; gap: 12px; }
+  .verb { font: 600 24px/1 var(--mono); padding: 10px 14px; border: 2px solid var(--edge); background: var(--bg-3); white-space: nowrap; }
+  .verb::before { content: "\2713  "; color: var(--ok); }
+  .gate .note { margin-left: auto; text-align: right; font: 600 23px/1.35 var(--sans); color: var(--fg-dim); }
+  .gate .note strong { color: var(--fg); font-weight: 800; }
+  .site { position: absolute; right: 86px; bottom: 14px; font: 600 26px/1 var(--mono); color: var(--fg-dim); }
+  .site::after { content: "\258C"; color: var(--accent); margin-left: 2px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <canvas class="dots" id="dots"></canvas>
+  <div class="win">
+    <div class="bar"><i></i><i></i><i></i><span>~/foundry</span></div>
+    <div class="body">
+      <div class="label"><b>&gt;</b> fix · lint · typecheck · test · audit · gate</div>
+      <h1>One rule set. <span class="pink">Three placements.</span></h1>
+
+      <div class="cols">
+        <div class="card">
+          <div class="n">01 / in-loop</div>
+          <h2>While the agent edits</h2>
+          <div class="when">Claude Code hooks</div>
+          <ul>
+            <li>format the file just written</li>
+            <li>smells + types, once per turn</li>
+            <li>coaching goes to the agent</li>
+          </ul>
+          <div class="to">Feedback to <strong>the agent, mid-task</strong></div>
+        </div>
+        <div class="card">
+          <div class="n">02 / pre-push</div>
+          <h2>Before code leaves</h2>
+          <div class="when">/foundry:ship or git pre-push</div>
+          <ul>
+            <li>mise run gate must exit 0</li>
+            <li>red gate: no push, no PR</li>
+            <li>same checks as CI</li>
+          </ul>
+          <div class="to">Feedback to <strong>you</strong></div>
+        </div>
+        <div class="card">
+          <div class="n">03 / ci</div>
+          <h2>On the pull request</h2>
+          <div class="when">gate.yml + security.yml</div>
+          <ul>
+            <li>the same six verbs</li>
+            <li>secrets, SAST, ruleset-guard</li>
+            <li>required check: gate-ok</li>
+          </ul>
+          <div class="to">Feedback to <strong>the permanent record</strong></div>
+        </div>
+      </div>
+
+      <div class="gate">
+        <div class="cmd"><b>$</b> mise run gate</div>
+        <div class="verbs"><span class="verb">lint</span><span class="verb">typecheck</span><span class="verb">test</span><span class="verb">audit</span></div>
+        <div class="note">The exit code decides.<br><strong>Baselines shrink, never grow.</strong></div>
+      </div>
+    </div>
+  </div>
+  <div class="site">maintz.dev</div>
+</div>
+<script>
+  // Ordered-dither plasma, the same field the LinkedIn banners use, kept to the edges.
+  const CELL = 8, T = 3.2, W = 1760, H = 880;
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((n) => (n + 0.5) / 16);
+  const PALETTE = [[243, 134, 161], [212, 91, 182], [44, 201, 187]];
+  const c = document.getElementById("dots"), cols = Math.ceil(W / CELL), rows = Math.ceil(H / CELL);
+  c.width = cols; c.height = rows;
+  const ctx = c.getContext("2d"), img = ctx.createImageData(cols, rows);
+  const plasma = (x, y, cx, cy) => {
+    const dx = x - cx, dy = (y - cy) * 1.6;
+    return (Math.sin(x * 0.075 + T * 0.6) + Math.sin(y * 0.11 - T * 0.45) + Math.sin((x + y) * 0.045 + T * 0.35) + Math.sin(Math.hypot(dx, dy) * 0.16 - T * 1.1) + 4) / 8;
+  };
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const level = Math.max(plasma(x, y, cols * 0.05, rows * 0.3), plasma(x, y, cols * 0.95, rows * 0.7));
+    if (level <= 0.55 + BAYER[(y & 3) * 4 + (x & 3)] * 0.36) continue;
+    const tier = level > 0.76 ? 0 : level > 0.66 ? 1 : 2;
+    img.data.set([...PALETTE[tier], 230], (y * cols + x) * 4);
+  }
+  ctx.putImageData(img, 0, 0);
+</script>
+</body>
+</html>
