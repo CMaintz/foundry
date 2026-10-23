@@ -6,6 +6,16 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.13.0](https://github.com/CMaintz/foundry/compare/v2.12.0...v2.13.0) (2026-10-23)
+
+### Features
+
+* add an advisory codemap:check task (763b10f)
+* let the gate run Jev's own tests but never call Jev (71829f6)
+* add a Definition of Done field to the ticket schema (d281c58)
+* wire test:flaky into python/php/kotlin/dotnet (45ce345)
+* check Prettier formatting in lint (8e5ff97)
+
 ## [2.12.0](https://github.com/CMaintz/foundry/compare/v2.11.1...v2.12.0) (2026-10-20)
 
 ### Features
