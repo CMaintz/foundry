@@ -266,19 +266,7 @@ My setup grew around one person working across many stacks. A team on TypeScript
 
 ### Environments
 
-The gate is the same everywhere; each environment adds a more realistic sensor, and the agent's reach ends where the risk begins.
-
-| Environment            | What runs there                                                                                        | Who can deploy              |
-| ---------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------- |
-| Local                  | the gate, unit tests, DynamoDB Local                                                                   | developer and agent         |
-| Personal sandbox stack | the developer's or agent's own copy in a sandbox account, for real AWS feedback while building         | developer and agent         |
-| PR preview             | an ephemeral stack per PR; the Given-When-Then acceptance tests run against it, then it is torn down   | the pipeline                |
-| Staging                | long-lived and production-like; deploys on merge, reruns the acceptance suite and smoke tests          | the pipeline                |
-| Production             | the same build artefact promoted from staging after human approval, with alarms and automatic rollback | the pipeline, with approval |
-
-The PR preview is where Farley's argument gets a proper runner: unit tests prove the logic, and the acceptance suite proves the deployed system does what the ticket asked. Build once and promote the same artefact, with configuration per environment rather than per branch. An escaped defect in staging or production goes back through `learn` as a regression test and, where possible, a new check.
-
-Credentials follow the same rule as the gate: no long-lived keys. CI assumes short-lived, least-privilege roles through OIDC, agents only ever get the sandbox account, and a hook denies any deploy aimed anywhere else.
+The gate is the same in every environment; each one only adds a more realistic sensor, from local tests to a real stack in a sandbox account to a production-like staging. Agents can deploy to their own sandbox and no further: everything past that goes through the pipeline, on short-lived credentials. The interesting one is the per-PR preview stack, because that is where the Given-When-Then acceptance tests finally run against a deployed system. And a defect that escapes to staging or production goes back through `learn` as a regression test and, where possible, a new check.
 
 ### Where a team needs more than a solo setup
 
