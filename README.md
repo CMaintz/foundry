@@ -208,8 +208,8 @@ bash scripts/cut-release.sh minor      # or major | patch | X.Y.Z  (--dry-run to
 
 It reads the current version from the latest tag (the only source of truth), builds
 the `CHANGELOG` section from the conventional commits since that tag, points every
-template's `FOUNDRY_SCRIPTS_REF` at the new tag (so a repo scaffolded at the tag fetches
-that tag's scripts), tags + pushes,
+template's `FOUNDRY_SCRIPTS_REF` and script sha256 lines at the new tag (so a repo
+scaffolded at the tag fetches and verifies that tag's scripts), tags + pushes,
 creates the GitHub release, and advances the `vX` alias - deterministically, in one
 auditable step. It **refuses** a non-major bump when it sees a breaking commit, so
 semver can't silently slip. (This replaced release-please, whose separate manifest

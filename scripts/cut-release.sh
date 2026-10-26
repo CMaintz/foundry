@@ -13,7 +13,8 @@
 #   2. builds a CHANGELOG section from conventional commits since that tag
 #      (grouped feat/fix/other; BREAKING flagged) - only lastTag..HEAD, so the
 #      rewritten-history duplicates release-please produced can't recur,
-#   3. points FOUNDRY_SCRIPTS_REF in every mise/*.toml at vX.Y.Z,
+#   3. points FOUNDRY_SCRIPTS_REF and the script sha256 lines in every
+#      mise/*.toml at vX.Y.Z,
 #   4. commits the CHANGELOG bump and the pins, tags vX.Y.Z, pushes both,
 #   5. creates the GitHub release,
 #   6. advances the floating major alias vN -> vX.Y.Z.
@@ -91,15 +92,29 @@ insert_changelog() { # <section-file>
   ' CHANGELOG.md > CHANGELOG.md.new && mv CHANGELOG.md.new CHANGELOG.md
 }
 
+sha256_stdin() { if command -v sha256sum > /dev/null 2>&1; then sha256sum; else shasum -a 256; fi | cut -d' ' -f1; }
+
 # The templates at a tag must fetch their scripts from that same tag: pinning the previous
 # one 404s on any script added since. The tag doesn't exist yet when this commit is made,
-# but it will point at this commit, so the pin resolves once the tag is pushed.
-pin_scripts_ref() { # <tag>
-  local f
+# but it will point at this commit, so the pin resolves once the tag is pushed. The
+# "<script> <sha256>" lines setup:foundry-scripts verifies against are rewritten from the
+# committed blobs, not the working tree, so they match what raw.githubusercontent serves
+# whatever the local checkout's line endings.
+pin_foundry_scripts() { # <tag>
+  local f path map
+  map=$(mktemp)
+  git ls-tree HEAD scripts/ | awk '$2 == "blob" { sub(/^[^\t]*\t/, ""); print }' | while read -r path; do
+    printf '%s %s\n' "${path#scripts/}" "$(git cat-file blob "HEAD:$path" | sha256_stdin)"
+  done > "$map"
   for f in mise/*.toml; do
-    awk -v tag="$1" '/^FOUNDRY_SCRIPTS_REF = "[^"]*"$/ { $0 = "FOUNDRY_SCRIPTS_REF = \"" tag "\"" } { print }' \
-      "$f" > "$f.new" && mv "$f.new" "$f"
+    # The [0-9a-f]+ plus length check stands in for {64}: not every awk supports intervals.
+    awk -v tag="$1" '
+      NR == FNR { d[$1] = $2; next }
+      /^FOUNDRY_SCRIPTS_REF = "[^"]*"$/ { $0 = "FOUNDRY_SCRIPTS_REF = \"" tag "\"" }
+      NF == 2 && $2 ~ /^[0-9a-f]+$/ && length($2) == 64 && ($1 in d) { $0 = $1 " " d[$1] }
+      { print }' "$map" "$f" > "$f.new" && mv "$f.new" "$f"
   done
+  rm -f "$map"
 }
 
 main() {
@@ -120,7 +135,7 @@ main() {
   echo "--- CHANGELOG section ---"; sed 's/^/  /' /tmp/cut-release-section.md
 
   run "insert_changelog /tmp/cut-release-section.md"
-  run "pin_scripts_ref '$tag'"
+  run "pin_foundry_scripts '$tag'"
   run "git add CHANGELOG.md mise/*.toml"
   run "git commit -m 'chore(release): $tag'"
   run "git tag '$tag'"
