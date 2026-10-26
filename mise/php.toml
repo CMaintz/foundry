@@ -3,6 +3,7 @@
 
 [tools]
 php = "8.3"
+gitleaks = "8.24.3" # audit's secret scan
 
 [env]
 # habit-hooks (the structural-smell detector) is a pinned, mise-managed pip tool,
@@ -136,8 +137,32 @@ description = "Advisory: codemap citations still resolve, and how stale each sli
 run = "codemap-check"
 
 [tasks.audit]
-description = "Dependency vulnerabilities"
-run = "composer audit"
+description = "Dependency vulnerabilities and secrets (gitleaks)"
+# The secret scan covers the working tree as git sees it (tracked and untracked files,
+# minus .gitignore'd ones), so a key is caught before it is committed. It copies that
+# tree out through a throwaway index rather than running `gitleaks dir .` directly,
+# which would also read ignored dependency trees (.venv, vendor/, build output) whose
+# bundled example keys fail the gate on day one. The repo-root .gitleaks.toml is passed
+# explicitly because a package-level mise.toml runs from the package dir, where gitleaks
+# would not find it. SAST stays in CI (security.yml).
+run = [
+    "composer audit",
+    '''
+set -eu
+root=$(git rev-parse --show-toplevel)
+prefix=$(git rev-parse --show-prefix)
+set --
+if [ -f "$root/.gitleaks.toml" ]; then set -- --config "$root/.gitleaks.toml"; fi
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+idx=$(git rev-parse --git-path index)
+if [ -f "$idx" ]; then cp "$idx" "$tmp/index"; fi
+GIT_INDEX_FILE="$tmp/index" git -c core.safecrlf=false add -A -- .
+GIT_INDEX_FILE="$tmp/index" git checkout-index -a --prefix="$tmp/tree/"
+cd "$tmp/tree/$prefix"
+gitleaks dir --no-banner --redact "$@" .
+''',
+]
 
 # Fetch the pinned Foundry scripts into a cache dir instead of copying them into the repo
 # (agent/CI plumbing, not the repo's code; a copy drifts and needs a re-sync on every bump).

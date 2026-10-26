@@ -4,6 +4,7 @@
 [tools]
 node = "22.14.0" # pin to whatever the repo actually uses
 # deno = "2.9.7"  # uncomment if the repo has Deno code (see FOUNDRY_DENO_PATHS below)
+gitleaks = "8.24.3" # audit's secret scan
 
 [env]
 # habit-hooks (structural-smell detector) is a pinned, mise-managed dependency, so the
@@ -267,7 +268,7 @@ exec vitest run --changed "$mb"
 '''
 
 [tasks.audit]
-description = "Dependency vulnerabilities. Local subset; CI security.yml adds gitleaks + SAST"
+description = "Dependency vulnerabilities and secrets (gitleaks). SAST runs in CI only (security.yml)"
 # Ratcheted npm audit: fails on any critical NOT in .audit-allowlist.json, and on stale
 # allowlist entries - so accepted CVE debt can only shrink, exactly like eslint
 # suppressions or the habit-hooks snooze baseline. npm audit has no native per-advisory
@@ -278,7 +279,31 @@ description = "Dependency vulnerabilities. Local subset; CI security.yml adds gi
 # setup:foundry-scripts; address it through $HOME in plain shell, NOT a mise `{{...}}`
 # template, because on Windows a templated path carries backslashes bash would strip.
 # The pipe hands the script npm's JSON so `npm` resolves in the shell.
-run = 'npm audit --json | node "$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF/npm-audit-ratchet.mjs" --level=critical --allowlist=.audit-allowlist.json'
+# The secret scan covers the working tree as git sees it (tracked and untracked files,
+# minus .gitignore'd ones), so a key is caught before it is committed. It copies that
+# tree out through a throwaway index rather than running `gitleaks dir .` directly,
+# which would also read ignored dependency trees (.venv, vendor/, build output) whose
+# bundled example keys fail the gate on day one. The repo-root .gitleaks.toml is passed
+# explicitly because a package-level mise.toml runs from the package dir, where gitleaks
+# would not find it. SAST stays in CI (security.yml).
+run = [
+    'npm audit --json | node "$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF/npm-audit-ratchet.mjs" --level=critical --allowlist=.audit-allowlist.json',
+    '''
+set -eu
+root=$(git rev-parse --show-toplevel)
+prefix=$(git rev-parse --show-prefix)
+set --
+if [ -f "$root/.gitleaks.toml" ]; then set -- --config "$root/.gitleaks.toml"; fi
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+idx=$(git rev-parse --git-path index)
+if [ -f "$idx" ]; then cp "$idx" "$tmp/index"; fi
+GIT_INDEX_FILE="$tmp/index" git -c core.safecrlf=false add -A -- .
+GIT_INDEX_FILE="$tmp/index" git checkout-index -a --prefix="$tmp/tree/"
+cd "$tmp/tree/$prefix"
+gitleaks dir --no-banner --redact "$@" .
+''',
+]
 
 # Architecture fitness (opt-in, tier-c auxiliary until you adopt it). Enforces YOUR
 # layer map + no cycles via dependency-cruiser (needs `dependency-cruiser` installed).
