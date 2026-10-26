@@ -151,6 +151,32 @@ jobs:
             exit 1
           fi
 
+      # A workflow that gains approve power (`pull-requests: write`, `gh pr review --approve`,
+      # an APPROVE review event, an auto-approve action) can satisfy a branch rule's required
+      # approval with no human. Checked on every PR: a workflow-only change never trips the
+      # bundled guard below. Only ruleset-change approves it - it is a gate-wiring decision,
+      # not an in-source suppression.
+      - name: Refuse workflows that gain PR-approve power
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          RULESET_LABEL: ${{ inputs.ruleset_label }}
+        run: |
+          set -euo pipefail
+          BASE=$(git merge-base "$BASE" "$HEAD")
+          # Fixed-string match (-F): a label name is never a regex.
+          if echo "$LABELS" | tr ',' '\n' | grep -qxF -e "$RULESET_LABEL"; then
+            echo "::notice::'$RULESET_LABEL' label present - allowing workflow approve changes."
+            exit 0
+          fi
+          if python3 .foundry/scripts/ruleset_guard.py workflow-approve "$BASE" "$HEAD"; then
+            echo "::notice::No workflow gained PR-approve power."
+          else
+            echo "::error::A workflow gains the power to approve PRs (listed above). Drop it, or add the '$RULESET_LABEL' label AND explain in the PR description why this job may approve."
+            exit 1
+          fi
+
       # The guard exists to stop a fixer WEAKENING the gate in the same change
       # that "fixes" it - the cheapest fix for a lint error is to disable the
       # rule. But the risk is asymmetric: *loosening* needs a human; *tightening*

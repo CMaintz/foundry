@@ -370,3 +370,45 @@ class TestTestDeletion:
         base = commit("@TestConfiguration\nclass FooTest {}\n", path="FooTest.java")
         head = commit("class FooTest {}\n", path="FooTest.java")
         assert run_cli(cwd, "tests", base, head).returncode == 0
+
+
+WF = ".github/workflows/ci.yml"
+WF_BASE = "jobs:\n  test:\n    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@aaaa\n"
+
+
+class TestWorkflowApprove:
+    @pytest.mark.parametrize(
+        ("added", "name"),
+        [
+            ("      pull-requests: " + "write\n", "workflow-pr-write"),
+            ("    permissions: write" + "-all\n", "workflow-pr-write"),
+            ("      - run: gh pr review --" + "approve \"$PR\"\n", "workflow-approve-cli"),
+            ("      - run: gh api repos/o/r/pulls/1/reviews -f event=" + "APPROVE\n", "workflow-approve-event"),
+            ("      - uses: hmarr/auto-" + "approve-action@bbbb\n", "workflow-approve-action"),
+        ],
+    )
+    def test_added_approve_capability_is_flagged(self, repo, added, name):
+        cwd, commit = repo
+        base = commit(WF_BASE, path=WF)
+        head = commit(WF_BASE + added, path=WF)
+        r = run_cli(cwd, "workflow-approve", base, head)
+        assert r.returncode == 1 and name in r.stderr and WF in r.stderr
+
+    def test_an_action_sha_bump_is_safe(self, repo):
+        # Renovate rewrites the pin in place; the approve-capable line count is unchanged.
+        cwd, commit = repo
+        base = commit(WF_BASE + "      - uses: hmarr/auto-" + "approve-action@bbbb\n", path=WF)
+        head = commit(WF_BASE + "      - uses: hmarr/auto-" + "approve-action@cccc # v4\n", path=WF)
+        assert run_cli(cwd, "workflow-approve", base, head).returncode == 0
+
+    def test_a_commented_permission_is_not_a_grant(self, repo):
+        cwd, commit = repo
+        base = commit(WF_BASE, path=WF)
+        head = commit("#   permissions: { pull-requests: " + "write }\n" + WF_BASE, path=WF)
+        assert run_cli(cwd, "workflow-approve", base, head).returncode == 0
+
+    def test_only_workflow_files_are_scanned(self, repo):
+        cwd, commit = repo
+        base = commit("# docs\n", path="docs/ci.md")
+        head = commit("# docs\npull-requests: " + "write\n", path="docs/ci.md")
+        assert run_cli(cwd, "workflow-approve", base, head).returncode == 0
