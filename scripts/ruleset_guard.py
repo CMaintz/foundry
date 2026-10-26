@@ -7,9 +7,8 @@ are fine. This is what defeats the offset attack - fixing one violation while
 suppressing another nets zero on a summed count, but shows up here as an added
 entry.
 
-Canonical copy. Onboarded repos commit this at scripts/ruleset_guard.py so both
-the inline gate and foundry's reusable tier0.yml (which runs in the caller's
-checkout) can call it.
+Not vendored: foundry's reusable _guards.yml and ratchet-report.yml fetch this file
+from foundry at their own pinned ref and run it against the caller's checkout.
 
 Kinds:
   eslint  eslint-suppressions.json      (per file+rule count)
@@ -114,7 +113,11 @@ def _git_show(ref, path):
 
 # Never scan this script or its fixtures - they contain every directive by construction.
 _EXCLUDE = [":(exclude)scripts/ruleset_guard.py", ":(exclude)tests/test_ruleset_guard.py"]
-# Real source files (git pathspec globs match at any depth).
+# Plain git pathspecs match from the repo root and their `*` crosses `/`, so a leading
+# `*` (e.g. `*.ts`) matches at any depth. A pattern that must anchor on the file NAME
+# (`test_*.py`) uses `:(glob)**/`: `**/` is any depth and `*` stops at `/`, so it neither
+# misses `tests/test_x.py` nor matches `test_helpers/util.py`.
+# Real source files.
 CODE_PATHS = [
     "*.ts",
     "*.tsx",
@@ -133,7 +136,7 @@ CODE_PATHS = [
 # Gate-defining config files. A config-only PR that demotes a rule (severity = none,
 # "strict": false, <NoWarn>) never touches source_paths, so the bundled ruleset-guard
 # below never fires on it - this always-run scan is the only thing that catches it.
-CONFIG_PATHS = ["*.editorconfig", "*.csproj", "*.props", "tsconfig*.json", *_EXCLUDE]
+CONFIG_PATHS = ["*.editorconfig", "*.csproj", "*.props", ":(glob)**/tsconfig*.json", *_EXCLUDE]
 # Test files only. Test-SKIP directives (and the `tests` deletion count) are meaningful
 # ONLY here - scanning all source for `.skip(`/`xit(` false-matches app code (a paging
 # `.skip(`, `process.exit(` -> `xit(`), so those directives use this, not CODE_PATHS.
@@ -150,7 +153,7 @@ TEST_PATHS = [
     "*.spec.jsx",
     "*.spec.mjs",
     "*.spec.cjs",
-    "test_*.py",
+    ":(glob)**/test_*.py",
     "*_test.py",
     "*Test.java",
     "*Tests.java",
@@ -277,9 +280,9 @@ if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
     if kind not in _KINDS:
         sys.exit(
-            f"ruleset_guard: unknown kind {kind!r}. Overwrite your committed "
-            f"scripts/ruleset_guard.py with foundry's current copy - this workflow "
-            f"needs a newer guard (foundry-init skips files that already exist)."
+            f"ruleset_guard: unknown kind {kind!r}. The calling workflow and this "
+            f"script are out of step - pin the workflow to a foundry ref whose "
+            f"scripts/ruleset_guard.py knows this kind."
         )
     if kind in ("inline-count", "tests-count"):
         # Tree-wide total at one ref, for the ratchet report.

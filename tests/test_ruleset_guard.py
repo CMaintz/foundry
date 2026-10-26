@@ -116,6 +116,7 @@ def repo(tmp_path):
     git("config", "commit.gpgsign", "false")
 
     def commit(text, path="snooze.json"):
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / path).write_text(text)
         git("add", "-A")
         git("commit", "-qm", "c")
@@ -217,6 +218,21 @@ class TestInline:
         r = run_cli(cwd, "inline", base, head)
         assert r.returncode == 1 and "js-xit" in r.stderr
 
+    def test_skip_in_a_nested_pytest_file_is_caught(self, repo):
+        # The default pytest layout keeps test_*.py under tests/, not at the root.
+        cwd, commit = repo
+        base = commit("def test_a():\n    pass\n", path="tests/test_x.py")
+        head = commit("@pytest.mark." + "skip\ndef test_a():\n    pass\n", path="tests/test_x.py")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "tests/test_x.py" in r.stderr
+
+    def test_skip_rules_ignore_a_non_test_file_under_a_test_named_dir(self, repo):
+        # A glob whose `*` crossed `/` would treat test_helpers/util.py as a test file.
+        cwd, commit = repo
+        base = commit("x = 1\n", path="test_helpers/util.py")
+        head = commit("@unittest." + "skip\nx = 1\n", path="test_helpers/util.py")
+        assert run_cli(cwd, "inline", base, head).returncode == 0
+
     def test_noqa_in_python_is_caught(self, repo):
         cwd, commit = repo
         base = commit("x = 1\n", path="m.py")
@@ -251,6 +267,13 @@ class TestInlineConfig:
         head = commit('{ "compilerOptions": { "strict": false } }\n', path="tsconfig.json")
         r = run_cli(cwd, "inline", base, head)
         assert r.returncode == 1 and "tsconfig-unstrict" in r.stderr
+
+    def test_nested_tsconfig_unstrict_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit('{ "compilerOptions": { "strict": true } }\n', path="packages/a/tsconfig.json")
+        head = commit('{ "compilerOptions": { "strict": false } }\n', path="packages/a/tsconfig.json")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "packages/a/tsconfig.json" in r.stderr
 
     def test_csproj_nowarn_is_a_loosening(self, repo):
         cwd, commit = repo
@@ -291,6 +314,13 @@ class TestTestDeletion:
         base = commit(THREE, path="a.test.ts")
         head = commit("def test_x():\n    pass\n", path="b_test.py")
         assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_deleting_a_test_in_a_nested_pytest_file_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit("def test_a():\n    pass\ndef test_b():\n    pass\n", path="tests/test_x.py")
+        head = commit("def test_a():\n    pass\n", path="tests/test_x.py")
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 1 and "tests/test_x.py" in r.stderr
 
     def test_non_test_file_is_not_counted(self, repo):
         cwd, commit = repo

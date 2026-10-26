@@ -25,7 +25,7 @@ run = [
 ]
 
 [tasks.lint]
-description = "actionlint, shellcheck, typos, and ruff on the vendored ruleset guard"
+description = "actionlint, shellcheck, typos, and ruff on the ruleset guard"
 # Pinned to bash because mise's default inline shell on Windows is cmd, which neither
 # expands the globs nor honours the single quotes around actionlint's -ignore pattern.
 shell = "bash -c"
@@ -37,8 +37,8 @@ run = [
     # foundry-verb-wrap is an extensionless shell script that *.sh misses.
     "shellcheck scripts/*.sh tests/*.sh scripts/foundry-verb-wrap",
     "typos",
-    # ruleset_guard.py is vendored into every consumer and linted by their python gate with
-    # this preset, so keep it conformant here or the vendored copy drifts.
+    # ruleset_guard.py runs in every consumer's CI, so hold it to the ruff preset
+    # consumers get.
     "ruff format --check --config presets/lint/ruff.toml scripts/ruleset_guard.py",
     "ruff check --config presets/lint/ruff.toml scripts/ruleset_guard.py",
 ]
