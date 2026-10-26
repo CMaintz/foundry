@@ -32,8 +32,10 @@ against an installed habit-hooks 1.5.0 venv.
 smell returning) is the skill-side half, in cmaintz-skills, not here. `foundry-smells`
 joins each template's `setup:foundry-scripts` sha256 list at the next `FOUNDRY_SCRIPTS_REF`
 bump (it can't be pinned to a tag that predates it); until then consumers fall back to
-habit-hooks directly and emit no counts. python follows once its live habit-hooks branches
-land (same three-line change); kotlin has no habit-hooks smells task (detekt). The Stop
+habit-hooks directly and emit no counts. python's `smells` task is byte-identical and on the same
+habit-hooks, so it is the same three-line change - held back only to avoid colliding
+with the live `feat/python-habit-hooks` / `fix/python-smell-wiring` branches editing that
+same block, not for any technical reason; kotlin has no habit-hooks smells task (detekt). The Stop
 hook calls habit-hooks directly, not `foundry-verb-wrap`, so **in-loop rounds don't feed
 the trend** - emission is gate/pre-push/CI-fed, wherever `smells` runs under the wrapper.
 Also still: end-to-end run on a live `mise` project (no mise runtime in this env); `gh run`

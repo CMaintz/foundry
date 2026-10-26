@@ -27,9 +27,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Where in an issue its observation sits - mirrors habit_hooks.merged_findings
-# PLACE_FIELDS so two sensors reporting the same smell at the same place (e.g. a
-# line-count and an eslint max-lines both flagging one file) count once, not twice.
+# The place part of a de-dup key, mirroring habit_hooks.merged_findings._observation
+# (which keys an occurrence on the issue key plus these fields). Keying on issue-key +
+# place is what makes one smell reported by two sensors at the same spot (e.g. line-count
+# and an eslint max-lines both flagging one file) count once; distinct keys or distinct
+# places stay distinct.
 PLACE_FIELDS = ("file", "line", "column", "startLine", "endLine")
 
 
@@ -85,14 +87,17 @@ def write_sidecar(tally):
     (which reads the same env var) agree even when a verb runs from a subdirectory; the
     relative default only holds when both run from the repo root."""
     path = os.environ.get("FOUNDRY_SMELLS", ".foundry/smells.json")
+    # Serialize BEFORE opening the file: a malformed tally (e.g. a non-string smell key
+    # from a broken sensor) raises here rather than after open() has already left a
+    # truncated empty sidecar behind. Sorted keys keep the line stable; separators keep
+    # it one line (foundry-verb-wrap embeds it verbatim into a printf'd JSON line).
+    line = json.dumps(tally, sort_keys=True, separators=(",", ":")) + "\n"
     try:
         parent = os.path.dirname(path)
         if parent:
             os.makedirs(parent, exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as fh:
-            # Sorted keys keep the line stable across runs; separators keep it one line
-            # (foundry-verb-wrap embeds it verbatim into a printf'd JSON line).
-            fh.write(json.dumps(tally, sort_keys=True, separators=(",", ":")) + "\n")
+            fh.write(line)
     except OSError:
         pass
 
@@ -121,14 +126,21 @@ def main(argv):
         return 1
     emit_stderr(sp.stderr)
 
-    try:
-        findings = json.loads(sp.stdout or b"[]")
-        if isinstance(findings, list):
-            write_sidecar(counts(findings))
-    except (json.JSONDecodeError, ValueError):
-        # A torn or non-JSON sensor stream is still handed to the mapper below, which
-        # will fail loudly; we just emit no counts for this run.
-        pass
+    # Empty stdout means the sensors stage produced nothing (it died before emitting),
+    # which is NOT the same as an empty findings array (`[]`, a clean scan): only the
+    # latter should record a zero-smell run, so skip the sidecar entirely on empty.
+    if sp.stdout and sp.stdout.strip():
+        try:
+            findings = json.loads(sp.stdout)
+            if isinstance(findings, list):
+                write_sidecar(counts(findings))
+        except Exception:
+            # Telemetry must NEVER change the gate outcome. Any malformed or
+            # unexpected-shape sensor payload (not just bad JSON, but a non-dict
+            # finding, an unhashable place field, a non-string smell) just means no
+            # counts for this run; the stream still goes to the mapper below, which
+            # fails loudly on its own if it is genuinely broken.
+            pass
 
     try:
         mp = subprocess.run([mapper, *mapper_args], input=sp.stdout)

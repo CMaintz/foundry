@@ -146,6 +146,30 @@ class TestOrchestration:
         assert rc == 1  # mapper still ran
         assert not (tmp_path / "smells.json").exists()
 
+    @pytest.mark.parametrize("bad", [
+        b"[1, 2, 3]",  # list of non-dicts -> finding.get raises AttributeError
+        b'[{"smell": "x", "issues": [{"key": "k", "details": {"line": [1, 2]}}]}]',  # unhashable place
+        # mixed str + non-string smell keys -> json.dumps(sort_keys=True) raises TypeError
+        b'[{"smell": "a", "issues": [{"key": "k1", "details": {}}]},'
+        b' {"smell": 5, "issues": [{"key": "k2", "details": {}}]}]',
+    ])
+    def test_wrong_shape_sensor_json_never_crashes_the_gate(self, tmp_path, monkeypatch, bad):
+        # Telemetry is best-effort: valid JSON of an unexpected shape must not abort the
+        # run before the mapper, and must not write a sidecar.
+        rc = _run(monkeypatch, tmp_path, _Fake(sensors_out=bad, sensors_rc=0, mapper_rc=0))
+        assert rc == 0
+        assert not (tmp_path / "smells.json").exists()
+
+    def test_empty_sensor_stdout_writes_no_sidecar(self, tmp_path, monkeypatch):
+        # A dead sensors stage (no output) must not read as a clean zero-smell scan.
+        _run(monkeypatch, tmp_path, _Fake(sensors_out=b"", sensors_rc=2))
+        assert not (tmp_path / "smells.json").exists()
+
+    def test_clean_scan_writes_empty_object(self, tmp_path, monkeypatch):
+        # `[]` IS a run (ran, found nothing) -> `{}`, distinct from the dead-sensor case.
+        _run(monkeypatch, tmp_path, _Fake(sensors_out=b"[]"))
+        assert json.loads((tmp_path / "smells.json").read_text()) == {}
+
     def test_missing_sensor_binary_fails_closed(self, tmp_path, monkeypatch, capsys):
         rc = _run(monkeypatch, tmp_path, _Fake(raise_on="sensors"))
         assert rc == 1
