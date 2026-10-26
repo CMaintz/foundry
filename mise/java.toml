@@ -184,8 +184,8 @@ run = '''
 set -eu
 dir="build/test-results/test"
 # Clear last run's XML first: `|| true` below swallows a compile failure too, and Gradle
-# leaves per-class files behind (unlike vitest's single overwritten report), so stale XML
-# could otherwise pass the glob and gate green on old results.
+# leaves per-class files behind, so stale XML could otherwise pass the glob and gate green
+# on old results.
 rm -rf "$dir"
 ./gradlew test || true
 if ! ls "$dir"/*.xml >/dev/null 2>&1; then

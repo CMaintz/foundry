@@ -7,6 +7,10 @@ semantics (`vitest -t`, `gradlew --tests`) remain unverified. See designs/flake-
 """
 import importlib.util
 import json
+import os
+import shutil
+import subprocess
+import tomllib
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -122,6 +126,75 @@ class TestGateAndStreak:
         flaky.cmd_gate(str(rep), str(base))
         res = json.loads((tmp_path / ".foundry" / "flaky-streaks.jsonl").read_text())["results"]
         assert res == {"com.foo.BarTest.passes": "pass"}  # ghost absent, not recorded
+
+
+class TestBrokenRuns:
+    def test_vitest_file_that_fails_to_import_gates(self, tmp_path):
+        # Vitest's JSON reporter gives a file that cannot load status "failed", its path
+        # as `name`, and no assertionResults at all.
+        rep = tmp_path / "r.json"
+        rep.write_text(json.dumps({"testResults": [
+            {"name": "/repo/src/cart.test.ts", "status": "passed",
+             "assertionResults": [{"fullName": "cart adds", "status": "passed"}]},
+            {"name": "/repo/src/broken.test.ts", "status": "failed",
+             "message": "Failed to load url ./missing", "assertionResults": []},
+        ]}))
+        assert flaky.cmd_gate(str(rep), None) == 1
+
+    def test_vitest_failed_file_is_not_double_counted(self, tmp_path):
+        p = tmp_path / "r.json"; p.write_text(json.dumps({"testResults": [
+            {"name": "/repo/a.test.ts", "status": "failed",
+             "assertionResults": [{"fullName": "a fails", "status": "failed"}]}]}))
+        failed, _, _ = flaky.parse_report(str(p))
+        assert failed == ["a fails"]
+
+    def test_a_run_with_zero_tests_gates(self, tmp_path):
+        rep = tmp_path / "r.json"; rep.write_text(json.dumps({"testResults": []}))
+        assert flaky.cmd_gate(str(rep), None) == 1
+
+
+def _bash():
+    # On Windows, PATH's first bash is often WSL's System32 stub; use Git's own bash.
+    if os.name == "nt":
+        cand = Path(shutil.which("git")).resolve().parents[1] / "bin" / "bash.exe"
+        if cand.exists():
+            return str(cand)
+    return shutil.which("bash")
+
+
+def _shim(d, name, body):
+    p = d / name
+    p.write_text("#!/bin/sh\n" + body + "\n", newline="\n")
+    p.chmod(0o755)
+
+
+class TestTsFlakyTask:
+    """mise/ts.toml test:flaky run against shim `vitest` / `foundry-flaky` binaries."""
+
+    RUN = tomllib.loads((SCRIPT.parent.parent / "mise" / "ts.toml").read_text(encoding="utf-8"))[
+        "tasks"]["test:flaky"]["run"]
+
+    def run_task(self, tmp_path, vitest_body):
+        bin_dir = tmp_path / "bin"; bin_dir.mkdir()
+        _shim(bin_dir, "vitest", vitest_body)
+        _shim(bin_dir, "foundry-flaky", 'echo called > gate-called; exit 0')
+        env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"]}
+        return subprocess.run([_bash(), "-c", self.RUN], cwd=tmp_path, env=env,
+                              capture_output=True, text=True)
+
+    def test_stale_report_is_not_reused_when_vitest_writes_none(self, tmp_path):
+        # Config load error / OOM: vitest dies before its reporter writes. The last green
+        # report must not be judged.
+        (tmp_path / ".foundry").mkdir()
+        (tmp_path / ".foundry" / "vitest-report.json").write_text('{"testResults": []}')
+        r = self.run_task(tmp_path, "exit 1")
+        assert r.returncode != 0
+        assert not (tmp_path / "gate-called").exists()
+
+    def test_fresh_report_is_gated(self, tmp_path):
+        r = self.run_task(tmp_path, 'echo "{}" > .foundry/vitest-report.json; exit 1')
+        assert r.returncode == 0, r.stderr
+        assert (tmp_path / "gate-called").exists()
 
 
 class TestTrailingGreenAndPrune:
