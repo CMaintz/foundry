@@ -13,9 +13,10 @@
 #   2. builds a CHANGELOG section from conventional commits since that tag
 #      (grouped feat/fix/other; BREAKING flagged) - only lastTag..HEAD, so the
 #      rewritten-history duplicates release-please produced can't recur,
-#   3. commits the CHANGELOG bump, tags vX.Y.Z, pushes both,
-#   4. creates the GitHub release,
-#   5. advances the floating major alias vN -> vX.Y.Z.
+#   3. points FOUNDRY_SCRIPTS_REF in every mise/*.toml at vX.Y.Z,
+#   4. commits the CHANGELOG bump and the pins, tags vX.Y.Z, pushes both,
+#   5. creates the GitHub release,
+#   6. advances the floating major alias vN -> vX.Y.Z.
 set -euo pipefail
 
 BUMP="${1:?usage: cut-release.sh <major|minor|patch|X.Y.Z> [--dry-run]}"
@@ -90,6 +91,17 @@ insert_changelog() { # <section-file>
   ' CHANGELOG.md > CHANGELOG.md.new && mv CHANGELOG.md.new CHANGELOG.md
 }
 
+# The templates at a tag must fetch their scripts from that same tag: pinning the previous
+# one 404s on any script added since. The tag doesn't exist yet when this commit is made,
+# but it will point at this commit, so the pin resolves once the tag is pushed.
+pin_scripts_ref() { # <tag>
+  local f
+  for f in mise/*.toml; do
+    awk -v tag="$1" '/^FOUNDRY_SCRIPTS_REF = "[^"]*"$/ { $0 = "FOUNDRY_SCRIPTS_REF = \"" tag "\"" } { print }' \
+      "$f" > "$f.new" && mv "$f.new" "$f"
+  done
+}
+
 main() {
   require_clean_main
   local repo cur ver last tag
@@ -108,7 +120,8 @@ main() {
   echo "--- CHANGELOG section ---"; sed 's/^/  /' /tmp/cut-release-section.md
 
   run "insert_changelog /tmp/cut-release-section.md"
-  run "git add CHANGELOG.md"
+  run "pin_scripts_ref '$tag'"
+  run "git add CHANGELOG.md mise/*.toml"
   run "git commit -m 'chore(release): $tag'"
   run "git tag '$tag'"
   run "git push origin main '$tag'"

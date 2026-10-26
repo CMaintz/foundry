@@ -554,8 +554,8 @@ Foundry is semver-tagged, with a floating `vN` alias that consumers can pin to.
 `bash scripts/cut-release.sh <major|minor|patch|X.Y.Z> [--dry-run]` reads the
 current version from the latest git tag (the only source of truth - there is no
 manifest to desync), builds the CHANGELOG section from conventional commits since
-that tag, commits, tags, pushes, creates the GitHub release, and advances the `vN`
-alias. It refuses a non-major bump when a breaking commit is present, and it must be
+that tag, points every template's `FOUNDRY_SCRIPTS_REF` at the new tag, commits,
+tags, pushes, creates the GitHub release, and advances the `vN` alias. It refuses a non-major bump when a breaking commit is present, and it must be
 run on a clean `main` in sync with origin. It replaced release-please, which had
 desynced its manifest into phantom major bumps; do not re-add it.
 
