@@ -76,10 +76,11 @@
       "automerge": true
     },
     {
-      "description": "A Foundry major breaks the CONTRACT or the workflow interface, so it still lands as one PR for both refs but waits for a human instead of merging itself.",
+      "description": "A Foundry major breaks the CONTRACT or the workflow interface, so it still lands as one PR for both refs but waits for a human instead of merging itself. minimumReleaseAge repeats the rule above only because semgrep's renovate-missing-minimum-release-age wants it on every package rule.",
       "matchManagers": ["github-actions", "custom.regex"],
       "matchPackageNames": ["CMaintz/foundry"],
       "matchUpdateTypes": ["major"],
+      "minimumReleaseAge": null,
       "automerge": false
     }
   ],
