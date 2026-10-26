@@ -9,8 +9,8 @@ this file. Language-agnostic. This is the *working loop* every change runs throu
 You are in a loop with a **deterministic oracle**. The oracle (`mise run gate`,
 plus the Stop hook's smell coaching) decides *done*; you propose. Run it, read the
 feedback, fix the real cause, run it again - until it's green **and** the change is
-genuinely right. **"Done" is a green exit code from a clean tree, never your own
-say-so.** A claim that you fixed something is not evidence; the oracle is.
+genuinely right. **"Done" is a green exit code from a clean tree plus a
+fresh-context review, never your own say-so.** A claim that you fixed something is not evidence; the oracle is.
 
 ## The inner loop (every change)
 
@@ -24,10 +24,17 @@ say-so.** A claim that you fixed something is not evidence; the oracle is.
 4. **Verify.** Re-run the oracle from a clean tree. Then self-check: *could I defend
    this as one genuine fix, or is it a dodge?* If it's a dodge, it isn't done.
 5. **Repeat** until green **and** honest.
+6. **Review in a fresh context.** Before claiming done, have a sub-agent that never
+   saw the work review the diff against the spec. `/ship`'s review step satisfies
+   this; outside `/ship`, run the `review` skill. Self-critique doesn't count as
+   review: you review your *intent*, not your *diff*, and miss what you meant to do
+   but didn't. Address or surface what it finds; if you change code, go back to
+   step 1.
 
 ## Done, and when to stop
 
-- **Done** = oracle green from a clean tree **and** the change genuinely right.
+- **Done** = oracle green from a clean tree **and** the change genuinely right **and**
+  a fresh-context review's findings addressed or surfaced.
 - **Stop and surface** - don't "win" by weakening the gate. If you cannot go green
   without disabling a check, lowering a threshold, or growing a baseline, that's a
   deliberate, labelled human decision (`ruleset-guard`), not a fix. Say so and stop.
