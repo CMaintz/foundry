@@ -174,6 +174,24 @@ class TestInline:
         assert r.returncode == 1
         assert "eslint-disable" in r.stderr and "a.ts" in r.stderr
 
+    def test_added_eslint_inline_rule_config_is_a_loosening(self, repo):
+        # `/* eslint rule: "off" */` turns a rule off for the file without the word
+        # "disable", so the eslint-disable count never sees it.
+        cwd, commit = repo
+        base = commit("export const a = 1\n", path="a.ts")
+        head = commit('/* es' + 'lint no-console: "off" */\nexport const a = 1\n', path="a.ts")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "eslint-inline-config" in r.stderr
+
+    def test_eslint_env_and_disable_comments_are_not_inline_config(self, repo):
+        # A pattern loose enough to match `eslint-env` or `eslint-disable` would double
+        # count every disable and flag harmless env comments.
+        cwd, commit = repo
+        base = commit("export const a = 1\n", path="a.ts")
+        head = commit("/* es" + "lint-env node */\n/* es" + "lint-disable */\nexport const a = 1\n", path="a.ts")
+        r = run_cli(cwd, "inline", base, head)
+        assert "eslint-inline-config" not in r.stderr
+
     def test_removing_a_suppression_is_safe(self, repo):
         cwd, commit = repo
         base = commit("export const a = 1\n" + DISABLE, path="a.ts")

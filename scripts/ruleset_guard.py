@@ -174,6 +174,9 @@ TEST_PATHS = [
 # is an added entry (flagged) and a re-promotion is a removal (safe) for free.
 INLINE_DIRECTIVES = [
     ("eslint-disable", "eslint-" + "disable", CODE_PATHS),
+    # Inline rule config (`/* eslint no-console: "off" */`): `eslint` then a space, so
+    # `eslint-disable` / `eslint-env` stay out; the colon is what makes it rule config.
+    ("eslint-inline-config", r"/\* *es" + "lint +[^*]*:", CODE_PATHS),
     ("ts-ignore", "@ts-" + "ignore", CODE_PATHS),
     ("ts-expect-error", "@ts-" + "expect-error", CODE_PATHS),
     ("ts-nocheck", "@ts-" + "nocheck", CODE_PATHS),
