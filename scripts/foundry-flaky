@@ -189,16 +189,16 @@ def cmd_gate(report, baseline):
 
     print(f"flaky: {total} tests, {len(failed)} failed "
           f"({len(real)} real, {len(flaky_hits)} quarantined)")
-    if total == 0:
-        print("flaky: gate FAILS - the report holds no tests, so nothing was judged "
-              "(runner crashed, empty filter, or wrong report path).")
-        return 1
     for t in flaky_hits:
         print(f"  quarantined (not gating): {t}  [{quar[t] or 'no reason recorded'}]")
     for t in real:
         print(f"  FAIL (gating): {t}")
     if real:
         print("flaky: gate FAILS - a non-quarantined test failed.")
+        return 1
+    if total == 0:
+        print("flaky: gate FAILS - the report holds no tests, so nothing was judged "
+              "(runner crashed, empty filter, or wrong report path).")
         return 1
     if flaky_hits:
         print("flaky: gate passes - only quarantined flakes failed. Fix or prune them; "

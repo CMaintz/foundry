@@ -141,6 +141,14 @@ class TestBrokenRuns:
         ]}))
         assert flaky.cmd_gate(str(rep), None) == 1
 
+    def test_sole_file_that_fails_to_import_is_named(self, tmp_path, capsys):
+        # Zero tests ran, but the reason is the broken file; the output must say which.
+        rep = tmp_path / "r.json"
+        rep.write_text(json.dumps({"testResults": [
+            {"name": "/repo/src/broken.test.ts", "status": "failed", "assertionResults": []}]}))
+        assert flaky.cmd_gate(str(rep), None) == 1
+        assert "FAIL (gating): /repo/src/broken.test.ts" in capsys.readouterr().out
+
     def test_vitest_failed_file_is_not_double_counted(self, tmp_path):
         p = tmp_path / "r.json"; p.write_text(json.dumps({"testResults": [
             {"name": "/repo/a.test.ts", "status": "failed",
