@@ -111,6 +111,12 @@ The Reviewer covers exactly what a linter cannot: naming, domain-model drift, "i
 seam", spec compliance. Advisory by construction - the moment a model can block a merge, you start
 arguing with it instead of shipping.
 
+Advisory still has to be trusted to be read. A reviewer that is mostly noise trains people to skip
+it, so every claimed defect must survive a second, fresh sub-agent that tries to refute it. A
+refutation has to cite the code that makes the finding safe; at `medium` and `high` effort a finding
+the refuter cannot settle stays in, marked unverified, because a refuter that guesses drops real
+bugs.
+
 ### 4.3 Two hard rules
 
 **Rule 1 - the Fixer may not edit the ruleset.**
@@ -183,9 +189,10 @@ Why Ivett's set is load-bearing rather than a nice-to-have:
   the principle *"the metrics nominate, they never decide"* - the same deterministic-proposes /
   human-disposes split as §4.
 
-**Known collision:** three things named some variant of `code-review` (Claude Code built-in,
-Pocock's, Ivett's `build-project-review`). Plugin skills namespace as `plugin:skill`, so this is
-survivable; budget one session to disambiguate and decide which is bound to `/ship`.
+**Collision, resolved:** three things are named some variant of `code-review` (Claude Code
+built-in, Pocock's, Ivett's `build-project-review`). `foundry:review` composes them into one
+reviewer and is the one bound to `/ship`: correctness from the built-in, Standards and Spec from
+Pocock's, project taste from a repo-local `build-project-review` skill when one exists.
 
 ---
 
@@ -198,19 +205,24 @@ left of the PR entirely, and in doing so makes a CI-side agent nearly redundant.
 /ship
  │
  ├─ 1. mise run fix              deterministic auto-fixes land silently
- ├─ 2. habit-sensors | habit-mapper
+ ├─ 2. mise run smells
  │        └─ coaching output → agent fixes the smells
  ├─ 3. mise run gate             ◀── MUST BE GREEN. the oracle, not the agent's opinion
- ├─ 4. agent review of the diff against the linked issue
- │        └─ fresh-context subagent (see below)
+ ├─ 4. foundry:review of the diff against the linked issue
+ │        └─ fresh-context subagents, then a refuter (see below)
  ├─ 5. commitlint-conformant commit
- └─ 6. gh pr create
+ ├─ 6. foundry-ship-pr           push, draft PR, watch CI, mark ready when green
+ ├─ 7. act on the CI verdict     red → fix, push, re-watch
+ └─ 8. remove the worktree once merged
 ```
 
 **Step 4 must run in a fresh context.** An agent reviewing work it just wrote has a genuine and
 well-known blind spot: it reviews its *intent* rather than its *diff*. Mitigation - dispatch the
 review to a subagent that sees only the diff and the spec, never the conversation that produced the
-code. Pocock's `code-review` already fans out to parallel sub-agents, so this is mostly free.
+code. `foundry:review` does this at every diff size: a tiny diff gets one fresh sub-agent running
+all its lenses, a larger one gets a sub-agent per lens (or per lens per shard). The surviving
+findings then go to a fresh refuter (§4.2), and at `high` effort a red-team lens attacks the change
+as well. The same rule applies outside `/ship`: self-critique is not review.
 
 ---
 
@@ -386,13 +398,13 @@ Phase 2 exposed - and delete the ones that never fired.
 | 2 | Coverage floor policy | **Ratchet upward only.** Floor is set to today's measured number, may only rise. A floor you cannot meet is a floor you will delete. |
 | 3 | `dist/` and `node_modules/` gitignored? | **Yes, correct already.** Zero tracked build output in MDB. No cleanup needed. |
 | 5 | Public or private repos | **Public.** Marketplace install is far easier, and there is nothing sensitive here. |
+| 6 | Which `code-review` binds to `/ship` step 4? | **`foundry:review`**, which composes the other three (§5). |
 
 ### Still open
 
 | # | Question | Blocks |
 |---|---|---|
 | 4 | Does the extension in AutoApplicant get a `package.json` (and enter the `ts` tier), or stay outside the gate? | Phase 3 |
-| 6 | Which `code-review` binds to `/ship` step 4? | Phase 2 |
 | 7 | MDB gitignores `/.claude/`. The in-loop hook is global for now - does it eventually become repo-local and committed? | Phase 4 |
 
 ### Lessons from Phase 1
