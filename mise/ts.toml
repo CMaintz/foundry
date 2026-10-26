@@ -199,6 +199,8 @@ description = "Formatting, style and smells; non-mutating"
 # whole-tree in CI. Both checks are file-local, so scoping is safe; the whole-tree CI
 # run still catches stale suppressions repo-wide. prettier gets every changed file
 # (--ignore-unknown skips types it can't format), eslint only the JS/TS ones.
+# --relative because a monorepo package's mise.toml runs from the package dir, where
+# repo-root paths name nothing.
 # Array form: the eslint/prettier block + the structural-smell check (`mise run smells`),
 # each a separate command run in order.
 run = ['''
@@ -208,7 +210,7 @@ if [ -z "${FOUNDRY_SINCE+x}" ]; then whole; exit 0; fi
 base="${FOUNDRY_SINCE:-origin/main}"
 mb=$(git merge-base "$base" HEAD 2>/dev/null || true)
 if [ -z "$mb" ]; then echo "changed-scope lint: cannot resolve '$base'; whole-tree"; whole; exit 0; fi
-changed=$(git diff --name-only --diff-filter=ACMR "$mb" 2>/dev/null || true)
+changed=$(git diff --name-only --relative --diff-filter=ACMR "$mb" 2>/dev/null || true)
 untracked=$(git ls-files --others --exclude-standard 2>/dev/null || true)
 files=$(printf '%s\n%s\n' "$changed" "$untracked" | sort -u | sed '/^$/d')
 if [ -z "$files" ]; then echo "changed-scope lint: nothing changed since $mb"; exit 0; fi
