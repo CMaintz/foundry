@@ -17,7 +17,7 @@ on:
           Extended regex of paths that constitute "the ruleset". A PR touching
           both these and production source is examined for loosening.
         type: string
-        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|vite\.config\.ts|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/|.*\.editorconfig|.*Directory\.Build\.props|.*tsconfig[A-Za-z.]*\.json|.*\.csproj)'
+        default: '^(eslint\.config\.(js|mjs|cjs)|eslint-suppressions\.json|mise\.toml|(.*/)?(vite|vitest|jest)\.config\.[cm]?[jt]s|\.habit-hooks/|\.jscpd\.json|\.github/workflows/|ruff\.toml|phpstan\.neon|detekt\.yml|\.dependency-cruiser\.cjs|\.dependency-cruiser-known-violations\.json|\.importlinter|archunit_store/|.*\.editorconfig|.*Directory\.Build\.props|.*tsconfig[A-Za-z.]*\.json|.*\.csproj|(.*/)?\.coveragerc|(.*/)?\.?codecov\.ya?ml|(.*/)?phpunit\.xml(\.dist)?|.*\.runsettings|(.*/)?flaky-baseline\.json)'
       source_paths:
         description: Extended regex of production source paths.
         type: string
@@ -243,6 +243,13 @@ jobs:
                 if python3 .foundry/scripts/ruleset_guard.py lines "$BASE" "$HEAD" "$f"; then
                   echo "  safe (no frozen violation added): $f"
                 else echo "  REVIEW (frozen violation added): $f"; review="$review $f"; fi
+                ;;
+              *flaky-baseline.json)
+                # foundry-flaky quarantine: an added id stops that test gating, so growth
+                # loosens; the auto-prune only removes entries, which stays label-free.
+                if python3 .foundry/scripts/ruleset_guard.py snooze "$BASE" "$HEAD" "$f"; then
+                  echo "  safe (no test quarantined): $f"
+                else echo "  REVIEW (test quarantined): $f"; review="$review $f"; fi
                 ;;
               *)
                 # Config / threshold / workflow files: direction can't be proven

@@ -238,6 +238,8 @@ regenerator (`bootstrap.yml`):
 | `snooze.json` | structural-smell baseline | **hook** blocks hand-edits (incl. Bash writes) - **ruleset-guard** blocks growth without the label - **bootstrap** regenerates (prune only shrinks) |
 | `eslint-suppressions.json` | lint baseline | same three |
 | `.jscpd.json` | which paths the duplication sensor scans | **ruleset-guard** - widening the ignore list alongside source needs the label |
+| `flaky-baseline.json` | quarantined (non-gating) tests | **ruleset-guard** - an added id alongside source needs the label; `foundry-flaky prune` only shrinks it |
+| coverage configs (`vite`/`vitest`/`jest` config, `.coveragerc`, `codecov.yml`, `phpunit.xml`, `*.runsettings`) | coverage floors and exclusions | **ruleset-guard** - direction cannot be proven, so any change alongside source needs the label |
 | `pmd/ruleset.xml`, thresholds, `mise.toml`, workflows | rule definitions / gate wiring | **ruleset-guard** - direction cannot be proven, so any change alongside source needs the label |
 | `ruleset_paths` regex | *which* files ruleset-guard treats as gate-defining (this table's first column) | the `guards` input default, or a consumer override - **keep it in sync when you add a guarded file** |
 

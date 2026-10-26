@@ -162,6 +162,7 @@ TEST_PATHS = [
     "*Tests.kt",
     "*Test.cs",
     "*Tests.cs",
+    "*Test.php",
     *_EXCLUDE,
 ]
 
@@ -175,6 +176,7 @@ INLINE_DIRECTIVES = [
     ("eslint-disable", "eslint-" + "disable", CODE_PATHS),
     ("ts-ignore", "@ts-" + "ignore", CODE_PATHS),
     ("ts-expect-error", "@ts-" + "expect-error", CODE_PATHS),
+    ("ts-nocheck", "@ts-" + "nocheck", CODE_PATHS),
     ("istanbul-ignore", "istanbul " + "ignore", CODE_PATHS),
     ("c8-ignore", "c8 " + "ignore", CODE_PATHS),
     ("noqa", "# *no" + "qa", CODE_PATHS),
@@ -182,13 +184,19 @@ INLINE_DIRECTIVES = [
     ("pylint-disable", "pylint: *" + "disable", CODE_PATHS),
     ("py-no-cover", "pragma: *no " + "cover", CODE_PATHS),
     ("java-suppresswarnings", "@Suppress" + "Warnings", CODE_PATHS),
+    ("java-suppressfbwarnings", "@Suppress" + "FBWarnings", CODE_PATHS),
+    ("java-nopmd", "NO" + "PMD", CODE_PATHS),
     ("kotlin-suppress", "@Suppress" + r"\(", CODE_PATHS),
+    ("kotlin-file-suppress", "@file: *" + "Suppress", CODE_PATHS),
     ("csharp-pragma-warning", "pragma warning " + "disable", CODE_PATHS),
     ("csharp-suppressmessage", r"\[" + "SuppressMessage", CODE_PATHS),
     ("csharp-exclude-coverage", "ExcludeFrom" + "CodeCoverage", CODE_PATHS),
     ("php-phpstan-ignore", "@phpstan-" + "ignore", CODE_PATHS),
     ("php-psalm-suppress", "@psalm-" + "suppress", CODE_PATHS),
-    ("phpcs-ignore", "phpcs: *" + "ignore", CODE_PATHS),
+    ("phpcs-ignore", "phpcs: *" + "(ignore|disable)", CODE_PATHS),
+    ("php-coverage-ignore", "@codeCoverage" + "Ignore", CODE_PATHS),
+    # Foundry's own PMD --suppress-marker values (habit-hooks smells, no-var).
+    ("foundry-allow", "foundry-allow-" + "(smell|var)", CODE_PATHS),
     # Test-skips: a skipped/narrowed test is a quietly disabled check. Scoped to TEST_PATHS
     # (a skip is only a skip in a test file), and js-xit is anchored with `(^|[^A-Za-z])` so
     # it does not match `exit(` / `fixit(`. Deleting a test outright is NOT caught here - the
@@ -197,8 +205,12 @@ INLINE_DIRECTIVES = [
     ("js-only", r"\.only" + r"\(", TEST_PATHS),
     ("js-xit", "(^|[^A-Za-z])x(it|describe) *" + r"\(", TEST_PATHS),
     ("py-skip", "@(pytest.mark|unittest).*" + "skip", TEST_PATHS),
+    ("py-xfail", r"pytest\.(mark\.)?" + "xfail", TEST_PATHS),
+    ("py-pytestmark-skip", "pytestmark *=.*" + "skip", TEST_PATHS),
     ("junit-disabled", "@(Disabled|" + "Ignore)", TEST_PATHS),
     ("xunit-skip", r"\(Skip *=", TEST_PATHS),
+    ("dotnet-ignore", r"\[" + "Ignore", TEST_PATHS),
+    ("phpunit-skip", "markTest" + "(Skipped|Incomplete)", TEST_PATHS),
     # Config demotions: flipping a rule off in a config file is the same gaming move as an
     # inline disable, and a config-only PR dodges the bundled guard.
     ("editorconfig-demote", "severity *= *(none|silent|" + "suggestion)", CONFIG_PATHS),

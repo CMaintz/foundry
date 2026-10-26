@@ -247,6 +247,34 @@ class TestInline:
         assert run_cli(cwd, "inline", base, head).returncode == 0
 
 
+# (path, added line, directive) per marker family: one row per table entry, so a dropped
+# or mistyped entry goes red here. Literals are fragment-built like the ones above.
+ADDED_MARKERS = [
+    ("a.ts", "// @ts-" + "nocheck", "ts-nocheck"),
+    ("a_test.py", "@pytest.mark." + "xfail", "py-xfail"),
+    ("a_test.py", "pytestmark = pytest.mark." + "skip", "py-pytestmark-skip"),
+    ("FooTest.java", '@Suppress' + 'FBWarnings("EI_EXPOSE_REP")', "java-suppressfbwarnings"),
+    ("Foo.java", "int x = 1; // NO" + "PMD", "java-nopmd"),
+    ("Foo.kt", '@file:Suppress' + '("UNUSED")', "kotlin-file-suppress"),
+    ("Foo.php", "// phpcs:" + "disable", "phpcs-ignore"),
+    ("Foo.php", "/** @codeCoverage" + "Ignore */", "php-coverage-ignore"),
+    ("FooTest.php", "$this->markTest" + "Skipped('later');", "phpunit-skip"),
+    ("FooTests.cs", "[" + 'Ignore("later")]', "dotnet-ignore"),
+    ("Foo.java", "var x = 1; // foundry-allow-" + "var: legacy", "foundry-allow"),
+    ("Foo.java", "// foundry-allow-" + "smell: generated", "foundry-allow"),
+]
+
+
+class TestInlineMarkers:
+    @pytest.mark.parametrize(("path", "line", "name"), ADDED_MARKERS)
+    def test_added_marker_is_a_loosening(self, repo, path, line, name):
+        cwd, commit = repo
+        base = commit("x\n", path=path)
+        head = commit("x\n" + line + "\n", path=path)
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and name in r.stderr and path in r.stderr
+
+
 class TestInlineConfig:
     def test_editorconfig_demotion_is_a_loosening(self, repo):
         cwd, commit = repo
