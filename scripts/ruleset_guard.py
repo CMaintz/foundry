@@ -30,12 +30,14 @@ Kinds:
 
 Usage: ruleset_guard.py <eslint|snooze|lines|coverage> <base-ref> <head-ref> <path>
        ruleset_guard.py <inline|tests> <base-ref> <head-ref>
+       ruleset_guard.py signoff <events.jsonl> <label,label> <head-time>
 """
 
 import json
 import subprocess
 import sys
 from collections import Counter
+from datetime import datetime
 
 
 def eslint_counts(d):
@@ -286,7 +288,28 @@ def tests_loosened(base, head):
     return [f for f in o if n.get(f, 0) < o[f]]
 
 
-_KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count", "tests", "tests-count"}
+def _instant(ts):
+    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+def signoff(events, labels, head_time):
+    """(valid, stale): which of `labels` (on the PR now) still sign it off.
+
+    A sign-off label counts only if its most recent `labeled` event is later than
+    `head_time` (when the head commit was pushed), so a push after the human reviewed voids
+    the label. `events` are the PR's issue events as {event, name, created_at}.
+    """
+    head = _instant(head_time)
+    last = {}
+    for e in events:
+        if e.get("event") == "labeled" and e.get("name") in labels:
+            at = _instant(e["created_at"])
+            last[e["name"]] = max(at, last.get(e["name"], at))
+    valid = [lb for lb in labels if lb in last and last[lb] > head]
+    return valid, [lb for lb in labels if lb not in valid]
+
+
+_KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count", "tests", "tests-count", "signoff"}
 
 if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -296,6 +319,18 @@ if __name__ == "__main__":
             f"script are out of step - pin the workflow to a foundry ref whose "
             f"scripts/ruleset_guard.py knows this kind."
         )
+    if kind == "signoff":
+        # signoff <events.jsonl> <label,label> <head-time>: prints the labels that still
+        # sign the PR off, one per line; exit 1 when none does.
+        with open(sys.argv[2], encoding="utf-8") as fh:
+            events = [json.loads(ln) for ln in fh if ln.strip()]
+        present = [lb for lb in sys.argv[3].split(",") if lb]
+        valid, stale = signoff(events, present, sys.argv[4])
+        for lb in valid:
+            print(lb)
+        for lb in stale:
+            print(f"  {lb}: applied before the head commit was pushed (or never) - re-apply it", file=sys.stderr)
+        sys.exit(0 if valid else 1)
     if kind in ("inline-count", "tests-count"):
         # Tree-wide total at one ref, for the ratchet report.
         counts = inline_counts if kind == "inline-count" else test_counts

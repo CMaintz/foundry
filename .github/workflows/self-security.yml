@@ -8,7 +8,9 @@
 name: self-security
 
 on:
+  # labeled/unlabeled: ruleset-guard judges sign-off labels, so applying one must re-run it.
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
