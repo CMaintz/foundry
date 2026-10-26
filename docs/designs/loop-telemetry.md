@@ -4,7 +4,8 @@
 **Home:** foundry (schema + wrapper) + cmaintz-skills (summarizer) · **Weight:** local-first
 
 **Implemented & tested (in isolation):** `scripts/foundry-verb-wrap` - times a verb,
-appends one JSONL line (`ts, ms, verb, scope, placement, exit, duration_ms`), always
+appends one JSONL line (`ts, ms, verb, scope, placement, exit, duration_ms`, plus `rules`
+on a failure: the rule-catalog ids its output matched, read by `foundry-explain --last`), always
 propagates the verb's exit (telemetry failure can't change the outcome; validated across
 success/fail/unwritable-path). The offline summariser (per-verb
 time/fails/**regressions (thrash)**, time-sink, latest-red, placement/scope breakdown;

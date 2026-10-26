@@ -17,16 +17,17 @@ ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = sorted((ROOT / "mise").glob("*.toml"))
 # Resolved through PATH: a bare name on Windows can hit System32's WSL launcher first.
 SH = shutil.which("sh") or "sh"
-DIGEST_LINE = re.compile(r"^([\w.-]+) [0-9a-f]{64}$", re.M)
+DIGEST_LINE = re.compile(r"^([\w./-]+) [0-9a-f]{64}$", re.M)
 
 FAKE_CURL = """#!/bin/sh
-# Minimal stand-in for `curl -fsSL <url> -o <file>`: serve basename(url) from $FAKE_SERVED.
+# Minimal stand-in for `curl -fsSL <url> -o <file>`: serve the url's path below the ref
+# (scripts/x, presets/rules/y) from $FAKE_SERVED.
 [ -n "${FAKE_OFFLINE:-}" ] && exit 7
 url="" out=""
 while [ $# -gt 0 ]; do
   case "$1" in -o) out="$2"; shift 2 ;; -*) shift ;; *) url="$1"; shift ;; esac
 done
-src="$FAKE_SERVED/${url##*/}"
+src="$FAKE_SERVED/${url#*/v0.0.0-test/}"
 [ -f "$src" ] || exit 22
 cat "$src" > "$out"
 """
@@ -34,6 +35,11 @@ cat "$src" > "$out"
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def served_path(name: str) -> str:
+    """Where a digest line's file lives in the repo: a bare name is under scripts/."""
+    return name if "/" in name else f"scripts/{name}"
 
 
 def served_bytes(name: str) -> bytes:
@@ -54,7 +60,9 @@ class Fetch:
         for d in (self.home, self.served, bin_dir):
             d.mkdir()
         for n in self.names:
-            (self.served / n).write_bytes(served_bytes(n))
+            served = self.served / served_path(n)
+            served.parent.mkdir(parents=True, exist_ok=True)
+            served.write_bytes(served_bytes(n))
         (bin_dir / "curl").write_text(FAKE_CURL, encoding="utf-8", newline="\n")
         (bin_dir / "curl").chmod(0o755)
         self.env = {**os.environ, "HOME": str(self.home), "FOUNDRY_SCRIPTS_REF": "v0.0.0-test",
@@ -66,7 +74,7 @@ class Fetch:
                               capture_output=True, text=True)
 
     def cached(self, name: str) -> bytes:
-        return (self.dst / name).read_bytes()
+        return (self.dst / Path(name).name).read_bytes()
 
 
 @pytest.fixture(params=TEMPLATES, ids=lambda p: p.stem)
@@ -85,7 +93,7 @@ def test_corrupt_cached_script_is_refetched(fetch):
     # A truncated download from an earlier run must not stick in the cache forever.
     fetch.dst.mkdir(parents=True)
     victim = fetch.names[0]
-    (fetch.dst / victim).write_bytes(served_bytes(victim)[:5])
+    (fetch.dst / Path(victim).name).write_bytes(served_bytes(victim)[:5])
     r = fetch.run()
     assert r.returncode == 0, r.stderr
     assert fetch.cached(victim) == served_bytes(victim)
@@ -93,13 +101,13 @@ def test_corrupt_cached_script_is_refetched(fetch):
 
 def test_download_that_does_not_match_fails_closed(fetch):
     victim = fetch.names[-1]
-    (fetch.served / victim).write_bytes(b"<html>Sign in to the Wi-Fi</html>")
+    (fetch.served / served_path(victim)).write_bytes(b"<html>Sign in to the Wi-Fi</html>")
     r = fetch.run()
     assert r.returncode != 0
     assert victim in r.stderr and "sha256" in r.stderr
     # Nothing unverified is left where PATH or a later run would pick it up.
-    assert not (fetch.dst / victim).exists()
-    assert sorted(p.name for p in fetch.dst.iterdir()) == sorted(fetch.names[:-1])
+    assert not (fetch.dst / Path(victim).name).exists()
+    assert sorted(p.name for p in fetch.dst.iterdir()) == sorted(Path(n).name for n in fetch.names[:-1])
 
 
 def test_verified_cache_needs_no_network(fetch):

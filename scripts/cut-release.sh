@@ -99,11 +99,12 @@ sha256_stdin() { if command -v sha256sum > /dev/null 2>&1; then sha256sum; else 
 # but it will point at this commit, so the pin resolves once the tag is pushed. The
 # "<script> <sha256>" lines setup:foundry-scripts verifies against are rewritten from the
 # committed blobs, not the working tree, so they match what raw.githubusercontent serves
-# whatever the local checkout's line endings.
+# whatever the local checkout's line endings. A script is keyed by its bare name and the
+# rule catalog by its repo path, the two forms setup:foundry-scripts fetches.
 pin_foundry_scripts() { # <tag>
   local f path map
   map=$(mktemp)
-  git ls-tree HEAD scripts/ | awk '$2 == "blob" { sub(/^[^\t]*\t/, ""); print }' | while read -r path; do
+  git ls-tree HEAD scripts/ presets/rules/ | awk '$2 == "blob" { sub(/^[^\t]*\t/, ""); print }' | while read -r path; do
     printf '%s %s\n' "${path#scripts/}" "$(git cat-file blob "HEAD:$path" | sha256_stdin)"
   done > "$map"
   for f in mise/*.toml; do
