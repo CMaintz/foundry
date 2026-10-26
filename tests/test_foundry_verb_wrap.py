@@ -8,13 +8,12 @@ import shutil
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 WRAP = ROOT / "scripts" / "foundry-verb-wrap"
-# A bare "bash" on Windows hits System32's WSL launcher first; resolve through PATH.
-BASH = shutil.which("bash")
-pytestmark = pytest.mark.skipif(BASH is None, reason="needs a POSIX sh (bash) to run the wrapper")
+# A bare "bash" on Windows hits System32's WSL launcher first; resolve through PATH,
+# matching the sibling shell tests (test_release_pin.py). bash is always present on CI
+# (Linux) and the local Git Bash shell, so there is nothing to skip for.
+BASH = shutil.which("bash") or "bash"
 
 
 def run_verb(tmp_path, inner_cmd):
