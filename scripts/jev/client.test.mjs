@@ -50,13 +50,13 @@ test('postJson retries on 429 then succeeds', async () => {
 
 test('postJson throws on a non-retryable status', async () => {
   await withMock([{ status: 500, body: 'boom' }], async () => {
-    await assert.rejects(() => postJson('https://x/y', {}, {}, 1), /500/);
+    await assert.rejects(() => postJson('https://x/y', {}, {}, { maxAttempts: 1 }), /500/);
   });
 });
 
 test('TypeSafeProvider posts to /systemone with model and auth', async () => {
   await withMock([{ status: 200, body: { answers: {} } }], async (calls) => {
-    await new TypeSafeProvider('key', 'jev-latest').evaluate({ state: { q: 1 }, questions: { a: {} } });
+    await new TypeSafeProvider({ apiKey: 'key', model: 'jev-latest' }).evaluate({ state: { q: 1 }, questions: { a: {} } });
     assert.match(calls[0].url, /\/v1\/systemone$/);
     const body = JSON.parse(calls[0].init.body);
     assert.equal(body.model, 'jev-latest');
