@@ -223,8 +223,9 @@ phantom flags):
 - **Config demotions** (carried inside the inline scan, because a config-only PR
   dodges the baseline-file guard): an editorconfig `severity = none`, a tsconfig
   `"strict": false`, a csproj `<NoWarn>`.
-- **Deleted tests** (`tests`): test-definition count per file, inverse - a file
-  with fewer test defs at head than base lost coverage. The coverage floor is the
+- **Deleted tests** (`tests`): uncommented test declarations summed over the
+  changed test files, inverse - fewer at head than base means a test was deleted or
+  commented out with no replacement; a split, move or rename nets out. The coverage floor is the
   backstop for weaker-but-present tests.
 
 ### What counts as a gate-defining file - and who watches it
