@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""foundry-smells - run the habit-hooks smell pipeline and emit per-smell counts.
+
+    foundry-smells <habit-hooks-binary> [sensor-args...]
+
+habit-hooks is itself the pipeline `habit-sensors <args> | habit-mapper [--config]`
+(see its hooks.py): the sensors stage emits the normalized findings JSON that the
+mapper renders into coaching. This wrapper runs that same pipeline explicitly so it
+can tee the sensor JSON once - no second scan - and reduce it to a per-smell count
+written to a sidecar ($FOUNDRY_SMELLS), which foundry-verb-wrap folds into the
+`lint` telemetry line. The gate decision is unchanged: the exit code is the mapper's,
+or the sensors' if the mapper exited clean over a broken sensor (mapper.rc or
+sensors.rc, exactly as habit-hooks does), and the mapper's rendered output and the
+sensors' stderr pass through untouched.
+
+Counts are post-snooze: snooze filtering happens in the sensors stage, so the
+numbers are the un-baselined smells in the scanned scope - the loop-convergence
+signal, not the whole backlog. Sidecar writing is best-effort and never changes the
+exit code; a smell detector must gate the same with or without telemetry wired in.
+
+<habit-hooks-binary> is the pinned venv binary the mise `smells` task already
+resolved; habit-sensors and habit-mapper are its siblings in the same directory.
+"""
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+# Where in an issue its observation sits - mirrors habit_hooks.merged_findings
+# PLACE_FIELDS so two sensors reporting the same smell at the same place (e.g. a
+# line-count and an eslint max-lines both flagging one file) count once, not twice.
+PLACE_FIELDS = ("file", "line", "column", "startLine", "endLine")
+
+
+def sibling(binary, name):
+    """Resolve a sibling console script next to <binary>, handling the venv's
+    bin/habit-hooks (POSIX) and Scripts/habit-hooks.exe (Windows) layouts."""
+    p = Path(binary)
+    for cand in (p.with_name(name), p.with_name(name + ".exe")):
+        if cand.is_file():
+            return str(cand)
+    return name  # fall back to PATH; subprocess will raise if truly absent
+
+
+def counts(findings):
+    """Reduce the sensor findings array to {smell: distinct-occurrences}.
+
+    A finding is {"smell": str, "issues": [{"key", "details": {...}}, ...]}; the
+    same smell can appear in more than one finding. An occurrence is keyed by smell
+    + the issue key + its place, so duplicates reported by two sensors collapse."""
+    seen = set()
+    tally = {}
+    for finding in findings:
+        smell = finding.get("smell")
+        if smell is None:
+            continue
+        for issue in finding.get("issues", []):
+            details = issue.get("details") or {}
+            obs = (smell, issue.get("key")) + tuple(details.get(f) for f in PLACE_FIELDS)
+            if obs in seen:
+                continue
+            seen.add(obs)
+            tally[smell] = tally.get(smell, 0) + 1
+    return tally
+
+
+def emit_stderr(data):
+    """Replay the sensors' stderr (its notices and tool-failure lines). Bytes go
+    through the binary buffer; fall back to text if the stream has no buffer (a
+    captured or wrapped stderr) so a notice is never the thing that crashes a run."""
+    if not data:
+        return
+    try:
+        sys.stderr.buffer.write(data)
+        sys.stderr.flush()
+    except (AttributeError, ValueError):
+        sys.stderr.write(data.decode("utf-8", "replace"))
+
+
+def write_sidecar(tally):
+    """Write compact one-line JSON to $FOUNDRY_SMELLS (default .foundry/smells.json).
+    Best-effort: any failure is swallowed so the gate's exit code stands. The mise
+    template sets FOUNDRY_SMELLS to an ABSOLUTE path so this writer and foundry-verb-wrap
+    (which reads the same env var) agree even when a verb runs from a subdirectory; the
+    relative default only holds when both run from the repo root."""
+    path = os.environ.get("FOUNDRY_SMELLS", ".foundry/smells.json")
+    try:
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+            # Sorted keys keep the line stable across runs; separators keep it one line
+            # (foundry-verb-wrap embeds it verbatim into a printf'd JSON line).
+            fh.write(json.dumps(tally, sort_keys=True, separators=(",", ":")) + "\n")
+    except OSError:
+        pass
+
+
+def main(argv):
+    if not argv:
+        print("usage: foundry-smells <habit-hooks-binary> [sensor-args...]", file=sys.stderr)
+        return 2
+    binary, args = argv[0], argv[1:]
+    sensors = sibling(binary, "habit-sensors")
+    mapper = sibling(binary, "habit-mapper")
+
+    # The mapper needs --config too, else it falls back to .habit-hooks/config.toml
+    # and may disagree with the sensors (habit-hooks' own mapper_args does this).
+    mapper_args = []
+    if "--config" in args:
+        i = args.index("--config")
+        if i + 1 < len(args):
+            mapper_args = ["--config", args[i + 1]]
+
+    # A missing sibling binary must fail the gate closed, not surface a traceback.
+    try:
+        sp = subprocess.run([sensors, *args], capture_output=True)
+    except OSError as e:
+        print(f"foundry-smells: cannot run {sensors}: {e}", file=sys.stderr)
+        return 1
+    emit_stderr(sp.stderr)
+
+    try:
+        findings = json.loads(sp.stdout or b"[]")
+        if isinstance(findings, list):
+            write_sidecar(counts(findings))
+    except (json.JSONDecodeError, ValueError):
+        # A torn or non-JSON sensor stream is still handed to the mapper below, which
+        # will fail loudly; we just emit no counts for this run.
+        pass
+
+    try:
+        mp = subprocess.run([mapper, *mapper_args], input=sp.stdout)
+    except OSError as e:
+        print(f"foundry-smells: cannot run {mapper}: {e}", file=sys.stderr)
+        return 1
+    # habit-hooks returns `mapper.returncode or sensors.returncode`: a clean mapper
+    # over a failed sensor must still fail the run.
+    return mp.returncode or sp.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
