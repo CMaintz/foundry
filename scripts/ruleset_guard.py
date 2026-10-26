@@ -114,7 +114,11 @@ def _git_show(ref, path):
 
 # Never scan this script or its fixtures - they contain every directive by construction.
 _EXCLUDE = [":(exclude)scripts/ruleset_guard.py", ":(exclude)tests/test_ruleset_guard.py"]
-# Real source files (git pathspec globs match at any depth).
+# Plain git pathspecs match from the repo root and their `*` crosses `/`, so a leading
+# `*` (e.g. `*.ts`) matches at any depth. A pattern that must anchor on the file NAME
+# (`test_*.py`) uses `:(glob)**/`: `**/` is any depth and `*` stops at `/`, so it neither
+# misses `tests/test_x.py` nor matches `test_helpers/util.py`.
+# Real source files.
 CODE_PATHS = [
     "*.ts",
     "*.tsx",
@@ -133,7 +137,7 @@ CODE_PATHS = [
 # Gate-defining config files. A config-only PR that demotes a rule (severity = none,
 # "strict": false, <NoWarn>) never touches source_paths, so the bundled ruleset-guard
 # below never fires on it - this always-run scan is the only thing that catches it.
-CONFIG_PATHS = ["*.editorconfig", "*.csproj", "*.props", "tsconfig*.json", *_EXCLUDE]
+CONFIG_PATHS = ["*.editorconfig", "*.csproj", "*.props", ":(glob)**/tsconfig*.json", *_EXCLUDE]
 # Test files only. Test-SKIP directives (and the `tests` deletion count) are meaningful
 # ONLY here - scanning all source for `.skip(`/`xit(` false-matches app code (a paging
 # `.skip(`, `process.exit(` -> `xit(`), so those directives use this, not CODE_PATHS.
@@ -150,7 +154,7 @@ TEST_PATHS = [
     "*.spec.jsx",
     "*.spec.mjs",
     "*.spec.cjs",
-    "test_*.py",
+    ":(glob)**/test_*.py",
     "*_test.py",
     "*Test.java",
     "*Tests.java",
