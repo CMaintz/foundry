@@ -7,9 +7,8 @@ are fine. This is what defeats the offset attack - fixing one violation while
 suppressing another nets zero on a summed count, but shows up here as an added
 entry.
 
-Canonical copy. Onboarded repos commit this at scripts/ruleset_guard.py so both
-the inline gate and foundry's reusable tier0.yml (which runs in the caller's
-checkout) can call it.
+Not vendored: foundry's reusable _guards.yml and ratchet-report.yml fetch this file
+from foundry at their own pinned ref and run it against the caller's checkout.
 
 Kinds:
   eslint  eslint-suppressions.json      (per file+rule count)
@@ -281,9 +280,9 @@ if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
     if kind not in _KINDS:
         sys.exit(
-            f"ruleset_guard: unknown kind {kind!r}. Overwrite your committed "
-            f"scripts/ruleset_guard.py with foundry's current copy - this workflow "
-            f"needs a newer guard (foundry-init skips files that already exist)."
+            f"ruleset_guard: unknown kind {kind!r}. The calling workflow and this "
+            f"script are out of step - pin the workflow to a foundry ref whose "
+            f"scripts/ruleset_guard.py knows this kind."
         )
     if kind in ("inline-count", "tests-count"):
         # Tree-wide total at one ref, for the ratchet report.
