@@ -200,7 +200,7 @@ description = "Formatting, style and smells; non-mutating"
 # run still catches stale suppressions repo-wide. prettier gets every changed file
 # (--ignore-unknown skips types it can't format), eslint only the JS/TS ones.
 # --relative because a monorepo package's mise.toml runs from the package dir, where
-# repo-root paths name nothing.
+# repo-root paths name nothing. `xargs -0` rather than `-d`, which BSD/macOS lacks.
 # Array form: the eslint/prettier block + the structural-smell check (`mise run smells`),
 # each a separate command run in order.
 run = ['''
@@ -215,8 +215,8 @@ untracked=$(git ls-files --others --exclude-standard 2>/dev/null || true)
 files=$(printf '%s\n%s\n' "$changed" "$untracked" | sort -u | sed '/^$/d')
 if [ -z "$files" ]; then echo "changed-scope lint: nothing changed since $mb"; exit 0; fi
 js=$(printf '%s\n' "$files" | grep -E '\.(ts|tsx|js|cjs|mjs)$' || true)
-if [ -n "$js" ]; then printf '%s\n' "$js" | xargs -d '\n' eslint; fi
-printf '%s\n' "$files" | xargs -d '\n' prettier --check --ignore-unknown
+if [ -n "$js" ]; then printf '%s\n' "$js" | tr '\n' '\0' | xargs -0 eslint; fi
+printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 prettier --check --ignore-unknown
 ''', "mise run smells"]
 
 [tasks.typecheck]
