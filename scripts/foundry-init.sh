@@ -92,7 +92,26 @@ ensure_ts_devdeps() {
   done
 }
 
-fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps
+# ensure_prettier_config <wd> - lint/fix run prettier over the whole package, and without a
+# config its defaults restyle every file on the first `mise run fix`. prettier-config.mjs
+# infers the churn-driving options from the existing code and never touches a repo that
+# already configures Prettier.
+ensure_prettier_config() {
+  local wd="$1" tmp
+  if ! command -v node > /dev/null 2>&1; then
+    echo "  NOTE: node not on PATH - add a Prettier config before the first 'mise run fix' (Foundry's scripts/prettier-config.mjs infers one from the code)"
+    return 0
+  fi
+  tmp="$(mktemp -d)"
+  if curl -fsSL "$RAW/scripts/prettier-config.mjs" -o "$tmp/prettier-config.mjs"; then
+    node "$tmp/prettier-config.mjs" "$wd" || echo "  WARN: could not scaffold a Prettier config in $wd (add one by hand)"
+  else
+    echo "  WARN: could not fetch scripts/prettier-config.mjs - add a Prettier config to $wd by hand"
+  fi
+  rm -rf "$tmp"
+}
+
+fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps + Prettier config
   local wd="$1"
   # `typecheck` refuses to run without a tsconfig: framework checkers (astro check,
   # vue-tsc) otherwise exit 0 having checked only their own file types. A repo that
@@ -106,6 +125,7 @@ fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps
   # jscpd duplication (generic sensor) reads .jscpd.json; pre-place it like the Java path.
   fetch "presets/habit-hooks/jscpd.json" "$wd/.jscpd.json"
   ensure_ts_devdeps "$wd"
+  ensure_prettier_config "$wd"
 }
 
 fetch_java_extras() { # <wd> - PMD ruleset, jscpd ignore list, per-smell coaching guides
