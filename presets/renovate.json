@@ -5,12 +5,13 @@
     "helpers:pinGitHubActionDigests",
     ":dependencyDashboard",
     ":semanticCommits",
-    "schedule:weekly",
+    "schedule:monthly",
     "group:allNonMajor"
   ],
   "labels": ["dependencies"],
   "prConcurrentLimit": 3,
   "prHourlyLimit": 2,
+  "osvVulnerabilityAlerts": true,
   "customManagers": [
     {
       "customType": "regex",
@@ -39,43 +40,51 @@
       "pinDigests": true
     },
     {
-      "description": "Actions majors need review, so they get their own grouped PR. Non-major Actions bumps fall through to the weekly all-non-major group.",
+      "description": "Actions majors need review, so they get their own grouped PR. Non-major Actions bumps fall through to the monthly all-non-major group.",
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["major"],
       "groupName": "github-actions"
     },
     {
-      "description": "Toolchain majors declared in mise.toml [tools] get their own grouped PR. Non-major toolchain bumps fall through to the weekly all-non-major group.",
+      "description": "Toolchain majors declared in mise.toml [tools] get their own grouped PR. Non-major toolchain bumps fall through to the monthly all-non-major group.",
       "matchManagers": ["mise"],
       "matchUpdateTypes": ["major"],
       "groupName": "mise toolchain"
     },
     {
-      "description": "group:allNonMajor covers minor and patch only; fold digest and pin updates (mostly Actions digest bumps) into the same weekly PR so a week yields one non-major PR.",
+      "description": "group:allNonMajor covers minor and patch only; fold digest and pin updates (mostly Actions digest bumps) into the same monthly PR so a month yields one non-major PR.",
       "matchPackageNames": ["*"],
       "matchUpdateTypes": ["digest", "pin", "pinDigest"],
       "groupName": "all non-major dependencies",
       "groupSlug": "all-minor-patch"
     },
     {
-      "description": "Security fixes land fast and on their own, labelled; exempt from minimumReleaseAge so a patched release is never held back. null (Renovate's own vulnerabilityAlerts default) rather than \"0 seconds\", which the semgrep rule rejects as not \"N days\", or false, which renovate-config-validator rejects.",
+      "description": "A major is a migration someone has to plan, and one PR per package across every repo was a daily flood of them. Majors wait on the Dependency Dashboard and become a PR only when ticked there; the security and Foundry rules below opt back out.",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "Security fixes land fast and on their own, labelled; exempt from minimumReleaseAge and from dashboard approval, even as a major, so a patched release is never held back. osvVulnerabilityAlerts adds OSV as a source, so a repo without GitHub alerts enabled still gets them. null (Renovate's own vulnerabilityAlerts default) rather than \"0 seconds\", which the semgrep rule rejects as not \"N days\", or false, which renovate-config-validator rejects.",
       "matchPackageNames": ["*"],
       "isVulnerabilityAlert": true,
       "labels": ["security"],
       "prPriority": 10,
-      "minimumReleaseAge": null
+      "minimumReleaseAge": null,
+      "dependencyDashboardApproval": false
     },
     {
-      "description": "Foundry is our own repo, so the 7-day hold (meant for strangers' compromised releases) only delays our own fixes. Every Foundry workflow ref bumps together in one PR, any day, and merges itself once the consumer's gate passes. Still digest-pinned, so each bump is a gated change. null for the same semgrep/validator reasons as the vulnerability rule.",
+      "description": "Foundry is our own repo, so the 7-day hold (meant for strangers' compromised releases) only delays our own fixes. Every Foundry workflow ref bumps together in one PR, any day and without dashboard approval even for a major, and merges itself once the consumer's gate passes. Still digest-pinned, so each bump is a gated change. null for the same semgrep/validator reasons as the vulnerability rule.",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["CMaintz/foundry"],
       "minimumReleaseAge": null,
       "groupName": "foundry",
       "groupSlug": "foundry",
       "schedule": ["at any time"],
+      "dependencyDashboardApproval": false,
       "automerge": true
     }
   ],
-  "lockFileMaintenance": { "enabled": true, "schedule": ["* 0-6 * * 1"] },
+  "lockFileMaintenance": { "enabled": true, "schedule": ["* 0-6 1 * *"] },
   "vulnerabilityAlerts": { "labels": ["security"], "schedule": [] }
 }
