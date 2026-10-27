@@ -56,7 +56,8 @@
       "matchPackageNames": ["*"],
       "matchUpdateTypes": ["digest", "pin", "pinDigest"],
       "groupName": "all non-major dependencies",
-      "groupSlug": "all-minor-patch"
+      "groupSlug": "all-minor-patch",
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "A major is a migration someone has to plan, and one PR per package across every repo was a daily flood of them. Majors wait on the Dependency Dashboard and become a PR only when ticked there; the security and Foundry rules below opt back out.",
