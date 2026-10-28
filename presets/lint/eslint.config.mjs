@@ -5,9 +5,13 @@
 //   import foundry from "./eslint.config.foundry.mjs";
 //   export default [ ...foundry, /* your framework + project rules */ ];
 //
-// What it owns: **line length as a gate** - the one thing habit-hooks' TS sensor
-// doesn't cover (that sensor already handles loose-equality, non-const-binding,
-// explicit-any, dead code, etc., so this doesn't duplicate them).
+// What it owns: **line length as a gate** - the one thing habit-hooks doesn't cover.
+// The function-level smells (oversized-function, high-complexity, too-many-parameters,
+// deep-nesting, loose-equality, ...) are not here because they ratchet through
+// habit-hooks instead of hard-failing lint: once this file exists, habit-hooks' TS
+// sensor lints with it rather than its own rules, so the habit-hooks preset points the
+// sensor at `.habit-hooks/eslint.config.mjs`, which spreads this config in and adds them.
+// explicit-any and unused variables are left to the project's typescript-eslint config.
 //
 // max-len is 120, but strings / template literals / regex / URLs are exempted so a
 // prompt or a long formatted line doesn't trip it - extract a big prompt to its own
