@@ -10,7 +10,7 @@ Four short documents, meant to be read in order. Start here.
 
 1. **This page:** what a harness is, the beliefs it rests on, and the loop at a glance.
 2. [**Working with agents**](workflow.md): prompting, acceptance tests as the contract, what a good ticket looks like, and how to roll this out to a team.
-3. [**Building a harness**](building-a-harness.md): what the industry recommends, a step-by-step method, my own harness as a worked example, and how I would approach a TypeScript serverless team.
+3. [**Building a harness**](building-a-harness.md): what the industry recommends, a step-by-step method, my own harness as a worked example, and how I would apply it to a team.
 4. [**Evaluating the harness**](evaluating.md): how to prove a harness change helps instead of just feeling faster.
 
 The two repos behind it are [Foundry](https://github.com/CMaintz/foundry), the shared gate and CI, and [cmaintz-skills](https://github.com/CMaintz/cmaintz-skills), the skills and hooks that drive the agent.

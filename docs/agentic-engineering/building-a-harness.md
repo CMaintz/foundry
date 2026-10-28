@@ -259,24 +259,24 @@ It is tightening-aware: making the gate stricter never needs a label, only loose
 - **Backport discipline:** anything non-language-specific built in a consumer repo comes back to Foundry the same session, so every repo benefits.
 - **Dogfooding:** the harness repos use their own gate. Each has a root `mise.toml` with the six verbs, the same `mise run gate` runs locally and in CI (`gate.yml` in cmaintz-skills, `self-gate.yml` in Foundry), and branch protection requires it before anything merges. So my own tickets go through `feature` and `ship` like anyone else's.
 
-## Applying it to a TypeScript serverless team
+## Applying it to a team
 
-My setup grew around one person working across many stacks. A team on TypeScript, Lambda and DynamoDB has one stack, more people and real cloud environments, so this is how I'd approach that team's harness with what I've learned, rather than copying mine.
+My setup grew around one person working across many stacks. A team usually has fewer stacks, more people and real deployed environments, so this is how I'd approach a team's harness with what I've learned, rather than copying mine.
 
 ### Keep, cut, add
 
 - **Keep:** the beliefs, the six verbs in three placements, the ticket as the real prompt (acceptance criteria and a Definition of Done), the ticket-to-PR loop with a fresh-context review, `learn`, and the evaluation method.
-- **Cut:** the multi-language presets (one strict TypeScript preset is enough), and most of the agent half at first. Start with `spec`, `feature`, `ship` and `review`, the formatter and smell hooks, and the PR guard; add the rest only when a measured problem asks for it.
-- **Add:** checks that reach the boundaries, because a Lambda function is mostly wiring and most of what goes wrong lives in events, permissions, the data model and the cloud itself.
+- **Cut:** presets for languages the team doesn't use, and most of the agent half at first. Start with `spec`, `feature`, `ship` and `review`, the formatter and smell hooks, and the PR guard; add the rest only when a measured problem asks for it.
+- **Add:** checks that reach the boundaries, because in most services a lot of what goes wrong lives outside the code you're editing.
 
 ### Checks for the boundaries
 
-In a serverless codebase much of what breaks lives outside the function body: event and API contracts, the data access patterns, the infrastructure definition and permissions. The harness work is making sure the agent gets a fast, deterministic signal when a change breaks one of those, so it loops against them like any other check. Concretely, on a TypeScript, Lambda and DynamoDB stack:
+Much of what breaks lives at the edges: API and event contracts, the data layer, the infrastructure definition and permissions. The harness work is giving the agent a fast, deterministic signal when a change breaks one of those, so it loops against them like any other check.
 
-- **Thin handlers:** an architecture check keeps business logic out of the handlers, so the logic sits in plain modules with fast unit tests the agent can run every turn.
+- **Thin entry points:** an architecture check keeps business logic out of handlers and controllers, so it sits in plain modules with fast unit tests the agent can run every turn.
 - **Contracts:** API and event payloads are checked against shared schemas, with contract tests between services, so a change that compiles but breaks a consumer goes red in the loop.
-- **Access patterns:** each DynamoDB access pattern has an integration test, so an agent refactoring keys or indexes finds out before the PR, not in production.
-- **Infrastructure:** the infrastructure code is synthesised and scanned for misconfigurations in the gate, and each function's bundle size is ratcheted like any other baseline, so cold starts can't creep up unnoticed.
+- **Data access:** each query or access pattern the service relies on has an integration test, so an agent refactoring a schema, key or index finds out before the PR, not in production.
+- **Infrastructure:** infrastructure code is validated and scanned for misconfigurations in the gate, and numbers that drift quietly (bundle or image size, build time) are ratcheted like any other baseline.
 - **Permissions:** a change that broadens permissions is handled like a ruleset change: allowed, but only with a human label and a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
 
 ### Environments
@@ -284,7 +284,7 @@ In a serverless codebase much of what breaks lives outside the function body: ev
 The gate is the same everywhere; each environment adds a more realistic check, and the agent's reach stops partway.
 
 - **Local:** the gate and fast tests. This is the agent's inner loop.
-- **Sandbox stack:** the first real-AWS feedback, and the furthest an agent can deploy.
+- **Sandbox:** the first feedback from real infrastructure, and the furthest an agent can deploy.
 - **PR preview:** the Given-When-Then acceptance tests run against a deployed system. This is the check that proves the ticket was done, not just that the code is clean.
 - **Staging and production:** the pipeline only. Anything that escapes here comes back through `learn` as a new test or check.
 
@@ -296,7 +296,7 @@ The gate is the same everywhere; each environment adds a more realistic check, a
 
 ### Where I'd start
 
-One team, one service: the gate with baselines, the ticket template, the formatter and PR hooks, then the ticket-to-PR loop, and only then preview stacks and acceptance tests. Measure from week one, and run the evaluation suite before and after each harness change.
+One team, one service: the gate with baselines, the ticket template, the formatter and PR hooks, then the ticket-to-PR loop, and only then preview environments and acceptance tests. Measure from week one, and run the evaluation suite before and after each harness change.
 
 ## Sources
 
