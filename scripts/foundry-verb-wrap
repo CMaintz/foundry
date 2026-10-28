@@ -15,11 +15,21 @@
 # a stale file never attaches to an unrelated verb, then folds it into the line only if
 # the command itself (re)wrote it - so counts attach to `lint`, where smells run.
 #
+# When foundry-explain sits beside this script and a Python with tomllib (3.11+) runs,
+# the command's stdout and stderr are teed (each still streams live, to its own stream)
+# so that, when the verb FAILS, the output can be matched against the rule catalog: one
+# `why: foundry-explain <id>` line per matched rule goes to stderr, and the ids are
+# recorded as "rules" in the telemetry line (`foundry-explain --last` reads them).
+# Unmatched failures print nothing extra. Without foundry-explain or that Python the
+# command runs untouched, as before. Teeing means the command sees a pipe, not a
+# terminal, so a tool that colours only on a TTY prints plain text.
+#
 # Env:
 #   FOUNDRY_TELEMETRY   log path (default: .foundry/telemetry.jsonl, gitignored)
 #   FOUNDRY_SMELLS      per-run smell-counts sidecar (default: .foundry/smells.json)
 #   FOUNDRY_PLACEMENT   ci|ship|hook|manual (default: "ci" if $CI set, else "manual")
 #   FOUNDRY_SINCE       if set (even empty), scope is recorded as "changed", else "whole"
+#   FOUNDRY_EXPLAIN     0 runs the command untouched (no tee, no footer)
 set -u
 
 verb="${1:-unknown}"
@@ -27,6 +37,11 @@ verb="${1:-unknown}"
 [ "${1:-}" = "--" ] && shift
 
 telemetry="${FOUNDRY_TELEMETRY:-.foundry/telemetry.jsonl}"
+explain="$(dirname "$0")/foundry-explain"
+# Seconds to wait, after the command exits, for the tees to drain. A child the command
+# left running (a build server, a daemon) can hold the pipes open forever; past this
+# the tees are stopped so the gate never hangs on it.
+drain_secs=3
 smells_file="${FOUNDRY_SMELLS:-.foundry/smells.json}"
 
 placement="${FOUNDRY_PLACEMENT:-}"
@@ -46,15 +61,89 @@ now_ms() {
   esac
 }
 
+# The first python that can read the catalog. Windows ships a python3 stub that only
+# opens the Store, and macOS's system python predates tomllib, so probe the import.
+find_python() {
+  for c in python3 python; do
+    if command -v "$c" >/dev/null 2>&1 && "$c" -c 'import tomllib' >/dev/null 2>&1; then
+      echo "$c"; return 0
+    fi
+  done
+  return 1
+}
+
+# A temp dir with one FIFO per stream; fails where FIFOs can't be made, and the caller
+# then runs the command untouched.
+make_fifos() {
+  d=$(mktemp -d 2>/dev/null) || return 1
+  if mkfifo "$d/o" "$d/e" 2>/dev/null; then echo "$d"; return 0; fi
+  rm -rf "$d"
+  return 1
+}
+
+# Stop the tees once they have drained, or after drain_secs if something still holds
+# the pipes. The watchdog's stdio is /dev/null so it cannot hold the wrapper's own.
+drain_tees() {
+  ( sleep "$drain_secs"; kill "$@" ) >/dev/null 2>&1 </dev/null &
+  watchdog=$!
+  wait "$@" 2>/dev/null
+  kill "$watchdog" 2>/dev/null
+}
+
+# The command runs in the foreground, not in a pipeline, so $? is its own exit code.
+run_teed() {
+  tee "$tmp/out" < "$tmp/o" &
+  t_out=$!
+  tee "$tmp/err" < "$tmp/e" >&2 &
+  t_err=$!
+  "$@" > "$tmp/o" 2> "$tmp/e"
+  r=$?
+  drain_tees "$t_out" "$t_err"
+  return "$r"
+}
+
+# Catalog ids the captured output matches, one per line. Fails (and the telemetry
+# omits "rules") when foundry-explain itself fails, so a crash never reads as "no match".
+matched_rules() {
+  cat "$tmp/out" "$tmp/err" 2>/dev/null | "$py" "$explain" --match 2>/dev/null
+}
+
+# The ids as a JSON array body, e.g. "a","b". Ids are catalog-controlled [A-Za-z0-9:_.-].
+json_ids() {
+  printf '%s\n' "$1" | sed '/^$/d; s/.*/"&"/' | paste -sd, -
+}
+
+tmp=""
+if [ "${FOUNDRY_EXPLAIN:-1}" != "0" ] && [ -f "$explain" ] && py=$(find_python); then
+  tmp=$(make_fifos) || tmp=""
+fi
+if [ -n "$tmp" ]; then
+  trap 'rm -rf "$tmp"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+fi
+
 # Clear any stale sidecar so only a file this verb's own command writes gets folded in.
 rm -f "$smells_file" 2>/dev/null || true
 
 start=$(now_ms)
-"$@"
+if [ -n "$tmp" ]; then
+  run_teed "$@"
+else
+  "$@"
+fi
 rc=$?
 dur=$(( $(now_ms) - start ))
 [ "$dur" -lt 0 ] && dur=0
 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
+
+# On failure only: an absent "rules" field means "not computed", an empty one means
+# "nothing matched".
+rules_field=""
+if [ "$rc" -ne 0 ] && [ -n "$tmp" ] && ids=$(matched_rules); then
+  printf '%s\n' "$ids" | sed '/^$/d; s/^/why: foundry-explain /' >&2
+  rules_field=",\"rules\":[$(json_ids "$ids")]"
+fi
 
 # Fold in smell counts only if the command wrote the sidecar and it is a single JSON
 # object. Best-effort, like the append: a malformed or absent file just omits the field.
@@ -71,8 +160,8 @@ fi
 (
   dir=$(dirname "$telemetry")
   [ -d "$dir" ] || mkdir -p "$dir" 2>/dev/null || exit 0
-  printf '{"ts":"%s","ms":%s,"verb":"%s","scope":"%s","placement":"%s","exit":%d,"duration_ms":%d%s}\n' \
-    "$ts" "$start" "$verb" "$scope" "$placement" "$rc" "$dur" "$smells_field" >> "$telemetry" 2>/dev/null || true
+  printf '{"ts":"%s","ms":%s,"verb":"%s","scope":"%s","placement":"%s","exit":%d,"duration_ms":%d%s%s}\n' \
+    "$ts" "$start" "$verb" "$scope" "$placement" "$rc" "$dur" "$rules_field" "$smells_field" >> "$telemetry" 2>/dev/null || true
 ) 2>/dev/null || true
 
 exit "$rc"

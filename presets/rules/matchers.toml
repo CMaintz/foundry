@@ -1,0 +1,157 @@
+# Which catalog ids a failing verb's output points at. `foundry-explain --match` applies
+# every pattern to each output line (ANSI colour and CR stripped first); a hit yields its
+# `ids`, with {1}, {2} ... replaced by the capture groups. Only ids that exist in
+# catalog.toml are printed, so a generic pattern (every eslint rule) footers just the rules
+# the catalog explains. Patterns are Python regexes; `example` is a real line of the
+# tool's output that must yield at least one catalog id (the tests check it).
+
+[[match]]
+tool = "eslint"
+pattern = '^\s+\d+:\d+\s+(?:error|warning)\s+.+?\s{2,}(\S+)$'
+ids = ["eslint:{1}"]
+example = "  12:3  error  This line has a length of 131. Maximum allowed is 120  max-len"
+
+[[match]]
+tool = "eslint"
+pattern = 'There are suppressions left that do not occur anymore'
+ids = ["eslint:unused-suppressions"]
+example = "There are suppressions left that do not occur anymore. To resolve this, re-run the command with `--prune-suppressions` to remove unused suppressions."
+
+[[match]]
+tool = "prettier"
+pattern = 'Code style issues found in'
+ids = ["prettier:check"]
+example = "[warn] Code style issues found in 2 files. Run Prettier with --write to fix."
+
+[[match]]
+tool = "habit-hooks"
+# The banner the mapper prints above each finding's coaching, box rules included so a
+# plain "build (3 issues)" from another tool doesn't match. Every smell finding also
+# points at the snooze entry, which explains why an untouched old smell reappeared.
+pattern = '── ([a-z][a-z-]*[a-z]) \(\d+ issues?\) ──'
+ids = ["habit-hooks:{1}", "habit-hooks:snooze"]
+example = "── oversized-function (2 issues) ──"
+
+[[match]]
+tool = "smells"
+pattern = 'smells: pinned habit-hooks not found'
+ids = ["smells:habit-hooks-missing"]
+example = "smells: pinned habit-hooks not found at /home/u/.local/opt/habit-hooks-typescript-1.5.0 (run 'mise install')"
+
+[[match]]
+tool = "ruff"
+# Both the `full` format (code at line start) and `concise` (after path:line:col:). Ruff
+# codes have 3-4 digits, which keeps a stray "E2 " at a line start from matching.
+pattern = '^(?:\S+:\d+:\d+: )?([A-Z]{1,3})\d{3,4} '
+ids = ["ruff:{1}"]
+example = "scripts/x.py:3:1: F401 [*] `os` imported but unused"
+
+[[match]]
+tool = "pmd"
+pattern = '^\S+\.java:\d+:\s+(\w+):\s'
+ids = ["pmd:{1}"]
+example = "src/main/java/a/Foo.java:12:\tNoVar:\tAvoid `var`; use an explicit type"
+
+[[match]]
+tool = "vitest"
+pattern = 'Coverage for \w+ \([\d.]+%\) does not meet .*threshold'
+ids = ["coverage:floor"]
+example = "ERROR: Coverage for lines (79.5%) does not meet global threshold (80%)"
+
+[[match]]
+tool = "pytest-cov"
+pattern = 'Required test coverage of [\d.]+% not reached'
+ids = ["coverage:floor"]
+example = "FAIL Required test coverage of 90% not reached. Total coverage: 85.00%"
+
+[[match]]
+tool = "jacoco"
+pattern = 'Rule violated for \w+ .*expected minimum is'
+ids = ["coverage:floor"]
+example = "Rule violated for bundle app: lines covered ratio is 0.71, but expected minimum is 0.80"
+
+[[match]]
+tool = "npm-audit-ratchet"
+pattern = 'un-accepted \S+ advisory'
+ids = ["npm-audit-ratchet:unaccepted"]
+example = "❌ 1 un-accepted critical+ advisory(ies):"
+
+[[match]]
+tool = "npm-audit-ratchet"
+pattern = 'stale allowlist entr'
+ids = ["npm-audit-ratchet:stale"]
+example = "❌ 1 stale allowlist entry(ies) - the advisory is gone, so PRUNE it (ratchets only shrink):"
+
+[[match]]
+tool = "gitleaks"
+pattern = 'leaks found: [1-9]'
+ids = ["gitleaks:leak"]
+example = "10:00PM WRN leaks found: 1"
+
+[[match]]
+tool = "typecheck"
+pattern = 'typecheck: no tsconfig\.json'
+ids = ["typecheck:no-tsconfig"]
+example = "typecheck: no tsconfig.json in /repo, so no TypeScript would be checked."
+
+[[match]]
+tool = "typecheck"
+pattern = 'FOUNDRY_DENO_PATHS is unset'
+ids = ["typecheck:deno-unchecked"]
+example = "typecheck: Deno code found (supabase/functions/a/index.ts) but FOUNDRY_DENO_PATHS is unset, so it is not type-checked."
+
+[[match]]
+tool = "commitlint"
+pattern = 'found \d+ problems?, \d+ warnings?'
+ids = ["commitlint:conventional-commits"]
+example = "✖   found 1 problems, 0 warnings"
+
+# ruleset-guard runs in CI (security.yml), not under a verb, so these serve a pasted CI log
+# (`foundry-explain --match`, the MCP explain_failure tool) rather than the verb footer.
+[[match]]
+tool = "ruleset-guard"
+pattern = 'adds an in-source suppression/config demotion, or deletes a test'
+ids = ["ruleset-guard:inline", "ruleset-guard:tests", "label:suppression"]
+example = "::error::This PR adds an in-source suppression/config demotion, or deletes a test (listed above). Remove it, or add the 'suppression' label AND explain the reason in the PR description."
+
+[[match]]
+tool = "ruleset-guard"
+pattern = '^\s+added/increased: \('
+ids = ["ruleset-guard:inline"]
+example = "  added/increased: ('src/a.ts', 'eslint-disable')"
+
+[[match]]
+tool = "ruleset-guard"
+pattern = '^\s+removed/decreased: '
+ids = ["ruleset-guard:tests"]
+example = "  removed/decreased: src/a.test.ts"
+
+[[match]]
+tool = "ruleset-guard"
+pattern = 'changes source AND makes ruleset changes that may loosen the gate'
+ids = ["ruleset-guard:bundled", "label:ruleset-change"]
+example = "::error::This PR changes source AND makes ruleset changes that may loosen the gate, without the 'ruleset-change' label:"
+
+[[match]]
+tool = "ruleset-guard"
+pattern = 'REVIEW \(snooze added\)'
+ids = ["ruleset-guard:bundled", "habit-hooks:snooze"]
+example = "  REVIEW (snooze added): .habit-hooks/snooze.json"
+
+[[match]]
+tool = "ruleset-guard"
+pattern = 'REVIEW \(suppression added/increased\)'
+ids = ["ruleset-guard:bundled"]
+example = "  REVIEW (suppression added/increased): eslint-suppressions.json"
+
+[[match]]
+tool = "ruleset-guard"
+pattern = 'REVIEW \((?:arch|frozen) violation added\)'
+ids = ["ruleset-guard:bundled", "baseline:architecture"]
+example = "  REVIEW (arch violation added): .dependency-cruiser-known-violations.json"
+
+[[match]]
+tool = "ruleset-guard"
+pattern = 'REVIEW \(test quarantined\)'
+ids = ["ruleset-guard:bundled", "baseline:flaky-quarantine"]
+example = "  REVIEW (test quarantined): flaky-baseline.json"
