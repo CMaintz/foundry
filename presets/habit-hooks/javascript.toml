@@ -1,8 +1,8 @@
-# Copy to <repo>/.habit-hooks/config.toml, javascript/eslint.config.mjs to
-# <repo>/.habit-hooks/eslint.config.mjs, and javascript/knip.json to <repo>/knip.json
-# (keep your own knip config if you have one). Plain JavaScript (.js/.mjs/.cjs) runs on
-# the typescript plugin: eslint, knip and jscpd all read JS, so no separate plugin is
-# needed. What JS needs is config, below and in the two companion files.
+# Copy to <repo>/.habit-hooks/config.toml, eslint.config.mjs (beside this file, shared with
+# the typescript preset) to <repo>/.habit-hooks/eslint.config.mjs, and javascript/knip.json
+# to <repo>/knip.json (keep your own knip config if you have one). Plain JavaScript
+# (.js/.mjs/.cjs) runs on the typescript plugin: eslint, knip and jscpd all read JS, so no
+# separate plugin is needed. What JS needs is config, below and in the two companion files.
 plugins = ["typescript", "generic"]
 
 # Tests are not structural-smell-gated: long, mock-heavy specs are normal and fine.

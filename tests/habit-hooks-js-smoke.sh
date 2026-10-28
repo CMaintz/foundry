@@ -60,7 +60,7 @@ npm install --no-audit --no-fund --silent
 
 mkdir -p .habit-hooks src test
 cp "$HH/$PRESET.toml" .habit-hooks/config.toml
-cp "$HH/javascript/eslint.config.mjs" .habit-hooks/eslint.config.mjs
+cp "$HH/eslint.config.mjs" .habit-hooks/eslint.config.mjs
 cp "$HH/javascript/knip.json" knip.json
 cp "$HH/jscpd.json" .jscpd.json
 # The repo has an eslint config of its own, the case where the plugin's built-in rules

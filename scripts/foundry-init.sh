@@ -111,7 +111,7 @@ ensure_prettier_config() {
   rm -rf "$tmp"
 }
 
-fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps + Prettier config
+fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + eslint smell config + devDeps + Prettier
   local wd="$1"
   # `typecheck` refuses to run without a tsconfig: framework checkers (astro check,
   # vue-tsc) otherwise exit 0 having checked only their own file types. A repo that
@@ -124,6 +124,9 @@ fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps + P
   # setup:foundry-scripts task caches them at a pinned ref (see mise/ts.toml).
   # jscpd duplication (generic sensor) reads .jscpd.json; pre-place it like the Java path.
   fetch "presets/habit-hooks/jscpd.json" "$wd/.jscpd.json"
+  # The typescript preset's eslint sensor runs this, not the repo's own config: without it
+  # a repo with any eslint config gets no function-level smells.
+  fetch "presets/habit-hooks/eslint.config.mjs" "$wd/.habit-hooks/eslint.config.mjs"
   ensure_ts_devdeps "$wd"
   ensure_prettier_config "$wd"
 }
