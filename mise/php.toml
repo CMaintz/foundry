@@ -152,29 +152,36 @@ run = "codemap-check"
 
 [tasks.audit]
 description = "Dependency vulnerabilities and secrets (gitleaks)"
-# The secret scan covers the working tree as git sees it (tracked and untracked files,
-# minus .gitignore'd ones), so a key is caught before it is committed. It copies that
-# tree out through a throwaway index rather than running `gitleaks dir .` directly,
-# which would also read ignored dependency trees (.venv, vendor/, build output) whose
-# bundled example keys fail the gate on day one. The repo-root .gitleaks.toml is passed
-# explicitly because a package-level mise.toml runs from the package dir, where gitleaks
-# would not find it. SAST stays in CI (security.yml).
+# The secret scan reads only what could leave the machine: commits not yet on the
+# default branch (FOUNDRY_BASE_REF, as smells resolves it), staged and unstaged edits,
+# and untracked files git does not ignore. Pushed history and ignored trees (.venv,
+# vendor/, build output, whose bundled example keys would fail the gate on day one) are
+# skipped, so the cost tracks the change rather than the repo; CI's secret scan
+# (security.yml) owns full history. It runs from the repo root, even in a package dir,
+# so findings carry the root-relative paths CI reports and the root .gitleaks.toml
+# allowlist matches both. SAST stays in CI (security.yml).
 run = [
     "composer audit",
     '''
 set -eu
-root=$(git rev-parse --show-toplevel)
-prefix=$(git rev-parse --show-prefix)
-set --
-if [ -f "$root/.gitleaks.toml" ]; then set -- --config "$root/.gitleaks.toml"; fi
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
-idx=$(git rev-parse --git-path index)
-if [ -f "$idx" ]; then cp "$idx" "$tmp/index"; fi
-GIT_INDEX_FILE="$tmp/index" git -c core.safecrlf=false add -A -- .
-GIT_INDEX_FILE="$tmp/index" git checkout-index -a --prefix="$tmp/tree/"
-cd "$tmp/tree/$prefix"
-gitleaks dir --no-banner --redact "$@" .
+cd "$(git rev-parse --show-toplevel)"
+set -- --no-banner --redact
+if [ -f .gitleaks.toml ]; then set -- "$@" --config .gitleaks.toml; fi
+rc=0
+if git rev-parse -q --verify HEAD >/dev/null; then
+  # No merge-base (no remote yet, base not fetched): nothing on HEAD is pushed, so scan it all.
+  range=HEAD
+  if mb=$(git merge-base "${FOUNDRY_BASE_REF:-origin/main}" HEAD 2>/dev/null); then range="$mb..HEAD"; fi
+  gitleaks git "$@" --log-opts="$range" . || rc=1
+fi
+gitleaks git "$@" --pre-commit . || rc=1
+gitleaks git "$@" --pre-commit --staged . || rc=1
+# Guarded because xargs given no input still runs gitleaks once with no path, which
+# scans the whole tree, ignored dirs included; `xargs -r` is GNU-only.
+if [ -n "$(git ls-files --others --exclude-standard | head -n 1)" ]; then
+  git ls-files --others --exclude-standard -z | xargs -0 gitleaks dir "$@" || rc=1
+fi
+exit "$rc"
 ''',
 ]
 
