@@ -114,7 +114,8 @@ jobs:
       #      `@SuppressWarnings`, `# noqa`, `#pragma warning disable`, a coverage-exclusion, a
       #      skipped test, `severity = none`) - it STOPS the tool reporting, so the count in
       #      eslint-suppressions.json / snooze.json never grows.
-      #   2. a DELETED test - fewer test definitions in a file than the base had.
+      #   2. a DELETED test - fewer uncommented test declarations across the changed test
+      #      files than the base had (deleted or commented out; a move or split nets out).
       # Both are shrink-only (removing a suppression or adding a test always passes) and both
       # are waved through by the suppression label (or the ruleset-change label).
       - name: Refuse added suppressions and deleted tests
@@ -306,7 +307,7 @@ jobs:
             echo "One of these fired:"
             echo ""
             echo "1. **An added in-source suppression or config demotion** - an \`eslint-disable\`, \`@ts-ignore\`, \`@SuppressWarnings\`, \`# noqa\`, \`#pragma warning disable\`, a coverage-exclusion, a skipped/\`.only\` test, or an \`.editorconfig\`/\`tsconfig\`/\`csproj\` demotion. These silence the gate without touching any baseline file."
-            echo "2. **A deleted test** - a test file has fewer test definitions than the base (deleted, or moved out)."
+            echo "2. **A deleted test** - the changed test files hold fewer uncommented test declarations than the base (deleted or commented out, with no replacement)."
             echo "3. **A gate-defining file** changed alongside source in a way that can't be proven *not* to loosen the gate."
             echo ""
             echo "The step log names the exact file + directive. **Pick one:**"

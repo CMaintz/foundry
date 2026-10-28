@@ -25,14 +25,16 @@ Kinds:
           coverage-exclusion / it.skip / editorconfig severity=none is a loosening the
           baseline files above never see. No <path>: the base tree IS the baseline. Same
           per-entry shrink-only property as eslint, so the offset attack is still caught.
-  tests   TEST DELETION: test-definition count PER FILE, INVERSE - a file with fewer
-          tests at head than base lost coverage (deleted or moved out). No <path>.
+  tests   TEST DELETION: uncommented test declarations summed over the PR's changed
+          test files, INVERSE - fewer at head than base means a test was deleted or
+          commented out with no replacement. A split, move or rename nets out. No <path>.
 
 Usage: ruleset_guard.py <eslint|snooze|lines|coverage> <base-ref> <head-ref> <path>
        ruleset_guard.py <inline|tests|workflow-approve> <base-ref> <head-ref>
 """
 
 import json
+import re
 import subprocess
 import sys
 from collections import Counter
@@ -174,6 +176,9 @@ TEST_PATHS = [
 # is an added entry (flagged) and a re-promotion is a removal (safe) for free.
 INLINE_DIRECTIVES = [
     ("eslint-disable", "eslint-" + "disable", CODE_PATHS),
+    # Inline rule config (`/* eslint no-console: "off" */`): `eslint` then a space, so
+    # `eslint-disable` / `eslint-env` stay out; the colon is what makes it rule config.
+    ("eslint-inline-config", r"/\* *es" + "lint +[^*]*:", CODE_PATHS),
     ("ts-ignore", "@ts-" + "ignore", CODE_PATHS),
     ("ts-expect-error", "@ts-" + "expect-error", CODE_PATHS),
     ("ts-nocheck", "@ts-" + "nocheck", CODE_PATHS),
@@ -258,46 +263,81 @@ def inline_loosened(base, head, directives=INLINE_DIRECTIVES):
     return [k for k in n if n[k] > o.get(k, 0)]
 
 
-# Test-definition markers, counted PER FILE over TEST_PATHS (defined above). Deleting or
-# moving tests out of a file drops its count - the INVERSE of the suppression check (a
-# removal is the loosening), like the coverage kind. Built from fragments for the same
-# self-match reason as INLINE_DIRECTIVES. `(^|[^A-Za-z])` is a poor-man's word boundary
-# (git grep -E has no portable \b) so `it`/`test` do not match inside `unit(`/`fixit(`;
-# `@Test([^A-Za-z]|$)` excludes `@TestConfiguration`.
+# Test-declaration markers, matched per line in test files (TEST_PATHS above). Built from
+# fragments for the same self-match reason as INLINE_DIRECTIVES. `(^|[^A-Za-z])` keeps
+# `it`/`test` from matching inside `unit(`/`fixit(`; the trailing `([^A-Za-z]|$)` keeps
+# `@TestConfiguration` and `[TestFixture]` out. `describe(` is left out on purpose:
+# commenting out a describe also comments its `it(` lines, and counting it would make
+# removing a wrapper look like a deleted test.
 TEST_DEFS = [
     "(^|[^A-Za-z])(it|test)[.(]",
     "def " + "test",
+    "function " + "test",
     "@" + "Test([^A-Za-z]|$)",
-    r"\[" + "Fact",
-    r"\[" + "Theory",
+    r"\[" + "(Fact|Theory|Test|TestMethod|DataTestMethod|TestCase)([^A-Za-z]|$)",
 ]
+_TEST_DEF_RE = re.compile("|".join(TEST_DEFS))
 
 
-def test_counts(ref):
-    """Counter[file] = number of test-definition lines in that test file, at a git ref."""
-    c = Counter()
-    args = []
-    for p in TEST_DEFS:
-        args += ["-e", p]
-    r = subprocess.run(
-        ["git", "grep", "-I", "-c", "-E", *args, ref, "--", *TEST_PATHS],
-        capture_output=True,
-        text=True,
-    )
-    if r.returncode > 1:
-        raise SystemExit(f"ruleset_guard tests: git grep failed: {r.stderr.strip()}")
-    for line in r.stdout.splitlines():
-        # git grep -c prints "<ref>:<path>:<count>".
-        head, _, cnt = line.rpartition(":")
-        path = head.split(":", 1)[1] if ":" in head else head
-        c[path] = int(cnt)
-    return c
+def count_test_defs(text):
+    """Test-declaration lines in a file's text, skipping commented-out ones.
+
+    A line comment is a line starting with `//`, `*` or `#` (but not PHP's `#[` attribute).
+    A block comment counts only when `/*` opens the line: a mid-line `/*` is as likely a
+    glob string (`'src/**/*.ts'`) as a comment, and treating it as one would hide every
+    test after it.
+    """
+    n, in_block = 0, False
+    for line in text.splitlines():
+        s = line.strip()
+        if in_block:
+            in_block = "*/" not in s
+            continue
+        if s.startswith("/*"):
+            in_block = "*/" not in s[2:]
+            continue
+        if s.startswith(("//", "*")) or (s.startswith("#") and not s.startswith("#[")):
+            continue
+        if _TEST_DEF_RE.search(line):
+            n += 1
+    return n
+
+
+def _git_lines(*args):
+    r = subprocess.run(["git", *args], capture_output=True, text=True)
+    # git grep exits 1 for "no matches"; anything else above 0 is a real error.
+    if r.returncode > (1 if args[0] == "grep" else 0):
+        raise SystemExit(f"ruleset_guard tests: git {args[0]} failed: {r.stderr.strip()}")
+    return [ln for ln in r.stdout.splitlines() if ln]
+
+
+def _e(patterns):
+    return [a for p in patterns for a in ("-e", p)]
+
+
+def test_counts(ref, paths=None):
+    """Counter[file] = uncommented test declarations at a git ref, over `paths` (default:
+    every test file). A path absent at the ref counts 0."""
+    if paths is None:
+        # Only files with a candidate line can count above 0; "<ref>:<path>" per line.
+        hits = _git_lines("grep", "-I", "-l", "-E", *_e(TEST_DEFS), ref, "--", *TEST_PATHS)
+        paths = [ln.split(":", 1)[1] for ln in hits]
+    return Counter({p: count_test_defs(_git_show(ref, p)) for p in paths})
 
 
 def tests_loosened(base, head):
-    """Files that LOST test definitions (fewer at head than base) - deletion/move-out."""
-    o, n = test_counts(base), test_counts(head)
-    return [f for f in o if n.get(f, 0) < o[f]]
+    """Test files that lost declarations, reported only when the PR's test files hold
+    fewer declarations in total than at base. Summed across every changed test file (both
+    sides of a rename: --no-renames), so a split, move or rename nets out while a test
+    deleted or commented out without a replacement does not."""
+    changed = _git_lines("diff", "--name-only", "--no-renames", base, head, "--", *TEST_PATHS)
+    o, n = test_counts(base, changed), test_counts(head, changed)
+    if sum(n.values()) >= sum(o.values()):
+        return []
+    # On a split that also drops a test, the decreased file is the old one, so show the
+    # net and every changed file's counts for a human to find where it went.
+    net = f"net {sum(o.values())} -> {sum(n.values())} test declarations across changed test files"
+    return [net, *(f"{f} ({o[f]} -> {n[f]})" for f in changed)]
 
 
 _KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count", "tests", "tests-count", "workflow-approve"}
@@ -324,7 +364,7 @@ if __name__ == "__main__":
     else:
         base, head, path = sys.argv[2:5]
         bad = loosened(kind, _git_show(base, path), _git_show(head, path))
-    verb = "removed/decreased" if kind in ("coverage", "tests") else "added/increased"
+    verb = {"coverage": "removed/decreased", "tests": "tests"}.get(kind, "added/increased")
     for k in bad[:20]:
         print(f"  {verb}: {k}", file=sys.stderr)
     sys.exit(1 if bad else 0)
