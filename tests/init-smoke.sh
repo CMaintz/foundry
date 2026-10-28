@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACTIONLINT="${ACTIONLINT:-actionlint}"
 STACKS=("$@")
-[ ${#STACKS[@]} -gt 0 ] || STACKS=(ts java php kotlin dotnet python)
+[ ${#STACKS[@]} -gt 0 ] || STACKS=(ts js java php kotlin dotnet python)
 # Point the scaffolder at THIS checkout. Exported once at top level so every per-test
 # subshell inherits it (a per-subshell export would trip shellcheck SC2030/SC2031).
 export FOUNDRY_RAW="file://$ROOT" FOUNDRY_REF="v0.0.0-smoke"
@@ -26,12 +26,27 @@ for stack in "${STACKS[@]}"; do
     # A TS repo onboarding already has a package.json; seed one so init can inject the
     # gate devDeps (prettier, knip/ts-morph/jscpd) into it.
     if [ "$stack" = ts ]; then printf '{"name":"smoke","version":"0.0.0","private":true}\n' > package.json; fi
+    # knip already a devDep but not configured: the knip.json must still land. The code is
+    # single-quoted, unlike the presets init places, so they must come out reformatted.
+    if [ "$stack" = js ]; then
+      cat > package.json <<'JSON'
+{
+  "name": "smoke",
+  "private": true,
+  "devDependencies": { "knip": "^6.39.0" }
+}
+JSON
+      mkdir -p src
+      printf "export const greet = (name) => 'hello ' + name;\n" > src/a.mjs
+    fi
     bash "$ROOT/scripts/foundry-init.sh" "$stack" > first.log 2>&1 || { cat first.log; fail "init exited non-zero"; }
 
     expected=(mise.toml .habit-hooks/config.toml .gitleaks.toml renovate.json
       .github/workflows/gate.yml .github/workflows/security.yml .github/workflows/ratchet.yml)
     case "$stack" in
       ts) expected+=(tsconfig.json .jscpd.json .prettierrc.json .github/workflows/bootstrap.yml) ;;
+      js) expected+=(eslint.config.mjs .habit-hooks/eslint.config.mjs knip.json .jscpd.json .prettierrc.json
+        .github/workflows/bootstrap.yml) ;;
       java) expected+=(pmd/ruleset.xml config/pmd/no-var.xml .jscpd.json .github/workflows/bootstrap.yml) ;;
       dotnet) expected+=(Directory.Build.props .editorconfig .github/workflows/bootstrap.yml) ;;
       php) expected+=(.github/workflows/bootstrap.yml) ;;
@@ -42,6 +57,24 @@ for stack in "${STACKS[@]}"; do
       for d in knip ts-morph jscpd prettier; do
         grep -q "\"$d\"" package.json || fail "package.json missing TS gate devDep: $d"
       done
+    fi
+    if [ "$stack" = js ]; then
+      for d in eslint knip jscpd prettier; do
+        grep -q "\"$d\"" package.json || fail "package.json missing JS gate devDep: $d"
+      done
+      # The JS preset has the comment sensor off and typecheck runs no tsc.
+      ! grep -q '"ts-morph"' package.json || fail "js scaffold added ts-morph"
+      [ ! -e tsconfig.json ] || fail "js scaffold placed a tsconfig.json"
+      grep -q 'HABIT_HOOKS_PLUGIN = "habit-hooks-typescript"' mise.toml || fail "js mise.toml not on the typescript plugin"
+    fi
+    # The ts and js gates run `prettier --check .`, which covers the generated workflows and,
+    # for js, the eslint/knip presets init placed.
+    if { [ "$stack" = ts ] || [ "$stack" = js ]; } && command -v npx > /dev/null 2>&1; then
+      npx --yes prettier@3 --check .github/workflows/*.yml || fail "generated workflows fail prettier --check"
+      if [ "$stack" = js ]; then
+        grep -q '"singleQuote": true' .prettierrc.json || fail "Prettier style inferred from the presets, not the code"
+        npx --yes prettier@3 --check . || fail "the js scaffold fails prettier --check"
+      fi
     fi
     grep -qxF '.foundry/' .gitignore || fail ".gitignore lacks .foundry/"
     grep -qxF '.claude/worktrees/' .gitignore || fail ".gitignore lacks .claude/worktrees/"
@@ -56,7 +89,7 @@ for stack in "${STACKS[@]}"; do
     case "$stack" in
       kotlin) grep -q 'mise run gate' .github/workflows/gate.yml || fail "kotlin gate.yml is not the inline gate" ;;
       *) grep -q 'workflows/gate.yml@v0.0.0-smoke' .github/workflows/gate.yml || fail "$stack gate.yml does not pin the facade"
-         grep -q "stack: \"$stack\"" .github/workflows/gate.yml || fail "$stack gate.yml does not pass stack: $stack" ;;
+         grep -qx "      stack: $stack" .github/workflows/gate.yml || fail "$stack gate.yml does not pass stack: $stack" ;;
     esac
 
     python3 - <<'PY' || fail "a generated config does not parse"
@@ -92,6 +125,25 @@ if [[ " ${STACKS[*]} " == *" ts "* ]]; then
     bash "$ROOT/scripts/foundry-init.sh" ts > init.log 2>&1 || { cat init.log; fail "init exited non-zero"; }
     [ ! -e .prettierrc.json ] || fail ".prettierrc.json placed although package.json configures prettier"
     echo "ok [ts, own prettier config]"
+  )
+  rm -rf "$dir"
+fi
+
+# JS with its own eslint and knip configs: a second knip config would compete with the
+# repo's, and Foundry's base eslint config would replace the repo's rules.
+if [[ " ${STACKS[*]} " == *" js "* ]]; then
+  stack="js, own eslint + knip config"
+  dir="$(mktemp -d)"
+  (
+    cd "$dir"
+    git init -q
+    printf '{"name":"smoke","version":"0.0.0","private":true}\n' > package.json
+    printf 'export default [];\n' > eslint.config.js
+    printf '{}\n' > knip.jsonc
+    bash "$ROOT/scripts/foundry-init.sh" js > init.log 2>&1 || { cat init.log; fail "init exited non-zero"; }
+    [ ! -e eslint.config.mjs ] || fail "eslint.config.mjs placed although eslint.config.js exists"
+    [ ! -e knip.json ] || fail "knip.json placed although knip.jsonc exists"
+    echo "ok [js, own eslint + knip config]"
   )
   rm -rf "$dir"
 fi
