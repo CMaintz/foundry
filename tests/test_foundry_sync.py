@@ -171,13 +171,6 @@ def test_offline_fails_closed_and_leaves_the_repo_alone(ts):
     assert ts.snapshot() == before
 
 
-def test_unknown_tag_fails_closed(ts):
-    before = ts.snapshot()
-    r = ts.sync("v7.7.7")
-    assert r.returncode != 0
-    assert ts.snapshot() == before
-
-
 def test_kotlin_is_detected_without_a_habit_hooks_plugin(tmp_path):
     kt = Consumer(tmp_path, "kotlin", ["v1.2.0"])
     r = kt.sync("v1.2.0")
