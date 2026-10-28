@@ -28,8 +28,16 @@ SCRIPT = ROOT / "scripts" / "foundry-explain"
 RULES = ROOT / "presets" / "rules"
 PRESETS = ROOT / "presets"
 # A tuned habit-hooks sensor -> the smells it reports. pmd's smells are covered by the
-# Java guides; dotnet-build's ship only commented out in the preset.
-SENSOR_SMELLS = {"line-count": ["oversized-file"], "jscpd": ["duplicated-code"], "pmd": []}
+# Java guides; dotnet-build's ship only commented out in the preset. The javascript
+# preset's eslint sensor reports the TS plugin's function-level smells (file length stays
+# the line-count sensor's); its comment sensor is disabled there and reports nothing in scope.
+SENSOR_SMELLS = {
+    "line-count": ["oversized-file"],
+    "jscpd": ["duplicated-code"],
+    "pmd": [],
+    "eslint": ["oversized-function", "too-many-parameters", "high-complexity", "deep-nesting"],
+    "comment": [],
+}
 
 _loader = SourceFileLoader("foundry_explain", str(SCRIPT))
 _spec = spec_from_loader("foundry_explain", _loader)
