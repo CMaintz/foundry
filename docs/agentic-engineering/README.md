@@ -10,7 +10,7 @@ Four short documents, meant to be read in order. Start here.
 
 1. **This page:** what a harness is, the beliefs it rests on, and the loop at a glance.
 2. [**Working with agents**](workflow.md): prompting, acceptance tests as the contract, what a good ticket looks like, and how to roll this out to a team.
-3. [**Building a harness**](building-a-harness.md): what the industry recommends, a step-by-step method, my own harness as a worked example, and how I would approach a TypeScript serverless team.
+3. [**Building a harness**](building-a-harness.md): what the industry recommends, a step-by-step method, my own harness as a worked example, and how I would apply it to a team.
 4. [**Evaluating the harness**](evaluating.md): how to prove a harness change helps instead of just feeling faster.
 
 The two repos behind it are [Foundry](https://github.com/CMaintz/foundry), the shared gate and CI, and [cmaintz-skills](https://github.com/CMaintz/cmaintz-skills), the skills and hooks that drive the agent.
@@ -75,6 +75,7 @@ If you only have an hour or two, start here. These shaped more of my thinking th
 
 - [Foundry](https://github.com/CMaintz/foundry): the shared gate, reusable workflows and presets
 - [cmaintz-skills](https://github.com/CMaintz/cmaintz-skills): the agent half, skills and hooks
+- [jev-tools](https://github.com/CMaintz/jev-tools), [Leash](https://github.com/CMaintz/leash) and [jev-eval](https://github.com/CMaintz/jev-eval): the Jev-powered advisory layer
 - [habit-hooks](https://github.com/habit-hooks/habit-hooks): structural-smell sensor and coaching
 - [Matt Pocock's skills](https://github.com/mattpocock/skills): practice skills (`tdd`, `diagnosing-bugs`, `codebase-design`)
 - [Ivett Ördög's skills](https://github.com/devill/ivetts-skills): `learn`, `hotspot-rec`, `build-project-review`
