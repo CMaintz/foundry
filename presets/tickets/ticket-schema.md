@@ -38,7 +38,10 @@ required field is not `agent:ready` - in puller mode it is skipped; in supervise
 The driver moves a ticket through three labels; the issue thread is its work log.
 
 - `agent:ready` - groomed, complete, free to claim. Applied only after the owner
-  explicitly approves the full ticket, Definition of Done included.
+  explicitly approves the full ticket, Definition of Done included: by hand, or by
+  the `spec` skill once the owner has said yes. The issue form never applies it
+  (it adds only `enhancement`), because on a public repo anyone can file the form
+  and a puller would then implement a stranger's ticket unattended.
 - `agent:working` - claimed and assigned; exactly one at a time per session
   (WIP = 1), the session named by the ticket's latest `claimed by` comment.
 - `agent:blocked` - escalated to a human, with the reason already posted to the
@@ -49,5 +52,5 @@ The driver moves a ticket through three labels; the issue thread is its work log
 GitHub **silently drops** a template's `labels:` entry if the label does not exist
 in the repo, so the state machine no-ops with no error until the labels exist. Run
 [`scripts/setup-labels.sh`](../scripts/setup-labels.sh) once per repo (idempotent);
-it creates these plus `align`, `ruleset-change`, and `autofix`. `foundry-init` runs
-it for you.
+it creates these plus `enhancement`, `align`, `ruleset-change`, and `autofix`.
+`foundry-init` runs it for you.

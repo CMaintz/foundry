@@ -223,7 +223,7 @@ setup_labels() { # the GitHub labels the workflows + ticket state machine need
 }
 
 configure_repo_settings() { # repo settings the workflows assume but can't set themselves
-  echo "- repo settings (Actions may open PRs, auto-merge)"
+  echo "- repo settings (Actions may create and approve PRs, auto-merge)"
   if ! { command -v gh >/dev/null 2>&1 && gh repo view >/dev/null 2>&1; }; then
     echo "  skip: no gh / no GitHub remote yet"
     return 0
@@ -231,12 +231,14 @@ configure_repo_settings() { # repo settings the workflows assume but can't set t
   # bootstrap.yml and autofix.yml OPEN pull requests. With the repo's "Allow GitHub
   # Actions to create and approve pull requests" setting off (the default), that call
   # 403s and the first bootstrap run fails for no obvious reason - exactly what bit leash.
-  # Preserve the existing default token scope; only flip the create-PR bit.
+  # GitHub has no create-only switch: the one setting (can_approve_pull_request_reviews)
+  # also lets Actions approve PRs, so the message says both. Preserve the existing
+  # default token scope; only flip that bit.
   cur=$(gh api "repos/{owner}/{repo}/actions/permissions/workflow" \
     --jq .default_workflow_permissions 2>/dev/null || echo read)
   if gh api --method PUT "repos/{owner}/{repo}/actions/permissions/workflow" \
       -f default_workflow_permissions="$cur" -F can_approve_pull_request_reviews=true >/dev/null 2>&1; then
-    echo "  Actions may create PRs"
+    echo "  Actions may create and approve PRs (bootstrap/autofix open PRs)"
   else
     echo "  (skip: needs admin on the repo - enable it under Settings > Actions > General)"
   fi

@@ -174,6 +174,24 @@ class TestInline:
         assert r.returncode == 1
         assert "eslint-disable" in r.stderr and "a.ts" in r.stderr
 
+    def test_added_eslint_inline_rule_config_is_a_loosening(self, repo):
+        # `/* eslint rule: "off" */` turns a rule off for the file without the word
+        # "disable", so the eslint-disable count never sees it.
+        cwd, commit = repo
+        base = commit("export const a = 1\n", path="a.ts")
+        head = commit('/* es' + 'lint no-console: "off" */\nexport const a = 1\n', path="a.ts")
+        r = run_cli(cwd, "inline", base, head)
+        assert r.returncode == 1 and "eslint-inline-config" in r.stderr
+
+    def test_eslint_env_and_disable_comments_are_not_inline_config(self, repo):
+        # A pattern loose enough to match `eslint-env` or `eslint-disable` would double
+        # count every disable and flag harmless env comments.
+        cwd, commit = repo
+        base = commit("export const a = 1\n", path="a.ts")
+        head = commit("/* es" + "lint-env node */\n/* es" + "lint-disable */\nexport const a = 1\n", path="a.ts")
+        r = run_cli(cwd, "inline", base, head)
+        assert "eslint-inline-config" not in r.stderr
+
     def test_removing_a_suppression_is_safe(self, repo):
         cwd, commit = repo
         base = commit("export const a = 1\n" + DISABLE, path="a.ts")
@@ -370,3 +388,137 @@ class TestTestDeletion:
         base = commit("@TestConfiguration\nclass FooTest {}\n", path="FooTest.java")
         head = commit("class FooTest {}\n", path="FooTest.java")
         assert run_cli(cwd, "tests", base, head).returncode == 0
+
+
+def commit_tree(cwd, files=None, remove=()):
+    """One commit that writes `files` ({path: text}) and git-rm's `remove`; returns its sha."""
+    for path, text in (files or {}).items():
+        (cwd / path).parent.mkdir(parents=True, exist_ok=True)
+        (cwd / path).write_text(text)
+    for path in remove:
+        subprocess.run(["git", "rm", "-q", path], cwd=cwd, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=cwd, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "c"], cwd=cwd, check=True, capture_output=True)
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+class TestNetTestDecrease:
+    def test_commenting_a_test_out_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        head = commit("it('a', () => {})\n// test('b', () => {})\nit('c', () => {})\n", path="a.test.ts")
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 1 and "a.test.ts" in r.stderr
+
+    def test_block_commenting_a_test_out_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        head = commit("it('a', () => {})\n/*\ntest('b', () => {})\n*/\nit('c', () => {})\n", path="a.test.ts")
+        assert run_cli(cwd, "tests", base, head).returncode == 1
+
+    def test_commenting_out_a_python_test_is_a_loosening(self, repo):
+        cwd, commit = repo
+        base = commit("def test_a():\n    pass\ndef test_b():\n    pass\n", path="a_test.py")
+        head = commit("def test_a():\n    pass\n# def test_b():\n#     pass\n", path="a_test.py")
+        assert run_cli(cwd, "tests", base, head).returncode == 1
+
+    def test_a_glob_string_is_not_a_block_comment(self, repo):
+        # `/*` inside a string must not swallow the tests after it, or the deletion
+        # below would count as 0 -> 0.
+        cwd, commit = repo
+        glob = "const files = 'src/**/*.ts'\n"
+        base = commit(glob + THREE, path="a.test.ts")
+        head = commit(glob + "it('a', () => {})\nit('c', () => {})\n", path="a.test.ts")
+        assert run_cli(cwd, "tests", base, head).returncode == 1
+
+    def test_deleting_a_phpunit_test_is_a_loosening(self, repo):
+        cwd, commit = repo
+        two = "#[Test]\npublic function addsItem(): void {}\npublic function testTotal(): void {}\n"
+        base = commit(two, path="CartTest.php")
+        head = commit("#[Test]\npublic function addsItem(): void {}\n", path="CartTest.php")
+        assert run_cli(cwd, "tests", base, head).returncode == 1
+
+    def test_php_test_attribute_is_not_a_comment(self, repo):
+        # `#[Test]` starts with `#` but is a PHP attribute, so removing it is a deletion.
+        cwd, commit = repo
+        base = commit("#[Test]\npublic function addsItem(): void {}\n", path="CartTest.php")
+        head = commit("public function addsItem(): void {}\n", path="CartTest.php")
+        assert run_cli(cwd, "tests", base, head).returncode == 1
+
+    @pytest.mark.parametrize("attr", ["[" + "Test]", "[" + "TestMethod]"])
+    def test_deleting_an_nunit_or_mstest_test_is_a_loosening(self, repo, attr):
+        cwd, commit = repo
+        base = commit(f"{attr}\npublic void A() {{}}\n{attr}\npublic void B() {{}}\n", path="CartTests.cs")
+        head = commit(f"{attr}\npublic void A() {{}}\n", path="CartTests.cs")
+        assert run_cli(cwd, "tests", base, head).returncode == 1
+
+    def test_splitting_a_test_file_in_two_is_safe(self, repo):
+        cwd, _ = repo
+        base = commit_tree(cwd, {"cart.test.ts": THREE})
+        head = commit_tree(
+            cwd,
+            {"cart-add.test.ts": "it('a', () => {})\nit('c', () => {})\n", "cart-total.test.ts": "test('b', () => {})\n"},
+            remove=["cart.test.ts"],
+        )
+        r = run_cli(cwd, "tests", base, head)
+        assert r.returncode == 0, r.stderr
+
+    def test_moving_a_test_between_files_is_safe(self, repo):
+        cwd, _ = repo
+        base = commit_tree(cwd, {"a.test.ts": THREE, "b.test.ts": "it('d', () => {})\n"})
+        head = commit_tree(cwd, {"a.test.ts": "it('a', () => {})\nit('c', () => {})\n", "b.test.ts": "it('d', () => {})\ntest('b', () => {})\n"})
+        assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_renaming_a_test_file_is_safe(self, repo):
+        cwd, commit = repo
+        base = commit(THREE, path="a.test.ts")
+        subprocess.run(["git", "mv", "a.test.ts", "cart.test.ts"], cwd=cwd, check=True, capture_output=True)
+        head = commit_tree(cwd)
+        assert run_cli(cwd, "tests", base, head).returncode == 0
+
+    def test_tests_count_ignores_commented_tests(self, repo):
+        cwd, commit = repo
+        head = commit("it('a', () => {})\n// it('b', () => {})\n", path="a.test.ts")
+        assert run_cli(cwd, "tests-count", head).stdout.strip() == "1"
+
+
+WF = ".github/workflows/ci.yml"
+WF_BASE = "jobs:\n  test:\n    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@aaaa\n"
+
+
+class TestWorkflowApprove:
+    @pytest.mark.parametrize(
+        ("added", "name"),
+        [
+            ("      pull-requests: " + "write\n", "workflow-pr-write"),
+            ("    permissions: write" + "-all\n", "workflow-pr-write"),
+            ("      - run: gh pr review --" + "approve \"$PR\"\n", "workflow-approve-cli"),
+            ("      - run: gh api repos/o/r/pulls/1/reviews -f event=" + "APPROVE\n", "workflow-approve-event"),
+            ("      - uses: hmarr/auto-" + "approve-action@bbbb\n", "workflow-approve-action"),
+        ],
+    )
+    def test_added_approve_capability_is_flagged(self, repo, added, name):
+        cwd, commit = repo
+        base = commit(WF_BASE, path=WF)
+        head = commit(WF_BASE + added, path=WF)
+        r = run_cli(cwd, "workflow-approve", base, head)
+        assert r.returncode == 1 and name in r.stderr and WF in r.stderr
+
+    def test_an_action_sha_bump_is_safe(self, repo):
+        # Renovate rewrites the pin in place; the approve-capable line count is unchanged.
+        cwd, commit = repo
+        base = commit(WF_BASE + "      - uses: hmarr/auto-" + "approve-action@bbbb\n", path=WF)
+        head = commit(WF_BASE + "      - uses: hmarr/auto-" + "approve-action@cccc # v4\n", path=WF)
+        assert run_cli(cwd, "workflow-approve", base, head).returncode == 0
+
+    def test_a_commented_permission_is_not_a_grant(self, repo):
+        cwd, commit = repo
+        base = commit(WF_BASE, path=WF)
+        head = commit("#   permissions: { pull-requests: " + "write }\n" + WF_BASE, path=WF)
+        assert run_cli(cwd, "workflow-approve", base, head).returncode == 0
+
+    def test_only_workflow_files_are_scanned(self, repo):
+        cwd, commit = repo
+        base = commit("# docs\n", path="docs/ci.md")
+        head = commit("# docs\npull-requests: " + "write\n", path="docs/ci.md")
+        assert run_cli(cwd, "workflow-approve", base, head).returncode == 0

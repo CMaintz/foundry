@@ -15,6 +15,8 @@ label "agent:ready"    0e8a16 "Groomed, complete, free to claim"
 label "agent:working"  fbca04 "Claimed and assigned (WIP=1)"
 label "agent:blocked"  d93f0b "Escalated to a human; reason in the issue thread"
 label "align"          1d76db "repo-align target ticket"
+# The issue form's type label. GitHub's own default, recreated in case a repo deleted it.
+label "enhancement"    a2eeef "New feature or request"
 
 # Gate / CI controls
 label "ruleset-change" 5319e7 "Deliberate ruleset/threshold/baseline loosening (ruleset-guard gate)"
