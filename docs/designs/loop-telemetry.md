@@ -103,6 +103,12 @@ None (gitignored, non-source).
 | Pre-push | yes | `/loop-report` after `/ship` |
 | CI | yes (local file discarded) + `gh run` mining | `/loop-report --ci` |
 
+The reusable gate workflows run one verb per step for UI attribution, not the composite
+`gate`, so each step wraps its own verb (`mise exec -- foundry-verb-wrap <verb> -- mise run
+<verb>`) to keep CI on the wrapper path. `mise exec` because the scripts cache is on PATH
+only inside a mise context. The emitted line is discarded with the runner; the point is
+that the de-vendored wrapper resolves and runs in CI, not that CI keeps the telemetry.
+
 ## If-funded tier
 
 - **Token/cost accounting:** if a metered API is ever in the loop, log token counts per

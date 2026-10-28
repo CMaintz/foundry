@@ -86,9 +86,19 @@ jobs:
           key: node-modules-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working_directory)) }}
       - if: steps.node_modules.outputs.cache-hit != 'true'
         run: npm ci
-      # This IS `mise run gate` (lint -> typecheck -> test -> audit, in order),
-      # split one verb per step so a failure reddens the exact verb in the UI and
-      # gets a targeted fix. Devs still run the composite `mise run gate` locally.
+      # Provision the cached Foundry scripts (foundry-verb-wrap) before the verbs. The
+      # local `gate` task gets this via its setup:foundry-scripts dep; the per-step form
+      # below has no such dep, and a mise cache hit can skip the postinstall that fetches
+      # them. Idempotent and sha256-checked, so ~0s on a warm cache.
+      - name: 'setup: Foundry scripts (verb-wrap)'
+        run: mise run setup:foundry-scripts
+      # This IS `mise run gate` (lint -> typecheck -> test -> audit, in order), split one
+      # verb per step so a failure reddens the exact verb in the UI and gets a targeted fix.
+      # Each verb is wrapped by `foundry-verb-wrap`, as the local `gate` task wraps it, so
+      # the de-vendored wrapper path and its telemetry are exercised in CI, not only locally.
+      # `mise exec` is required: the scripts cache dir is on PATH only inside a mise context
+      # (mise.toml [env] _.path), never a bare step. Telemetry is ephemeral here; the point
+      # is that the wrapper resolves and runs.
       - name: 'gate: lint'
         id: lint
         # FOUNDRY_BASE_REF is the ratchet base for lint's folded structural-smell check
@@ -97,7 +107,7 @@ jobs:
         # merge-base needs the history that fetch-depth: 0 (above) supplies.
         env:
           FOUNDRY_BASE_REF: ${{ github.event.pull_request.base.sha }}
-        run: mise run lint
+        run: mise exec -- foundry-verb-wrap lint -- mise run lint
       - name: How to fix (lint)
         if: failure() && steps.lint.outcome == 'failure'
         run: |
@@ -112,7 +122,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: typecheck'
         id: typecheck
-        run: mise run typecheck
+        run: mise exec -- foundry-verb-wrap typecheck -- mise run typecheck
       - name: How to fix (typecheck)
         if: failure() && steps.typecheck.outcome == 'failure'
         run: |
@@ -123,7 +133,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: test'
         id: test
-        run: mise run test
+        run: mise exec -- foundry-verb-wrap test -- mise run test
       - name: How to fix (test)
         if: failure() && steps.test.outcome == 'failure'
         run: |
@@ -134,7 +144,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: 'gate: audit'
         id: audit
-        run: mise run audit
+        run: mise exec -- foundry-verb-wrap audit -- mise run audit
       - name: How to fix (audit)
         if: failure() && steps.audit.outcome == 'failure'
         run: |
