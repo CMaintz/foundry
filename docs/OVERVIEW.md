@@ -500,7 +500,7 @@ radius* into separate workflow files, each composing foundry's reusable pieces:
 | File | Calls (facade) | Trigger |
 |---|---|---|
 | `gate.yml` | `gate.yml` facade - `with: { stack, working_directory }`, once per package; includes structural smells | PR + push |
-| `security.yml` | `security.yml` facade - secrets + ruleset-guard + SAST in one call | PR + push |
+| `security.yml` | `security.yml` facade - secrets + ruleset-guard + SAST in one call | PR + push, weekly + manual (full-history secret scan) |
 | `bootstrap.yml` | `bootstrap.yml` - baseline refresh | `workflow_dispatch` |
 | `deploy.yml` | image publish / release - **push-to-main only** | push |
 

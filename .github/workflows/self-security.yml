@@ -11,6 +11,10 @@ on:
   # labeled/unlabeled: ruleset-guard judges sign-off labels, so applying one must re-run it.
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
+  # The full-history secret scan; PR runs scan only the PR's commits.
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
