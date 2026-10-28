@@ -575,7 +575,8 @@ the scripts pin. It detects the stack from `HABIT_HOOKS_PLUGIN` (kotlin from the
 header), copies `FOUNDRY_SCRIPTS_REF` and the digest lines from the tag's template rather
 than hashing the download, so a moved tag still fails `setup:foundry-scripts`, bumps
 version-tag workflow refs, and prints the remaining template drift as a diff for a human
-to apply. A network failure leaves the repo untouched.
+to apply. A network failure leaves the repo untouched. It runs from the repo root; a
+monorepo passes each package dir in turn (`--sync latest backend`).
 
 ## 19. Language coverage and current limitations
 

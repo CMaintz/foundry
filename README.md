@@ -230,7 +230,8 @@ It copies the pin and the digest lines from that tag's template (never hashing a
 download, so a moved tag still fails verification), bumps `uses: CMaintz/foundry/...@vX.Y.Z`
 workflow refs to the tag (SHA, `@main` and `@vN` pins are reported and left alone), then
 prints a diff of the tag's template against your `mise.toml` to review by hand. Re-running
-it changes nothing. A monorepo runs it once per package dir.
+it changes nothing. Run it from the repo root, since that is where it looks for
+`.github/workflows`; a monorepo runs it once per package (`--sync latest backend`).
 
 ## Status
 
