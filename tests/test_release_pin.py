@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = sorted((ROOT / "mise").glob("*.toml"))
 # Resolved through PATH: a bare "bash" on Windows hits System32's WSL launcher first.
 BASH = shutil.which("bash") or "bash"
-DIGEST_LINE = re.compile(r"^([\w.-]+) ([0-9a-f]{64})$", re.M)
+DIGEST_LINE = re.compile(r"^([\w./-]+) ([0-9a-f]{64})$", re.M)
 
 
 def digests(text: str) -> dict[str, str]:
@@ -26,6 +26,11 @@ def digests(text: str) -> dict[str, str]:
 
 def load(path: Path) -> dict:
     return tomllib.loads(path.read_text(encoding="utf-8"))
+
+
+def repo_path(name: str) -> str:
+    """A digest line names scripts/<name>, or a repo path when it has a slash."""
+    return name if "/" in name else f"scripts/{name}"
 
 
 def fetch_list(template: dict) -> list[str]:
@@ -41,8 +46,8 @@ def test_templates_agree_on_one_scripts_ref():
 
 @pytest.mark.parametrize("path", TEMPLATES, ids=lambda p: p.stem)
 def test_every_fetched_script_exists(path):
-    missing = [s for s in fetch_list(load(path)) if not (ROOT / "scripts" / s).is_file()]
-    assert not missing, f"{path.name} fetches scripts not in scripts/: {missing}"
+    missing = [s for s in fetch_list(load(path)) if not (ROOT / repo_path(s)).is_file()]
+    assert not missing, f"{path.name} fetches files the repo does not have: {missing}"
 
 
 def git(cwd: Path, *args: str) -> None:
@@ -52,6 +57,7 @@ def git(cwd: Path, *args: str) -> None:
 def test_cut_release_pins_ref_and_digests_to_the_new_tag(tmp_path):
     shutil.copytree(ROOT / "mise", tmp_path / "mise")
     shutil.copytree(ROOT / "scripts", tmp_path / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(ROOT / "presets" / "rules", tmp_path / "presets" / "rules")
     # Stale digests, as after a release that changed a script: the rewrite must replace them.
     for p in (tmp_path / "mise").glob("*.toml"):
         p.write_text(DIGEST_LINE.sub(lambda m: f"{m[1]} {'0' * 64}", p.read_text(encoding="utf-8")),
@@ -72,7 +78,7 @@ def test_cut_release_pins_ref_and_digests_to_the_new_tag(tmp_path):
         got = digests(new)
         assert got.keys() == digests(old).keys(), name
         for s, d in got.items():
-            assert d == hashlib.sha256((ROOT / "scripts" / s).read_bytes()).hexdigest(), (name, s)
+            assert d == hashlib.sha256((ROOT / repo_path(s)).read_bytes()).hexdigest(), (name, s)
         # Only the pin and digest lines move: the renovate annotation and the rest stay.
         assert len(old.splitlines()) == len(new.splitlines()), name
         changed = [b for a, b in zip(old.splitlines(), new.splitlines()) if a != b]

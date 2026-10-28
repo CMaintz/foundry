@@ -1,0 +1,470 @@
+# Rule rationale catalog: why each check Foundry turns on or adds exists, the sanctioned
+# fix, and whether a suppression is ever acceptable. `foundry-explain <id>` prints an
+# entry; `foundry-verb-wrap` points at one when a failing verb's output matches
+# matchers.toml. Entries are written and reviewed like code, never generated: every
+# `why` is taken from what this repo says (the files in `see`). Where the repo records no
+# reason, the entry says so instead of inventing one.
+#
+# id            tool:rule, as the tool prints it (Foundry's own checks use their script or
+#               verb name as the tool)
+# suppressible  never | with-label | inline-with-reason
+#               with-label: only through a PR carrying the `suppression` or
+#               `ruleset-change` label (ruleset-guard checks the label) plus a reason in
+#               its body (policy, which a human reviewer holds it to)
+#               inline-with-reason: a documented allowlist entry with a reason is accepted
+#               without a label
+# see           repo paths in CMaintz/foundry that hold the rationale
+
+[[rule]]
+id = "ruleset-guard:inline"
+why = """
+An inline eslint-disable, @ts-ignore, @SuppressWarnings, # noqa or #pragma warning disable
+stops the tool from reporting, so no baseline file ever grows and the ratchets see
+nothing: it is the cheapest way to game the gate. Config demotions (an editorconfig
+severity = none, tsconfig "strict": false, csproj <NoWarn>) and skipped or .only tests are
+the same move. The guard counts them tree-wide at base and head, so an added one fails.
+"""
+fix = """
+Fix the finding instead of silencing it. If the suppression is deliberate and reviewed,
+add the `suppression` label and say in the PR description which rule is suppressed and
+why. A bare label without a reason is not the sanctioned path.
+"""
+suppressible = "with-label"
+see = ["docs/DESIGN.md", ".github/workflows/_guards.yml", "scripts/ruleset_guard.py"]
+
+[[rule]]
+id = "ruleset-guard:tests"
+why = """
+A test file with fewer test definitions than at the base lost coverage, by deletion or by
+moving tests out. No baseline file shows that, so the guard counts test definitions per
+file and treats a drop as a loosening. The coverage floor backstops tests that are weaker
+but still present.
+"""
+fix = """
+Keep the test. If the deletion or move is deliberate, add the `suppression` label and
+say in the PR description which test is gone and why.
+"""
+suppressible = "with-label"
+see = ["docs/DESIGN.md", ".github/workflows/_guards.yml", "scripts/ruleset_guard.py"]
+
+[[rule]]
+id = "ruleset-guard:bundled"
+why = """
+The fixer may not edit the ruleset: the cheapest fix for a smell is to loosen the rule,
+and asking nicely in a prompt does not stop that. So a PR that touches source AND a
+gate-defining file (lint configs, .habit-hooks/, thresholds, baselines, workflows) in a
+way that can't be proven to tighten it fails unless a human applies the label. Ruleset
+changes are their own PR.
+"""
+fix = """
+Split the PR: land the source change on its own, and the ruleset change in a separate PR.
+Removing a suppression, tightening a rule or an inert whitespace/CRLF change passes on its
+own. If the loosening is deliberate, add the `ruleset-change` label and explain it.
+"""
+suppressible = "with-label"
+see = ["CONTRACT.md", "docs/DESIGN.md", ".github/workflows/_guards.yml"]
+
+[[rule]]
+id = "label:ruleset-change"
+why = """
+Disabling a lint rule, lowering a threshold or growing a suppression baseline is a
+deliberate decision that gets its own pull request. The label is how a human puts that
+decision on record; ruleset-guard reads it instead of trusting the diff's author.
+"""
+fix = """
+Only a human applies it, on a PR whose description explains the loosening. An agent never
+adds it to get past the guard.
+"""
+suppressible = "never"
+see = ["CONTRACT.md", ".github/workflows/_guards.yml"]
+
+[[rule]]
+id = "label:suppression"
+why = """
+Gives an added in-source suppression, config demotion or deleted test its own reviewable
+signal, separate from ruleset-change. The guard accepts either label; the policy is that
+the PR description also gives the reason, so a human is on record (the guard checks only
+the label).
+"""
+fix = """
+Only a human applies it, after reading the reason in the PR description. An agent never
+adds it to get past the guard.
+"""
+suppressible = "never"
+see = ["docs/DESIGN.md", ".github/workflows/_guards.yml"]
+
+[[rule]]
+id = "eslint:unused-suppressions"
+why = """
+eslint-suppressions.json is the accepted debt and may only shrink. lint fails on stale
+suppressions as well as new violations, so a fixed violation can't stay baselined and be
+silently re-suppressed later; otherwise the baseline rots.
+"""
+fix = """
+Run `mise run fix`: its `eslint --prune-suppressions` pass drops suppressions whose
+violation no longer exists. Never hand-edit, regenerate wholesale or delete the file.
+"""
+suppressible = "never"
+see = ["CONTRACT.md", "mise/ts.toml", "docs/DESIGN.md"]
+
+[[rule]]
+id = "habit-hooks:snooze"
+why = """
+The snooze baseline (.habit-hooks/snooze.json) records existing smells as accepted so a
+legacy repo can adopt the gate without everything being red on day one. The
+snooze-until-changed transformer exempts a violation only while its file is unchanged
+since the branch base: touch the file and its old smells come back. That is why editing a
+file can surface findings you did not write.
+"""
+fix = """
+Fix the smells in the files you touched; that is the ratchet working. Do not hand-edit
+snooze.json: it is regenerated on Linux by the bootstrap workflow, with --prune (shrink
+only) once it exists. Growing it is a ruleset change that needs the `ruleset-change`
+label.
+"""
+suppressible = "with-label"
+see = ["docs/DESIGN.md", "CONTRACT.md", ".github/workflows/bootstrap.yml", "presets/habit-hooks/README.md"]
+
+[[rule]]
+id = "habit-hooks:duplicated-code"
+why = """
+jscpd (the generic plugin's duplication detector) is language-independent, so Foundry
+treats it as the one universal check and every habit-hooks preset includes it. Foundry
+records no further reason; the coaching text habit-hooks prints with the finding is
+upstream's, not Foundry's.
+"""
+fix = """
+Follow the printed coaching: name the concept both copies reach for rather than
+extracting a helper mechanically. Test and fixture duplication is excluded through
+.jscpd.json (copied from presets/habit-hooks/jscpd.json); edit that only for genuinely
+generated or fixture paths, in its own PR.
+"""
+suppressible = "with-label"
+see = ["presets/habit-hooks/README.md", "presets/habit-hooks/jscpd.json", "docs/DESIGN.md"]
+
+[[rule]]
+id = "habit-hooks:oversized-file"
+why = """
+Foundry flags files over 300 lines rather than the sensor default of 200: verbose but
+cohesive files (especially Java) legitimately pass 200, and this is a ratcheted coaching
+signal, not a hard wall. The same number applies to every language.
+"""
+fix = """
+Split the file along its responsibilities. Big prompts and data belong in their own
+resource file, which the `files` globs already exclude.
+"""
+suppressible = "with-label"
+see = ["presets/habit-hooks/typescript.toml", "presets/habit-hooks/README.md"]
+
+[[rule]]
+id = "habit-hooks:oversized-function"
+why = """
+An oversized function is holding more than one idea: length is the symptom, a function
+doing several jobs is the cause. It is the machine-checkable shadow of "a function does
+one thing".
+"""
+fix = """
+Find the seam and extract toward a name: one step per well-named function, deciding
+separate from doing. If its honest one-sentence description needs an "and", each half is
+a function. Do not cut it at the halfway line or extract a helper with 5+ parameters. On
+Java, a genuine non-seam may carry `// foundry-allow-smell: <reason>`; ruleset-guard
+counts that marker as an inline suppression, so the PR also needs the `suppression` label.
+"""
+suppressible = "with-label"
+see = ["presets/habit-hooks/java/guides/oversized-function.md", "presets/agent/code-standards.md"]
+
+[[rule]]
+id = "habit-hooks:high-complexity"
+why = """
+High complexity means one function makes too many decisions at once: too many branches is
+too many things. The count is the symptom; tangled responsibilities are the cause.
+"""
+fix = """
+Remove decisions, don't hide them: lift guards into early returns, turn a switch on one
+value into polymorphism or a lookup, extract one function per genuinely separate branch.
+Merging conditions or rewriting branches as ternaries only moves the counter.
+"""
+suppressible = "with-label"
+see = ["presets/habit-hooks/java/guides/high-complexity.md", "presets/agent/code-standards.md"]
+
+[[rule]]
+id = "habit-hooks:too-many-parameters"
+why = """
+A long parameter list is coupling: parameters that travel together are a missing
+abstraction, and on a constructor it usually means the class does too much. On Java the
+threshold is 8, not PMD's 4, because 4 fires on ordinary DI constructors and records.
+"""
+fix = """
+Find the missing abstraction: an existing domain type for a group of parameters, a small
+record for the group, or a collaborator extracted from a god class. A Map bag or a
+FooParams object named after the method only renames the list.
+"""
+suppressible = "with-label"
+see = ["presets/habit-hooks/java/guides/too-many-parameters.md", "presets/lint/pmd/ruleset.xml"]
+
+[[rule]]
+id = "habit-hooks:deep-nesting"
+why = """
+A block nested 3+ deep forces the reader to hold several unstated conditions at once; a
+nested block usually wants to be a named function.
+"""
+fix = """
+Flatten one level at a time: invert and return early, extract the inner block into a
+function named for its precondition, `continue` on the skip case in loops. Moving the
+whole pyramid into a helper unchanged is not a fix.
+"""
+suppressible = "with-label"
+see = ["presets/habit-hooks/java/guides/deep-nesting.md", "presets/agent/code-standards.md"]
+
+[[rule]]
+id = "coverage:floor"
+why = """
+The coverage floor ratchets upward only: it is set to today's measured number and may only
+rise. A floor you cannot meet is a floor you will delete, so it starts where the repo is.
+It is a whole-tree property, so only the whole-tree test run (CI, the final gate) enforces
+it, never the changed-scope run.
+"""
+fix = """
+Add tests for the code that dropped coverage. Never lower the threshold or add a
+coverage exclusion to pass; either is a ruleset change for its own labelled PR.
+"""
+suppressible = "with-label"
+see = ["docs/DESIGN.md", "CONTRACT.md", "mise/ts.toml", "mise/python.toml"]
+
+[[rule]]
+id = "npm-audit-ratchet:unaccepted"
+why = """
+`npm audit --audit-level=critical` is all-or-nothing: a repo with one unfixable critical
+either reds every PR or silences the whole check. The ratchet wraps it with a shrink-only
+allowlist, like eslint suppressions, so one specific advisory can be accepted with a
+justification while every new one still fails.
+"""
+fix = """
+Fix it (`npm audit fix`, or a targeted `overrides` entry). Only if it is genuinely
+unfixable now, add {package, reason} to .audit-allowlist.json with the justification.
+Never silence the whole check.
+"""
+suppressible = "inline-with-reason"
+see = ["scripts/npm-audit-ratchet.mjs", "mise/ts.toml"]
+
+[[rule]]
+id = "npm-audit-ratchet:stale"
+why = """
+An allowlist entry whose advisory is gone fails the audit, so the accepted CVE debt can
+only shrink and a stale acceptance can't later cover a new advisory in the same package.
+"""
+fix = "Remove the named entry from .audit-allowlist.json."
+suppressible = "never"
+see = ["scripts/npm-audit-ratchet.mjs"]
+
+[[rule]]
+id = "gitleaks:leak"
+why = """
+Secrets are not ratcheted. A real leaked secret is remediated (rotate, then purge from
+history), never allowlisted.
+"""
+fix = """
+Use the foundry-secret skill. For a real secret: rotate it first, then purge it from
+history. Only a CONFIRMED non-secret (public-by-design config, a dummy fixture) goes into
+.gitleaks.toml's allowlist, by exact file path rather than directory.
+"""
+suppressible = "never"
+see = ["presets/security/gitleaks.toml"]
+
+[[rule]]
+id = "commitlint:conventional-commits"
+why = """
+Commits must follow Conventional Commits. DESIGN.md lists it as a tier-0 check without a
+reason; the config comment says it is the input release-please parsed, and release-please
+is gone. Today cut-release.sh builds the CHANGELOG from conventional commit subjects and
+refuses a non-major bump over a breaking (`!:` or BREAKING CHANGE) commit, so that is the
+working reason.
+"""
+fix = """
+Reword the commit subject as `type(scope): summary` (feat, fix, chore, docs, refactor,
+test, ci, ...), with `!` or a BREAKING CHANGE footer for a breaking change.
+"""
+suppressible = "never"
+see = ["commitlint.config.mjs", "scripts/cut-release.sh", "docs/DESIGN.md"]
+
+[[rule]]
+id = "prettier:check"
+why = """
+lint runs prettier --check so formatting drift can't reach main and later leak into an
+unrelated branch through `mise run fix`.
+"""
+fix = "Run `mise run fix` and commit the result."
+suppressible = "never"
+see = ["mise/ts.toml"]
+
+[[rule]]
+id = "eslint:max-len"
+why = """
+Foundry's eslint preset owns line length as a gate because it is the one thing the
+habit-hooks TS sensor does not cover. The limit is 120, with strings, template literals,
+regexes and URLs exempt so a prompt or long formatted line doesn't trip it. The repo does
+not say why 120 rather than another number.
+"""
+fix = """
+Let Prettier wrap code (set printWidth 120 so max-len is only the backstop). A long
+comment gets reflowed; a big prompt moves to its own module.
+"""
+suppressible = "with-label"
+see = ["presets/lint/eslint.config.mjs"]
+
+[[rule]]
+id = "pmd:NoVar"
+why = """
+Java `var` hides the concrete type at the use site, which hurts readability for humans and
+agents alike. Enforced diff-scoped, so pre-existing uses are not a day-one wall.
+"""
+fix = """
+Use the explicit type. Where `var` is genuinely warranted (an unspeakable or very long
+generic type), keep it with a trailing `// foundry-allow-var: <reason>` on the same line.
+ruleset-guard counts that marker as an inline suppression, so the PR also needs the
+`suppression` label.
+"""
+suppressible = "with-label"
+see = ["presets/lint/pmd/no-var.xml", "mise/java.toml"]
+
+[[rule]]
+id = "ruff:E"
+why = """
+pycodestyle errors, part of the ruff hard gate for style. Foundry records no per-family
+reason beyond selecting it; see https://docs.astral.sh/ruff/rules/ for the rule.
+"""
+fix = "Fix the reported line; `mise run fix` applies ruff's safe fixes."
+suppressible = "with-label"
+see = ["presets/lint/ruff.toml"]
+
+[[rule]]
+id = "ruff:W"
+why = """
+pycodestyle warnings, part of the ruff hard gate for style. Foundry records no per-family
+reason beyond selecting it; see https://docs.astral.sh/ruff/rules/ for the rule.
+"""
+fix = "Fix the reported line; `mise run fix` applies ruff's safe fixes."
+suppressible = "with-label"
+see = ["presets/lint/ruff.toml"]
+
+[[rule]]
+id = "ruff:F"
+why = """
+pyflakes: undefined names, unused imports and similar correctness errors, part of the ruff
+hard gate. Foundry records no further reason; see https://docs.astral.sh/ruff/rules/.
+"""
+fix = "Fix the reported line; `mise run fix` applies ruff's safe fixes."
+suppressible = "with-label"
+see = ["presets/lint/ruff.toml"]
+
+[[rule]]
+id = "ruff:I"
+why = """
+Import order, part of the ruff hard gate. Foundry records no further reason; see
+https://docs.astral.sh/ruff/rules/.
+"""
+fix = "Run `mise run fix`; import sorting is auto-fixable."
+suppressible = "with-label"
+see = ["presets/lint/ruff.toml"]
+
+[[rule]]
+id = "ruff:UP"
+why = """
+pyupgrade: modern syntax for the target Python, part of the ruff hard gate. Foundry
+records no further reason; see https://docs.astral.sh/ruff/rules/.
+"""
+fix = "Fix the reported line; most pyupgrade rules are auto-fixable with `mise run fix`."
+suppressible = "with-label"
+see = ["presets/lint/ruff.toml"]
+
+[[rule]]
+id = "ruff:B"
+why = """
+bugbear: likely bugs and design problems, part of the ruff hard gate. Foundry records no
+further reason; see https://docs.astral.sh/ruff/rules/.
+"""
+fix = "Fix the reported pattern; a `# noqa` is an inline suppression ruleset-guard counts."
+suppressible = "with-label"
+see = ["presets/lint/ruff.toml"]
+
+[[rule]]
+id = "ruff:SIM"
+why = """
+Simplifications, part of the ruff hard gate. Foundry records no further reason; see
+https://docs.astral.sh/ruff/rules/.
+"""
+fix = "Apply the suggested simplification."
+suppressible = "with-label"
+see = ["presets/lint/ruff.toml"]
+
+[[rule]]
+id = "typecheck:no-tsconfig"
+why = """
+Without a tsconfig.json, framework checkers (astro check, vue-tsc, svelte-check) still exit
+0 after checking only their own file types, so plain .ts files and tests would never be
+type-checked. typecheck fails loudly instead.
+"""
+fix = """
+Copy presets/typecheck/tsconfig.json from Foundry, or extend your framework's strict
+preset.
+"""
+suppressible = "never"
+see = ["mise/ts.toml", "presets/typecheck/tsconfig.json"]
+
+[[rule]]
+id = "typecheck:deno-unchecked"
+why = """
+Deno code (Supabase Edge Functions, Deno scripts) is outside the tsconfig program, so tsc
+never sees it. If Deno code is found and FOUNDRY_DENO_PATHS is unset, typecheck fails
+rather than silently skipping it.
+"""
+fix = """
+Set FOUNDRY_DENO_PATHS in mise.toml [env] (e.g. "supabase/functions") and pin deno in
+[tools].
+"""
+suppressible = "never"
+see = ["mise/ts.toml"]
+
+[[rule]]
+id = "smells:habit-hooks-missing"
+why = """
+When a .habit-hooks config and snooze baseline exist but the pinned habit-hooks is not
+installed, the setup is broken. CONTRACT.md says divergence between placements is a bug,
+not something to skip, so smells fails hard instead of passing unchecked.
+"""
+fix = "Run `mise install` (its postinstall runs setup:habit-hooks)."
+suppressible = "never"
+see = ["mise/ts.toml", "CONTRACT.md"]
+
+[[rule]]
+id = "baseline:architecture"
+why = """
+Architecture fitness (no cross-layer imports, no cycles) retrofits onto a dirty codebase
+through a committed, shrink-only baseline, the same doctrine as eslint suppressions and
+the snooze: dependency-cruiser's known-violations JSON (TS) and the ArchUnit
+FreezingArchRule store (Java). A violation added to either is a loosening. Python's
+import-linter has no separate baseline: accepted violations are `ignore_imports` in
+.importlinter, so any edit to it alongside source needs the label, pruning included.
+"""
+fix = """
+Fix the import so the new edge respects the layer map. Never regenerate the baseline or
+the freeze store to absorb a new violation; growing either is a `ruleset-change` PR.
+"""
+suppressible = "with-label"
+see = ["docs/designs/arch-fitness.md", "presets/arch/SETUP.md"]
+
+[[rule]]
+id = "baseline:flaky-quarantine"
+why = """
+flaky-baseline.json lets a genuinely non-deterministic test keep running and reporting
+without gating, so a known flake can't block a merge while a real, reproducible failure
+still fails. Entries are only ever pruned (auto, after sustained green), so adding a
+quarantine is a loosening that needs a label.
+"""
+fix = """
+Prove it is a flake first (`foundry-flaky classify` reruns the failed test). A test that
+fails every rerun is a real failure: fix it. Only a flipping test is a quarantine
+candidate, added in its own labelled PR with the evidence.
+"""
+suppressible = "with-label"
+see = ["docs/designs/flake-triager.md", "scripts/foundry-flaky"]

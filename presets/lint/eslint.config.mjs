@@ -14,8 +14,16 @@
 // module rather than fight the linter. NB max-len is not auto-fixable: **Prettier's
 // `printWidth` is what actually wraps code** - if you run Prettier, set printWidth 120
 // so wrapping is automatic and max-len is only the hard backstop for what it can't wrap.
+//
+// Unused disable directives are errors: a disable whose violation is gone would otherwise
+// sit there and silently cover the next violation on that line. Inline config stays
+// allowed (no `noInlineConfig`); the CI ruleset-guard makes every added disable or inline
+// rule config a labelled decision instead.
 export default [
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
+    },
     rules: {
       "max-len": [
         "error",

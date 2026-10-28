@@ -73,7 +73,7 @@ For each rule, ask these questions in order and stop at the first yes. The earli
 
 1. Can a command decide it with no false positives? Then it is a deterministic check, and it blocks.
 2. Can a command decide most of it? Then it is still a deterministic check that blocks, but with an escape hatch that needs a label and a reason (a suppression, policed by `ruleset-guard`).
-3. Is it a bounded judgment needed often and cheaply, such as on every tool call? A bounded judgment is a yes/no, a pick from a list, or a score. Then it goes to a decision model like Jev, which returns typed answers with probabilities. It runs as an advisory sensor with a tuned threshold. In my setup Jev does this in three places, all opt-in and off without an API key: tool-call triage at the end of a turn, a pre-filter that routes each diff hunk to the review lens that should look at it, and a `feature` pre-check that catches a diff that obviously misses an acceptance criterion before the full verify runs. None of them can pass or fail anything.
+3. Is it a bounded judgment needed often and cheaply, such as on every tool call? A bounded judgment is a yes/no, a pick from a list, or a score. Then it goes to a decision model like Jev, which returns typed answers with probabilities. It runs as an advisory sensor with a tuned threshold. How I use it is under [Jev and Leash](#jev-and-leash-cheap-judgement-that-never-decides); none of it can pass or fail anything.
 4. Does it need to read the ticket, the design or the wider change? Then it goes to an LLM reviewer before the PR, which is the `review` step inside `ship`. The reviewer runs in a fresh context, is advisory only, and ties every finding to a line and a concrete failure.
 5. If none of these fit, it is a matter of taste or strategy. It goes to human review, and the rule lives in `AGENTS.md` as a guide.
 
@@ -123,7 +123,7 @@ A rule is code, and a rule that has never gone red has not proved it can catch a
 
 ### 6. Keep it lean
 
-Every quarter, run an ablation: switch off one rule, instruction or hook and re-run the eval. Delete whatever made no difference, because context and CI minutes are a budget. This follows Anthropic's advice to start simple and add complexity only when it demonstrably improves outcomes. It also follows their context-engineering advice to keep the agent's context to the smallest set of high-signal tokens. Each surviving rule then works as a fitness function, in the Building Evolutionary Architectures sense: an automated check that each change keeps the system moving toward its goals.
+Every quarter, run a switch-off test: turn off one rule, instruction or hook and re-run the eval. Delete whatever made no difference, because context and CI minutes are a budget. This follows Anthropic's advice to start simple and add complexity only when it demonstrably improves outcomes. It also follows their context-engineering advice to keep the agent's context to the smallest set of high-signal tokens. Each surviving rule then works as a fitness function, in the Building Evolutionary Architectures sense: an automated check that each change keeps the system moving toward its goals.
 
 The same discipline applies to the codebase the harness protects. Kent Beck frames it as features versus futures: every feature spends some of the code's future optionality, and an agent left unchecked ships features fast enough that the codebase decays faster than ever. The work that restores optionality happens between features, in small, deliberate design steps before the next feature starts. In this setup the ratchets and the `repo-align` campaign are that step made routine: debt can only shrink, and tidying lands as its own small PR rather than riding along with a feature.
 
@@ -175,6 +175,19 @@ Skills are reusable playbooks the agent loads when the task matches. My own set 
 Without it, every session starts by re-reading the repo and guessing. The `codemap` skill writes a committed map instead, under `docs/codemap/`: an `INDEX.md`, one file per domain slice, and three lens files for the data model, integrations, and runtime and deploy. A deterministic census script lists manifests, entry points, schemas, env vars, churn and files that change together, and proposes slices from the directory layout and co-change. I confirm or edit the slice plan before any agent starts. Then one fresh agent per slice, plus one per lens, traces the main flows from entry point to persistence to side effects. Every claim must cite a file or `file#Symbol`, and anything it can't confirm becomes a question under "Unknowns". A verifier checks that every citation resolves and spot-checks at least five claims per file. Nothing is written until it passes, and a refuted claim is fixed or turned into a question. Each file is stamped with the commit it was checked against, and `codemap refresh` re-audits only the slices whose cited files changed since that stamp. On the Foundry side, `mise run codemap:check` confirms every citation in the map still resolves and prints how many commits each slice has fallen behind. It is advisory and deliberately kept out of the gate, so a drifting map warns rather than blocks. The map describes and never judges: smells and risks belong to `repo-align` and `hotspot-rec`. It lands as its own docs PR through `ship`.
 
 The delivery skills read it. `spec` draws pointers from slice citations, edge-case questions from the traced side effects, and the scope-out from neighbouring slices. `feature` reads the slices its pointers touch before coding, and warns when a slice's cited files changed since its stamp, so the code wins over a stale map. `review` asks a question whenever a diff reaches into a slice the ticket never mentioned. In a repo without a codemap, all three skip this step.
+
+#### Jev and Leash: cheap judgement that never decides
+
+Some rules need judgement but not a frontier model. [Jev](https://docs.typesafe.ai/concepts/system-one) answers a narrow question (yes/no, a pick from a list, a score) with a probability, in a few hundred milliseconds and for a fraction of a cent. That makes it cheap enough to run on every turn. It is right about two times in three, so every use gates on confidence and sends anything unsure to a human or a bigger model. It is never part of the gate, and a boundary test fails the build if the gate calls it.
+
+Inside the skills it does three things, all opt-in and off without a key: tool-call triage at the end of a turn, routing each changed file to the review lens that should read it first, and a `feature` pre-check that stops on a confident "this diff misses the acceptance criteria" before the expensive verify runs. They share one client, `jev-core`, from my [jev-tools](https://github.com/CMaintz/jev-tools).
+
+[Leash](https://github.com/CMaintz/leash) covers the rules in `AGENTS.md` that no linter can check, such as "no premature abstractions" or "never let a raw error reach a user". Each turn, it asks Jev one question per rule about the turn's diff and tells the agent which rule it broke. It borrows two ideas from Foundry. First, deterministic first: it refuses a rule the gate already covers. Second, the ratchet: existing violations are baselined once, only new ones are flagged, and `leash guard` fails a PR that grows the baseline. It checks the whole turn rather than each edit because the questions only have an answer once the change is complete, and precision at edit level is too low to let the agent auto-repair. `leash calibrate` replays recent commits and flags rules that never fire, so the rubric stays honest.
+
+Two more tools in the family belong in a harness:
+
+- **`jev-guard`** vets an agent's tool calls before they run: allow, block or hold. It fails safe on low confidence, missing answers and provider errors. It's a second opinion, not a sandbox.
+- **[`jev-eval`](https://github.com/CMaintz/jev-eval)** measures Jev on your own labelled data and recommends the confidence cut-off for each question. Every threshold above (Leash, `jev-guard`, the review routing) is only as good as that number, so it is measured rather than guessed.
 
 #### Memory and the `learn` flywheel
 
@@ -246,24 +259,24 @@ It is tightening-aware: making the gate stricter never needs a label, only loose
 - **Backport discipline:** anything non-language-specific built in a consumer repo comes back to Foundry the same session, so every repo benefits.
 - **Dogfooding:** the harness repos use their own gate. Each has a root `mise.toml` with the six verbs, the same `mise run gate` runs locally and in CI (`gate.yml` in cmaintz-skills, `self-gate.yml` in Foundry), and branch protection requires it before anything merges. So my own tickets go through `feature` and `ship` like anyone else's.
 
-## Applying it to a TypeScript serverless team
+## Applying it to a team
 
-My setup grew around one person working across many stacks. A team on TypeScript, Lambda and DynamoDB has one stack, more people and real cloud environments, so this is how I'd approach that team's harness with what I've learned, rather than copying mine.
+My setup grew around one person working across many stacks. A team usually has fewer stacks, more people and real deployed environments, so this is how I'd approach a team's harness with what I've learned, rather than copying mine.
 
 ### Keep, cut, add
 
 - **Keep:** the beliefs, the six verbs in three placements, the ticket as the real prompt (acceptance criteria and a Definition of Done), the ticket-to-PR loop with a fresh-context review, `learn`, and the evaluation method.
-- **Cut:** the multi-language presets (one strict TypeScript preset is enough), and most of the agent half at first. Start with `spec`, `feature`, `ship` and `review`, the formatter and smell hooks, and the PR guard; add the rest only when a measured problem asks for it.
-- **Add:** checks that reach the boundaries, because a Lambda function is mostly wiring and most of what goes wrong lives in events, permissions, the data model and the cloud itself.
+- **Cut:** presets for languages the team doesn't use, and most of the agent half at first. Start with `spec`, `feature`, `ship` and `review`, the formatter and smell hooks, and the PR guard; add the rest only when a measured problem asks for it.
+- **Add:** checks that reach the boundaries, because in most services a lot of what goes wrong lives outside the code you're editing.
 
 ### Checks for the boundaries
 
-In a serverless codebase much of what breaks lives outside the function body: event and API contracts, the data access patterns, the infrastructure definition and permissions. The harness work is making sure the agent gets a fast, deterministic signal when a change breaks one of those, so it loops against them like any other check. Concretely, on a TypeScript, Lambda and DynamoDB stack:
+Much of what breaks lives at the edges: API and event contracts, the data layer, the infrastructure definition and permissions. The harness work is giving the agent a fast, deterministic signal when a change breaks one of those, so it loops against them like any other check.
 
-- **Thin handlers:** an architecture check keeps business logic out of the handlers, so the logic sits in plain modules with fast unit tests the agent can run every turn.
+- **Thin entry points:** an architecture check keeps business logic out of handlers and controllers, so it sits in plain modules with fast unit tests the agent can run every turn.
 - **Contracts:** API and event payloads are checked against shared schemas, with contract tests between services, so a change that compiles but breaks a consumer goes red in the loop.
-- **Access patterns:** each DynamoDB access pattern has an integration test, so an agent refactoring keys or indexes finds out before the PR, not in production.
-- **Infrastructure:** the infrastructure code is synthesised and scanned for misconfigurations in the gate, and each function's bundle size is ratcheted like any other baseline, so cold starts can't creep up unnoticed.
+- **Data access:** each query or access pattern the service relies on has an integration test, so an agent refactoring a schema, key or index finds out before the PR, not in production.
+- **Infrastructure:** infrastructure code is validated and scanned for misconfigurations in the gate, and numbers that drift quietly (bundle or image size, build time) are ratcheted like any other baseline.
 - **Permissions:** a change that broadens permissions is handled like a ruleset change: allowed, but only with a human label and a reason, because "grant everything" is exactly the shortcut an agent takes to make an error go away.
 
 ### Environments
@@ -271,7 +284,7 @@ In a serverless codebase much of what breaks lives outside the function body: ev
 The gate is the same everywhere; each environment adds a more realistic check, and the agent's reach stops partway.
 
 - **Local:** the gate and fast tests. This is the agent's inner loop.
-- **Sandbox stack:** the first real-AWS feedback, and the furthest an agent can deploy.
+- **Sandbox:** the first feedback from real infrastructure, and the furthest an agent can deploy.
 - **PR preview:** the Given-When-Then acceptance tests run against a deployed system. This is the check that proves the ticket was done, not just that the code is clean.
 - **Staging and production:** the pipeline only. Anything that escapes here comes back through `learn` as a new test or check.
 
@@ -283,7 +296,7 @@ The gate is the same everywhere; each environment adds a more realistic check, a
 
 ### Where I'd start
 
-One team, one service: the gate with baselines, the ticket template, the formatter and PR hooks, then the ticket-to-PR loop, and only then preview stacks and acceptance tests. Measure from week one, and run the evaluation suite before and after each harness change.
+One team, one service: the gate with baselines, the ticket template, the formatter and PR hooks, then the ticket-to-PR loop, and only then preview environments and acceptance tests. Measure from week one, and run the evaluation suite before and after each harness change.
 
 ## Sources
 

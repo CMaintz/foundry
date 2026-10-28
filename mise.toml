@@ -20,12 +20,12 @@ gitleaks = "8.24.3"
 [tasks.fix]
 description = "Auto-fix what is mechanically fixable; never opinionated"
 run = [
-    "ruff format --config presets/lint/ruff.toml scripts/ruleset_guard.py",
-    "ruff check --fix --config presets/lint/ruff.toml scripts/ruleset_guard.py",
+    "ruff format --config presets/lint/ruff.toml scripts/ruleset_guard.py scripts/foundry-explain",
+    "ruff check --fix --config presets/lint/ruff.toml scripts/ruleset_guard.py scripts/foundry-explain",
 ]
 
 [tasks.lint]
-description = "actionlint, shellcheck, typos, and ruff on the ruleset guard"
+description = "actionlint, shellcheck, typos, and ruff on the consumer-run Python scripts"
 # Pinned to bash because mise's default inline shell on Windows is cmd, which neither
 # expands the globs nor honours the single quotes around actionlint's -ignore pattern.
 shell = "bash -c"
@@ -37,10 +37,10 @@ run = [
     # foundry-verb-wrap is an extensionless shell script that *.sh misses.
     "shellcheck scripts/*.sh tests/*.sh scripts/foundry-verb-wrap",
     "typos",
-    # ruleset_guard.py runs in every consumer's CI, so hold it to the ruff preset
-    # consumers get.
-    "ruff format --check --config presets/lint/ruff.toml scripts/ruleset_guard.py",
-    "ruff check --config presets/lint/ruff.toml scripts/ruleset_guard.py",
+    # ruleset_guard.py and foundry-explain run in every consumer's CI or gate, so hold them
+    # to the ruff preset consumers get.
+    "ruff format --check --config presets/lint/ruff.toml scripts/ruleset_guard.py scripts/foundry-explain",
+    "ruff check --config presets/lint/ruff.toml scripts/ruleset_guard.py scripts/foundry-explain",
 ]
 
 [tasks.typecheck]

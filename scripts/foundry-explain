@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""foundry-explain - why a Foundry rule exists, its sanctioned fix, and whether it may be
+suppressed, from the rule catalog (presets/rules/catalog.toml).
+
+Usage:
+  foundry-explain <id>             print the entry for one rule id (e.g. eslint:max-len)
+  foundry-explain --list           every id in the catalog
+  foundry-explain --last [PATH]    explain the rules matched by the most recent failing verb
+                                   in the telemetry (default $FOUNDRY_TELEMETRY, then
+                                   .foundry/telemetry.jsonl); foundry-verb-wrap records them
+  foundry-explain --match [FILE]   the catalog ids a verb's output points at, one per line
+                                   (stdin when FILE is omitted); verb-wrap calls this
+  --json                           with an id, --last or --match: the entries as JSON
+
+Exit: 0 on success, 1 for an id the catalog does not have, 2 for bad usage.
+
+The catalog and its matchers (matchers.toml) are found next to this script (the flat
+setup:foundry-scripts cache), then in ../presets/rules (a foundry checkout), unless
+FOUNDRY_RULES_DIR names the directory. Needs Python 3.11+ (tomllib); stdlib only.
+"""
+
+import difflib
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+import tomllib
+
+REPO_URL = "https://github.com/CMaintz/foundry/blob/main/"
+ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+GROUP = re.compile(r"\{(\d+)\}")
+
+
+def rules_dir() -> Path:
+    if os.environ.get("FOUNDRY_RULES_DIR"):
+        return Path(os.environ["FOUNDRY_RULES_DIR"])
+    here = Path(__file__).resolve().parent
+    return here if (here / "catalog.toml").is_file() else here.parent / "presets" / "rules"
+
+
+def load_rules(directory: Path) -> tuple[dict, list]:
+    """(entries by id, compiled matchers) from catalog.toml and matchers.toml."""
+    catalog = tomllib.loads((directory / "catalog.toml").read_text(encoding="utf-8"))
+    table = tomllib.loads((directory / "matchers.toml").read_text(encoding="utf-8"))
+    entries = {r["id"]: r for r in catalog["rule"]}
+    compiled = [(re.compile(m["pattern"]), m["ids"]) for m in table["match"]]
+    return entries, compiled
+
+
+def ids_for_line(line: str, compiled: list) -> list[str]:
+    found = []
+    for pattern, templates in compiled:
+        hit = pattern.search(line)
+        if hit:
+            found += [GROUP.sub(lambda g, h=hit: h.group(int(g[1])) or "", t) for t in templates]
+    return found
+
+
+def match_ids(lines, rules: tuple[dict, list]) -> list[str]:
+    """Catalog ids the lines point at, each once, in first-seen order."""
+    entries, compiled = rules
+    seen = {}
+    for raw in lines:
+        line = ANSI.sub("", raw).rstrip("\r\n")
+        for rule_id in ids_for_line(line, compiled):
+            if rule_id in entries:
+                seen.setdefault(rule_id, None)
+    return list(seen)
+
+
+def render(entry: dict) -> str:
+    see = ", ".join(p if p.startswith("http") else REPO_URL + p for p in entry.get("see", []))
+    parts = [
+        entry["id"],
+        "  why: " + " ".join(entry["why"].split()),
+        "  fix: " + " ".join(entry["fix"].split()),
+        "  suppressible: " + entry["suppressible"],
+    ]
+    return "\n".join(parts + (["  see: " + see] if see else []))
+
+
+def emit(entries: list[dict], as_json: bool, single: bool = False) -> None:
+    if as_json:
+        print(json.dumps(entries[0] if single else entries, indent=2))
+    else:
+        print("\n\n".join(render(e) for e in entries))
+
+
+def explain_id(rule_id: str, entries: dict, as_json: bool) -> int:
+    if rule_id in entries:
+        emit([entries[rule_id]], as_json, single=True)
+        return 0
+    close = difflib.get_close_matches(rule_id, list(entries), n=5, cutoff=0.5)
+    hint = f" Close: {', '.join(close)}." if close else ""
+    print(f"foundry-explain: no catalog entry for {rule_id!r}.{hint} See --list.", file=sys.stderr)
+    return 1
+
+
+def read_rows(path: str) -> list[dict]:
+    rows = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue  # a torn line from a crash mid-append must not sink the lookup
+    return rows
+
+
+def last_failure(rows: list[dict]) -> dict | None:
+    failed = [r for r in rows if r.get("exit", 0) != 0]
+    return max(failed, key=lambda r: r.get("ms", 0)) if failed else None
+
+
+def explain_last(path: str, entries: dict, as_json: bool) -> int:
+    if not os.path.isfile(path):
+        print(f"No telemetry at {path}. Run the gate once with foundry-verb-wrap wired in.")
+        return 0
+    row = last_failure(read_rows(path))
+    if row is None:
+        print(f"No failing verb in {path}.")
+    else:
+        show_last(row, entries, as_json)
+    return 0
+
+
+def show_last(row: dict, entries: dict, as_json: bool) -> None:
+    """A missing "rules" field means verb-wrap could not match, not that nothing matched."""
+    recorded = "rules" in row
+    known = [entries[i] for i in row.get("rules", []) if i in entries]
+    if as_json:
+        print(json.dumps({"verb": row.get("verb"), "ts": row.get("ts"), "rules": known if recorded else None}))
+        return
+    print(f"Last failure: {row.get('verb', '?')} at {row.get('ts', '?')} (exit {row.get('exit')})")
+    if not recorded:
+        print("Its rules were not recorded (foundry-verb-wrap without foundry-explain, or no Python 3.11+).")
+    else:
+        print("\n".join(["", *(render(e) for e in known)]) if known else "It matched no catalog rule.")
+
+
+def explain_match(source: str | None, rules: tuple, as_json: bool) -> int:
+    if source:
+        with open(source, encoding="utf-8", errors="replace") as fh:
+            ids = match_ids(fh, rules)
+    else:
+        ids = match_ids(sys.stdin, rules)
+    if as_json:
+        emit([rules[0][i] for i in ids], True)
+    elif ids:
+        print("\n".join(ids))
+    return 0
+
+
+def run(args: list[str]) -> int:
+    as_json = "--json" in args
+    args = [a for a in args if a != "--json"]
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__)
+        return 0 if args else 2
+    rules = load_rules(rules_dir())
+    head, rest = args[0], args[1:]
+    if head == "--list":
+        print("\n".join(sorted(rules[0])))
+        return 0
+    if head == "--last":
+        return explain_last(rest[0] if rest else default_telemetry(), rules[0], as_json)
+    if head == "--match":
+        return explain_match(rest[0] if rest else None, rules, as_json)
+    return explain_id(head, rules[0], as_json)
+
+
+def default_telemetry() -> str:
+    return os.environ.get("FOUNDRY_TELEMETRY", ".foundry/telemetry.jsonl")
+
+
+if __name__ == "__main__":
+    # Rationale text and matched lines carry non-ASCII (habit-hooks' banner box rules), and
+    # Windows defaults the std streams to the ANSI code page, which would garble them.
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+    sys.exit(run(sys.argv[1:]))
