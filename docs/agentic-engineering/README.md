@@ -75,6 +75,7 @@ If you only have an hour or two, start here. These shaped more of my thinking th
 
 - [Foundry](https://github.com/CMaintz/foundry): the shared gate, reusable workflows and presets
 - [cmaintz-skills](https://github.com/CMaintz/cmaintz-skills): the agent half, skills and hooks
+- [jev-tools](https://github.com/CMaintz/jev-tools), [Leash](https://github.com/CMaintz/leash) and [jev-eval](https://github.com/CMaintz/jev-eval): the Jev-powered advisory layer
 - [habit-hooks](https://github.com/habit-hooks/habit-hooks): structural-smell sensor and coaching
 - [Matt Pocock's skills](https://github.com/mattpocock/skills): practice skills (`tdd`, `diagnosing-bugs`, `codebase-design`)
 - [Ivett Ördög's skills](https://github.com/devill/ivetts-skills): `learn`, `hotspot-rec`, `build-project-review`
