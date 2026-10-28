@@ -79,7 +79,7 @@ def test_cut_release_pins_ref_and_digests_to_the_new_tag(tmp_path):
         assert got.keys() == digests(old).keys(), name
         for s, d in got.items():
             assert d == hashlib.sha256((ROOT / repo_path(s)).read_bytes()).hexdigest(), (name, s)
-        # Only the pin and digest lines move: the renovate annotation and the rest stay.
+        # Only the pin and digest lines move: the comments and the rest stay.
         assert len(old.splitlines()) == len(new.splitlines()), name
         changed = [b for a, b in zip(old.splitlines(), new.splitlines()) if a != b]
         assert all(c == 'FOUNDRY_SCRIPTS_REF = "v9.9.9"' or DIGEST_LINE.fullmatch(c) for c in changed), name

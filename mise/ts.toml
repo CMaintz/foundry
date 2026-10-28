@@ -19,9 +19,9 @@ HABIT_HOOKS_PLUGIN = "habit-hooks-typescript"
 # The Foundry scripts (foundry-verb-wrap, foundry-flaky, npm-audit-ratchet.mjs,
 # codemap-check, foundry-explain and its rule catalog) are provisioned by
 # setup:foundry-scripts into a cache dir at this ref, not vendored into the repo (see that
-# task for why). Renovate tracks the pin via the comment above it.
-# A bump must also update the sha256 lines in setup:foundry-scripts.
-# renovate: datasource=github-tags depName=CMaintz/foundry
+# task for why).
+# Not Renovate-tracked: a bump must carry that tag's sha256 lines in setup:foundry-scripts,
+# which Renovate cannot compute.
 FOUNDRY_SCRIPTS_REF = "v2.14.0"
 
 # Put local binaries on PATH so tasks call `eslint`, not `npx eslint`; the habit-hooks venv
