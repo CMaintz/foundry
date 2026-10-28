@@ -73,8 +73,8 @@ Fastest path - the scaffold copies the templates + presets and generates the cal
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CMaintz/foundry/main/scripts/foundry-init.sh -o foundry-init.sh
-bash foundry-init.sh java                             # single stack: ts | java | php | kotlin | dotnet | python
-bash foundry-init.sh --mono java:backend ts:frontend  # monorepo: one stack:dir pair per package (ts|java|php|dotnet)
+bash foundry-init.sh java                             # single stack: ts | js | java | php | kotlin | dotnet | python
+bash foundry-init.sh --mono java:backend ts:frontend  # monorepo: one stack:dir pair per package (ts|js|java|php|dotnet)
 ```
 
 Or wire it by hand - a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller workflow that pins the **facades** and passes your stack:
@@ -85,7 +85,7 @@ jobs:
   gate:
     uses: CMaintz/foundry/.github/workflows/gate.yml@v2
     with:
-      stack: java              # ts | java | php | dotnet | python
+      stack: java              # ts | js | java | php | dotnet | python
       working_directory: "."   # monorepo? call this job once per package
 ```
 
@@ -95,7 +95,7 @@ Pin **these**, whatever the stack. They dispatch internally to the per-stack wor
 
 | Facade | What it runs | Key inputs |
 |---|---|---|
-| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (six verbs, one-per-step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/java/php/dotnet/python), `working_directory`, `spotbugs` |
+| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (six verbs, one-per-step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/js/java/php/dotnet/python), `working_directory`, `spotbugs` |
 | [`security.yml`](./.github/workflows/security.yml) | language-agnostic: secret scan + `ruleset-guard` + diff-aware SAST | `ruleset_paths`, `source_paths`, … |
 
 Auxiliary reusables you call directly (not behind a facade):
@@ -217,7 +217,7 @@ state could desync from the tags.)
 
 ## Status
 
-TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot - Spring Boot + Angular + a browser extension). PHP, .NET and Python also have gate workflows behind the facade. Kotlin has a verb template and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
+TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot - Spring Boot + Angular + a browser extension). PHP, .NET and Python also have gate workflows behind the facade, and plain JavaScript (`js`) runs the TypeScript one with its own verb template. Kotlin has a verb template and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
 
 ## Licence
 

@@ -25,7 +25,7 @@ mechanism* (not just an example) → a per-language file (`mise/<lang>.toml`,
 
 | Facade | Purpose |
 |---|---|
-| `gate.yml` | Dispatches by `stack` (ts/java/php/dotnet/python) to the per-stack language gate - the six verbs decomposed one-per-step + a structural-smells job (per-smell "what it means / fix toward" legend). Java adds an opt-in `spotbugs` job (no-`var` is folded into `lint`). |
+| `gate.yml` | Dispatches by `stack` (ts/js/java/php/dotnet/python) to the per-stack language gate (`js` runs `_ts.yml`: same Node gate, different verbs in the repo's mise.toml) - the six verbs decomposed one-per-step + a structural-smells job (per-smell "what it means / fix toward" legend). Java adds an opt-in `spotbugs` job (no-`var` is folded into `lint`). |
 | `security.yml` | Language-agnostic: secret scan (gitleaks) + `ruleset-guard` + diff-aware SAST (semgrep). |
 
 **Internal reusables** (`_`-prefixed - implementation the facades call via nested local `uses:`; not the API): `_ts.yml` · `_java.yml` · `_php.yml` · `_dotnet.yml` · `_python.yml` (per-stack gates) · `_guards.yml` (secrets + ruleset-guard) · `_semgrep.yml` (SAST).
@@ -88,7 +88,7 @@ Branch protection requires a single check named `gate-ok`, regardless of how man
 
 ## mise verb templates (`mise/`)
 
-`ts` · `java` · `php` · `kotlin` · `dotnet` · `python` - each exposes the six verbs
+`ts` · `js` · `java` · `php` · `kotlin` · `dotnet` · `python` - each exposes the six verbs
 (`fix`/`lint`/`typecheck`/`test`/`audit`/`gate`), gate sequential. `java` also pins
 **PMD** (which can't be a `[tools]` entry - JVM launcher + jars, no OS-tagged asset)
 via a `setup:pmd` task + `postinstall` hook + `_.path`, so it's provisioned by
@@ -97,6 +97,12 @@ fails when there is no `tsconfig.json` (a framework checker would otherwise pass
 checked only its own file types), and type-checks Deno code (e.g. Supabase Edge
 Functions) with `deno check` over `FOUNDRY_DENO_PATHS`; Deno code found with that unset
 fails the verb instead of going unchecked.
+`js` is `ts` for plain JavaScript (.js/.mjs/.cjs): the same eslint/prettier `lint`, smells
+and `audit`, on the typescript habit-hooks plugin. With no types to check, its `typecheck`
+runs `node --check` over every JS file, because eslint accepts syntax newer than the pinned
+Node; JSDoc checking (checkJs) belongs on the `ts` stack. `test` is `node --test` with a
+line-coverage floor (`FOUNDRY_COVERAGE_LINES`) and fails when it finds no tests. It always
+runs the full suite, as node has no changed-files mode.
 `python` pins a full interpreter patch (Renovate reads a bare `3.12` as 3.12.0 and
 proposes builds mise cannot verify) and builds the project `.venv` from `mise which
 python`, so a system Python earlier on PATH (common under Git Bash on Windows) cannot
@@ -109,7 +115,8 @@ deptry pins carry `# renovate:` comments the shared preset tracks.
 | Preset | Purpose |
 |---|---|
 | `habit-hooks/{ts,java,php,kotlin,dotnet,python}.toml` | Structural-smell config per stack; tests excluded; Java names its tuned ruleset via `-R`. The TS preset turns off the plugin's `non-essential-comment` smell: it flags every comment, and telling a why-comment from a what-comment is Leash's rubric job, not a pattern check's. The TS sensors shell out to `knip`, `ts-morph` and `jscpd`, so `foundry-init` adds those to the repo's `devDependencies` (caret-pinned, Renovate-bumped); seeding a baseline before they are installed captures a missing-tool error instead of real findings. The `dotnet` sensor (`foundry-habit-hooks-dotnet`) wraps `dotnet build` with SonarAnalyzer.CSharp active and maps its structural warnings (S138/S1541/S3776/S107/S104) to smells; `foundry-init` scaffolds the SonarAnalyzer reference (Directory.Build.props, scoped to the sensor's build via `CodeAnalysisRuleSet` so `typecheck` never loads it) and a `.editorconfig` that leaves those five rules to the ratchet. |
-| `habit-hooks/jscpd.json` | jscpd duplication-ignore list (the language-independent `generic` sensor reads it). Copied by `foundry-init` for the `ts` and `java` stacks. |
+| `habit-hooks/javascript.toml` + `javascript/` | Plain-JS preset on the typescript plugin, with an eslint wrapper that adds the structural rules on top of the project's config and a knip config that sees JS. `foundry-init js` copies all three (keeping a repo's own knip config), adds `eslint`, `knip`, `jscpd` and `prettier` as devDeps, and places `lint/eslint.config.mjs` as the repo's eslint config when it has none, since `eslint .` refuses to run without one. |
+| `habit-hooks/jscpd.json` | jscpd duplication-ignore list (the language-independent `generic` sensor reads it). Copied by `foundry-init` for the `ts`, `js` and `java` stacks. |
 | `habit-hooks/java/guides/*.md` | Per-smell coaching (oversized-function, high-complexity, too-many-parameters, deep-nesting) - concrete "how to fix + don't game it" text that renders inline per finding, in-loop and CI. Drop into a repo's `.habit-hooks/java/guides/`. |
 | `pmd/ruleset.xml` | Tuned Java ruleset (`ExcessiveParameterList` minimum 8). |
 | `pmd/no-var.xml` | The no-`var` rule (diff-scoped in CI). |
@@ -127,7 +134,7 @@ deptry pins carry `# renovate:` comments the shared preset tracks.
 ## Scripts (`scripts/`)
 
 - `ruleset_guard.py` - per-entry, tightening-aware anti-gaming check. Covers ratchet baseline files (eslint-suppressions/snooze/arch stores/coverage manifest) AND, via the `inline` kind, in-source suppression directives, test-skips and config demotions counted tree-wide at base vs head (`eslint-disable`, `@ts-ignore`, `@SuppressWarnings`, `# noqa`, `#pragma warning disable`, coverage-exclusion, `.skip`/`.only`, editorconfig `severity = none/suggestion`, tsconfig `"strict": false`, csproj `<NoWarn>`). The `tests` kind also flags a net drop in uncommented test declarations across the changed test files (deleted or commented out; a split or move nets out), inverse-ratcheted; the coverage floor backstops weaker-but-present tests. The security/ratchet reusable workflows fetch this script from foundry at their own pinned ref (not a committed copy), so it can never drift from the workflow version that runs it.
-- `prettier-config.mjs` - writes a `.prettierrc.json` for a `ts` package that has no Prettier config, so the first `mise run fix` does not restyle the repo to Prettier's defaults. It infers `printWidth` (80/100/120), `semi`, `singleQuote`, indentation and `trailingComma` from the existing JS/TS, plus a `.jsonc` no-trailing-comma override; with no code yet it writes `{}`. Never touches a repo that already configures Prettier (any rc file, `prettier.config.*`, or a `prettier` key in package.json). `foundry-init` runs it; `--print` shows what it would infer.
+- `prettier-config.mjs` - writes a `.prettierrc.json` for a `ts` or `js` package that has no Prettier config, so the first `mise run fix` does not restyle the repo to Prettier's defaults. It infers `printWidth` (80/100/120), `semi`, `singleQuote`, indentation and `trailingComma` from the existing JS/TS, plus a `.jsonc` no-trailing-comma override; with no code yet it writes `{}`. Never touches a repo that already configures Prettier (any rc file, `prettier.config.*`, or a `prettier` key in package.json). `foundry-init` runs it; `--print` shows what it would infer.
 - `npm-audit-ratchet.mjs` - ratcheted `npm audit` for the ts `audit` verb: fails on any critical not in `.audit-allowlist.json` and on stale entries, so accepted CVE debt can only shrink (npm audit has no native per-advisory ignore). Degrades to plain `npm audit --audit-level=critical` with no allowlist. Reads the report from stdin. Along with `foundry-verb-wrap` and `foundry-flaky`, it is cached at a pinned ref, sha256-verified on every run, by the mise template's `setup:foundry-scripts` task (not copied into the consumer).
 - `foundry-explain` - prints a rule's catalog entry (`foundry-explain eslint:max-len`), `--list`s the ids, explains the rules the most recent failing verb matched (`--last`, from the telemetry), or maps pasted output to ids (`--match`); `--json` for tools. When foundry-explain and a Python 3.11+ are present, `foundry-verb-wrap` tees each verb's stdout and stderr through FIFOs (still live, each on its own stream, exit code unchanged; a child the verb leaves holding them open is cut off 3s after it exits, so the gate cannot hang) and, on a failure, prints one `why: foundry-explain <id>` line per matched rule and records the ids as `rules` in the telemetry line; unmatched failures print nothing extra, and `FOUNDRY_EXPLAIN=0` turns the tee off. Without foundry-explain or that Python the verb runs untouched, exactly as before. Cached by `setup:foundry-scripts` with its catalog, which the template now fetches by repo path as well as by script name.
 - `codemap-check` - advisory drift check for the `codemap` skill's `docs/codemap/*.md` (citation grammar: cmaintz-skills `plugins/foundry/skills/codemap/FORMAT.md`). Every cited path must be tracked by git and every dotted segment of a `path#Symbol` must appear as a whole word in that file; a broken citation prints as `file:line citation reason` and exits 1. Also prints, per slice, how many commits since its `sha:` touched the files it cites (never gating). Run by the `codemap:check` auxiliary task in every mise template, not by `gate` or `lint`, and cached by `setup:foundry-scripts` alongside the gate scripts.
