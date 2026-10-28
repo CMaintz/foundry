@@ -124,13 +124,20 @@ def _parse_vitest(text):
     data = json.loads(text)
     failed, all_ids = [], []
     for suite in data.get("testResults", []):
+        suite_failed = []
         for a in suite.get("assertionResults", []):
             tid = a.get("fullName") or " ".join(
                 a.get("ancestorTitles", []) + [a.get("title", "")]
             ).strip()
             all_ids.append(tid)
             if a.get("status") == "failed":
-                failed.append(tid)
+                suite_failed.append(tid)
+        # A file that fails to import (or whose hooks throw) is a failed suite with no
+        # failed assertion. Gate on its path: no quarantine id can match a path, so it
+        # always gates, and a broken file never vanishes from the verdict.
+        if suite.get("status") == "failed" and not suite_failed:
+            suite_failed.append(suite.get("name") or "<unnamed test file>")
+        failed += suite_failed
     return failed, len(all_ids), all_ids
 
 
@@ -188,6 +195,10 @@ def cmd_gate(report, baseline):
         print(f"  FAIL (gating): {t}")
     if real:
         print("flaky: gate FAILS - a non-quarantined test failed.")
+        return 1
+    if total == 0:
+        print("flaky: gate FAILS - the report holds no tests, so nothing was judged "
+              "(runner crashed, empty filter, or wrong report path).")
         return 1
     if flaky_hits:
         print("flaky: gate passes - only quarantined flakes failed. Fix or prune them; "
