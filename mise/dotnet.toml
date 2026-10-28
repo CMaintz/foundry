@@ -29,7 +29,7 @@ HABIT_HOOKS_PLUGIN = "foundry-habit-hooks-dotnet"
 # not vendored (see that task). Renovate tracks the pin via the comment above it.
 # A bump must also update the sha256 lines in setup:foundry-scripts.
 # renovate: datasource=github-tags depName=CMaintz/foundry
-FOUNDRY_SCRIPTS_REF = "v2.13.0"
+FOUNDRY_SCRIPTS_REF = "v2.14.0"
 # The habit-hooks venv bin on PATH (Linux `bin/`, Windows `Scripts/` - a missing one is
 # harmless), the Foundry scripts cache (so the gate runs `foundry-verb-wrap` by name),
 # then the repo's scripts/.
@@ -229,8 +229,8 @@ set -eu
 # it); until then the `smells` task falls back to habit-hooks directly. Do NOT add a
 # comment inside the quoted block below - `read -r s want` would try to fetch it.
 scripts='
-foundry-verb-wrap 62d37f02653ee1878e66e5366ee51bedb46aefa935716668adc07d078db02e85
-foundry-flaky 4ac1cc27da1071865be3db14c27cfe179ef1bc2aafaa069d8b62801cf920f07f
+foundry-verb-wrap bec5e917c13c22ed534ea0a3a49e33b099be35f05d8fc39473b0bd960fc4bf0e
+foundry-flaky 7636b33a80f8d73857f10dc909592681dd2d0f16fa798fb3f6cf4f12868af424
 codemap-check 31a57b4ec25237598abb29f34a28dbcbd1331cee0ca939a9dd8e9caa3985b5da
 foundry-explain 6b483daf5867badb4db5d222fccbe717b310deda6ebd064e8f478ec3f2dcef60
 presets/rules/catalog.toml c311172c29dd735821e2a0efe566aecc35320f45d375bfac1a2622a43ba4fb9b

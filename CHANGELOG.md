@@ -6,6 +6,43 @@ at milestones, move the `vX` alias to the newest `vX.Y.Z`.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.14.0](https://github.com/CMaintz/foundry/compare/v2.13.0...v2.14.0) (2026-10-28)
+
+### Features
+
+* scaffold a Prettier config inferred from the repo's code (2b0f74f)
+* habit-hooks preset for plain JavaScript (165e117)
+* disable non-essential-comment in the TS preset (288d39c)
+* hold majors for dashboard approval and go monthly (d6d4f7a)
+* explain failing gate rules with a catalog and foundry-explain (9492a84)
+* void sign-off labels applied before the latest push (081665f)
+* emit per-smell counts into loop telemetry (deab999)
+* require ruleset-change for workflows gaining approve power (a2ee627)
+* report unused ESLint disable directives as errors (806a510)
+* scan the working tree for secrets in every template's audit (1f2af39)
+
+### Bug Fixes
+
+* keep the release-age floor on the digest group rule (3a22b94)
+* make smell-count emission fully fail-closed (9f6bd64)
+* name a broken test file before the zero-tests verdict (6bf231e)
+* set minimumReleaseAge on the Foundry major rule for semgrep (138a98e)
+* count added ESLint inline rule config as a suppression (ee39d90)
+* flag a net drop in uncommented test declarations (73c24ba)
+* fail broken vitest runs instead of gating them green (969acc4)
+* say foundry-init lets Actions approve PRs, not just create them (53f412d)
+* bump both Foundry refs in one Renovate PR, majors by hand (0a05994)
+* stop the issue form from marking tickets agent:ready (10ac94c)
+* drop GNU-only xargs -d from the ts changed-scope lint (89dae73)
+* scope changed-file checks to the package in a monorepo (6c71f66)
+* treat coverage configs and flaky-baseline.json as ruleset (530d5e3)
+* count missing suppression markers and PHP test files (584353d)
+* verify fetched gate scripts against a pinned sha256 (0137c2e)
+* match test_*.py and tsconfig*.json at any depth (ef2f71b)
+* pin FOUNDRY_SCRIPTS_REF to the tag being cut (bb4dbc9)
+* comment out the empty gitleaks allowlist (981b0c3)
+* pin the cached Foundry scripts to v2.13.0 (2ee9d49)
+
 ## [2.13.0](https://github.com/CMaintz/foundry/compare/v2.12.0...v2.13.0) (2026-10-23)
 
 ### Features
