@@ -1,0 +1,40 @@
+# Copy to <repo>/.habit-hooks/config.toml, javascript/eslint.config.mjs to
+# <repo>/.habit-hooks/eslint.config.mjs, and javascript/knip.json to <repo>/knip.json
+# (keep your own knip config if you have one). Plain JavaScript (.js/.mjs/.cjs) runs on
+# the typescript plugin: eslint, knip and jscpd all read JS, so no separate plugin is
+# needed. What JS needs is config, below and in the two companion files.
+plugins = ["typescript", "generic"]
+
+# Tests are not structural-smell-gated: long, mock-heavy specs are normal and fine.
+# (Language-agnostic principle - see README.) Beyond the *.test/*.spec names, node --test
+# and mocha keep their fakes and fixtures in test/ dirs with no suffix, so the dirs go too.
+# A project `files` replaces the plugin's default, so its node_modules exclude is carried;
+# committed build output (a bundled dist/index.js) is not the project's code either.
+files = [
+    "**/*.js", "**/*.mjs", "**/*.cjs",
+    "!**/*.test.js", "!**/*.test.mjs", "!**/*.test.cjs",
+    "!**/*.spec.js", "!**/*.spec.mjs", "!**/*.spec.cjs",
+    "!**/test/**", "!**/tests/**", "!**/__tests__/**",
+    "!**/node_modules/**", "!**/dist/**", "!**/coverage/**",
+]
+
+# The eslint sensor lints with the project's own eslint config whenever one exists, and
+# falls back to the plugin's structural rules only when there is none - so a repo with any
+# eslint config of its own gets no oversized-function, high-complexity etc. at all. The
+# companion config imports the project's config and adds those rules for JS files, and
+# only habit-hooks runs it: the rules are ratcheted by the snooze baseline rather than
+# hard-failing a plain `eslint .` in lint.
+[sensors.eslint]
+args = ["--config", ".habit-hooks/eslint.config.mjs"]
+
+# non-essential-comment flags every comment, why-comments included. A pattern check can't
+# tell a why-comment from a what-comment; that judgment is Leash's. Off at the sensor (it
+# reports nothing else), which also drops its ts-morph dependency.
+[sensors.comment]
+disabled = true
+
+# File-length: flag files over 300 lines (oversized-file), the same limit as every other
+# preset. 300 rather than the sensor default of 200: this is a ratcheted coaching signal,
+# not a hard wall. Keep big prompts in their own resource file.
+[sensors.line-count]
+args = ["--max", "300"]

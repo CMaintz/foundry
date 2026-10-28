@@ -4,3 +4,7 @@
 # still checked.
 [default]
 extend-ignore-re = ["\\([0-9a-f]{7,40}\\)"]
+
+# eslint max-lines-per-function option name.
+[default.extend-identifiers]
+IIFEs = "IIFEs"

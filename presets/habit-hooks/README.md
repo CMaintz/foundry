@@ -22,7 +22,8 @@ to a truly universal check.
 
 | File | Plugins | For |
 |---|---|---|
-| `typescript.toml` | typescript, generic | TS/JS (eslint, knip, ts-morph) |
+| `typescript.toml` | typescript, generic | TypeScript (eslint, knip, ts-morph) |
+| `javascript.toml` | typescript, generic | Plain JS (.js/.mjs/.cjs): eslint, knip, jscpd - see below |
 | `java.toml` | java, generic | Java (PMD → oversized-file/function, etc.) |
 | `php.toml` | php, generic | PHP (phpmd) |
 | `kotlin.toml` | generic | Kotlin - smells via detekt in `mise run lint` (no habit-hooks sensor yet) |
@@ -39,6 +40,34 @@ Copy one to `<repo>/.habit-hooks/config.toml`, install the detectors
 Thresholds (oversized-file at 200 lines, etc.) use habit-hooks' own defaults -
 the same numbers everywhere, which is exactly the point: file-length limits apply
 to Java and PHP just as they do to TypeScript.
+
+## Plain JavaScript
+
+`javascript.toml` runs the typescript plugin over `.js`/`.mjs`/`.cjs`. Every sensor reads
+JS (ts-morph, eslint, knip and jscpd all parse it), so no separate plugin is needed; what
+JS needs is config, in two companion files under `javascript/`:
+
+- `javascript/eslint.config.mjs` -> `<repo>/.habit-hooks/eslint.config.mjs`. The plugin's
+  eslint sensor uses the project's eslint config whenever one exists and its own
+  structural rules only when there is none, so a repo with any eslint config gets no
+  oversized-function, high-complexity, too-many-parameters or deep-nesting at all. This
+  file spreads in the project's config and adds those rules for JS files; the preset
+  points the sensor at it. Only habit-hooks runs it, so the rules ratchet through the
+  snooze baseline instead of hard-failing `eslint .`. It needs only `eslint`, not
+  typescript-eslint. Only a root eslint config is spread in: `--config` turns off
+  eslint's per-directory lookup, so a nested package config is not seen.
+- `javascript/knip.json` -> `<repo>/knip.json` (keep yours if you have one). With no knip
+  config the plugin supplies one that only looks at `src/**/*.ts`, so a JS repo gets no
+  unused-export or unused-file. knip's own test-runner plugins make test files entries,
+  so they are not reported as unused. If your knip config makes every file an entry
+  (`"entry": ["tools/**/*.mjs"]`), add `"includeEntryExports": true` or unused exports
+  are never reported.
+
+The `comment` sensor is disabled, which also means a JS repo does not need ts-morph.
+devDependencies: `eslint`, `knip`, `jscpd`. Copy `jscpd.json` to `<repo>/.jscpd.json` too:
+it keeps test dirs out of duplication, which the `files` list cannot do for jscpd.
+`tests/habit-hooks-js-smoke.sh` runs the real sensors over a throwaway JS repo with this
+preset and checks the smells are reported and test files are not.
 
 HTML/CSS have no habit-hooks plugin; use foundry's reusable `web.yml` workflow for
 a max-file-length gate on those.

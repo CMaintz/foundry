@@ -30,3 +30,30 @@ jobs:
         env:
           ACTIONLINT: ${{ runner.temp }}/actionlint
         run: bash tests/init-smoke.sh
+
+  # habit-hooks-js-smoke: the javascript habit-hooks preset against the real sensors on a
+  # throwaway plain-JS repo. Out of self-gate.yml for the same reason as init-smoke: it
+  # installs habit-hooks and the node tools fresh each run.
+  habit-hooks-js-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
+        with:
+          # Pin the mise CLI too, or the action resolves "latest" and can 404 on an
+          # unpublished release.
+          version: "2026.9.4" # Renovate bumps this with the mise_version defaults
+          cache: true
+      # The version consumers run, read from the template so a Renovate bump there is
+      # what this job tests.
+      - name: Install habit-hooks
+        run: |
+          v="$(sed -n 's/^HABIT_HOOKS_VERSION = "\(.*\)"$/\1/p' mise/ts.toml)"
+          [ -n "$v" ] || { echo "no HABIT_HOOKS_VERSION in mise/ts.toml" >&2; exit 1; }
+          python -m venv "$RUNNER_TEMP/hh"
+          "$RUNNER_TEMP/hh/bin/pip" install --disable-pip-version-check \
+            "habit-hooks==$v" "habit-hooks-typescript==$v"
+      - name: Smells reported for JS, not for tests
+        env:
+          HABIT_SENSORS: ${{ runner.temp }}/hh/bin/habit-sensors
+        run: bash tests/habit-hooks-js-smoke.sh
