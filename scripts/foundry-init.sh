@@ -300,9 +300,11 @@ emit_security_and_ratchet() { # repo-level facades, identical single or mono
   write ".github/workflows/security.yml" <<YAML
 name: security
 # labeled/unlabeled: ruleset-guard judges sign-off labels, so applying one must re-run it.
-on: { pull_request: { types: [opened, synchronize, reopened, labeled, unlabeled] }, push: { branches: [main] } }
+# schedule/workflow_dispatch: the full-history secret scan (a PR or push scans only its commits).
+on: { pull_request: { types: [opened, synchronize, reopened, labeled, unlabeled] }, push: { branches: [main] }, schedule: [{ cron: '17 5 * * 1' }], workflow_dispatch: {} }
 concurrency:
-  group: security-\${{ github.ref }}
+  # Keyed by event too, so a push to main never cancels the weekly full-history run.
+  group: security-\${{ github.event_name }}-\${{ github.ref }}
   cancel-in-progress: true
 jobs:
   security:
