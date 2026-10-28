@@ -92,7 +92,26 @@ ensure_ts_devdeps() {
   done
 }
 
-fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps
+# ensure_prettier_config <wd> - lint/fix run prettier over the whole package, and without a
+# config its defaults restyle every file on the first `mise run fix`. prettier-config.mjs
+# infers the churn-driving options from the existing code and never touches a repo that
+# already configures Prettier.
+ensure_prettier_config() {
+  local wd="$1" tmp
+  if ! command -v node > /dev/null 2>&1; then
+    echo "  NOTE: node not on PATH - add a Prettier config before the first 'mise run fix' (Foundry's scripts/prettier-config.mjs infers one from the code)"
+    return 0
+  fi
+  tmp="$(mktemp -d)"
+  if curl -fsSL "$RAW/scripts/prettier-config.mjs" -o "$tmp/prettier-config.mjs"; then
+    node "$tmp/prettier-config.mjs" "$wd" || echo "  WARN: could not scaffold a Prettier config in $wd (add one by hand)"
+  else
+    echo "  WARN: could not fetch scripts/prettier-config.mjs - add a Prettier config to $wd by hand"
+  fi
+  rm -rf "$tmp"
+}
+
+fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps + Prettier config
   local wd="$1"
   # `typecheck` refuses to run without a tsconfig: framework checkers (astro check,
   # vue-tsc) otherwise exit 0 having checked only their own file types. A repo that
@@ -106,6 +125,7 @@ fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps
   # jscpd duplication (generic sensor) reads .jscpd.json; pre-place it like the Java path.
   fetch "presets/habit-hooks/jscpd.json" "$wd/.jscpd.json"
   ensure_ts_devdeps "$wd"
+  ensure_prettier_config "$wd"
 }
 
 fetch_java_extras() { # <wd> - PMD ruleset, jscpd ignore list, per-smell coaching guides
@@ -203,7 +223,7 @@ setup_labels() { # the GitHub labels the workflows + ticket state machine need
 }
 
 configure_repo_settings() { # repo settings the workflows assume but can't set themselves
-  echo "- repo settings (Actions may open PRs, auto-merge)"
+  echo "- repo settings (Actions may create and approve PRs, auto-merge)"
   if ! { command -v gh >/dev/null 2>&1 && gh repo view >/dev/null 2>&1; }; then
     echo "  skip: no gh / no GitHub remote yet"
     return 0
@@ -211,12 +231,14 @@ configure_repo_settings() { # repo settings the workflows assume but can't set t
   # bootstrap.yml and autofix.yml OPEN pull requests. With the repo's "Allow GitHub
   # Actions to create and approve pull requests" setting off (the default), that call
   # 403s and the first bootstrap run fails for no obvious reason - exactly what bit leash.
-  # Preserve the existing default token scope; only flip the create-PR bit.
+  # GitHub has no create-only switch: the one setting (can_approve_pull_request_reviews)
+  # also lets Actions approve PRs, so the message says both. Preserve the existing
+  # default token scope; only flip that bit.
   cur=$(gh api "repos/{owner}/{repo}/actions/permissions/workflow" \
     --jq .default_workflow_permissions 2>/dev/null || echo read)
   if gh api --method PUT "repos/{owner}/{repo}/actions/permissions/workflow" \
       -f default_workflow_permissions="$cur" -F can_approve_pull_request_reviews=true >/dev/null 2>&1; then
-    echo "  Actions may create PRs"
+    echo "  Actions may create and approve PRs (bootstrap/autofix open PRs)"
   else
     echo "  (skip: needs admin on the repo - enable it under Settings > Actions > General)"
   fi

@@ -114,7 +114,8 @@ jobs:
       #      `@SuppressWarnings`, `# noqa`, `#pragma warning disable`, a coverage-exclusion, a
       #      skipped test, `severity = none`) - it STOPS the tool reporting, so the count in
       #      eslint-suppressions.json / snooze.json never grows.
-      #   2. a DELETED test - fewer test definitions in a file than the base had.
+      #   2. a DELETED test - fewer uncommented test declarations across the changed test
+      #      files than the base had (deleted or commented out; a move or split nets out).
       # Both are shrink-only (removing a suppression or adding a test always passes) and both
       # are waved through by the suppression label (or the ruleset-change label).
       - name: Refuse added suppressions and deleted tests
@@ -148,6 +149,32 @@ jobs:
             echo "::notice::No suppression added and no test deleted."
           else
             echo "::error::This PR adds an in-source suppression/config demotion, or deletes a test (listed above). Remove it, or add the '$SUP_LABEL' label AND explain the reason in the PR description."
+            exit 1
+          fi
+
+      # A workflow that gains approve power (`pull-requests: write`, `gh pr review --approve`,
+      # an APPROVE review event, an auto-approve action) can satisfy a branch rule's required
+      # approval with no human. Checked on every PR: a workflow-only change never trips the
+      # bundled guard below. Only ruleset-change approves it - it is a gate-wiring decision,
+      # not an in-source suppression.
+      - name: Refuse workflows that gain PR-approve power
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          RULESET_LABEL: ${{ inputs.ruleset_label }}
+        run: |
+          set -euo pipefail
+          BASE=$(git merge-base "$BASE" "$HEAD")
+          # Fixed-string match (-F): a label name is never a regex.
+          if echo "$LABELS" | tr ',' '\n' | grep -qxF -e "$RULESET_LABEL"; then
+            echo "::notice::'$RULESET_LABEL' label present - allowing workflow approve changes."
+            exit 0
+          fi
+          if python3 .foundry/scripts/ruleset_guard.py workflow-approve "$BASE" "$HEAD"; then
+            echo "::notice::No workflow gained PR-approve power."
+          else
+            echo "::error::A workflow gains the power to approve PRs (listed above). Drop it, or add the '$RULESET_LABEL' label AND explain in the PR description why this job may approve."
             exit 1
           fi
 
@@ -280,7 +307,7 @@ jobs:
             echo "One of these fired:"
             echo ""
             echo "1. **An added in-source suppression or config demotion** - an \`eslint-disable\`, \`@ts-ignore\`, \`@SuppressWarnings\`, \`# noqa\`, \`#pragma warning disable\`, a coverage-exclusion, a skipped/\`.only\` test, or an \`.editorconfig\`/\`tsconfig\`/\`csproj\` demotion. These silence the gate without touching any baseline file."
-            echo "2. **A deleted test** - a test file has fewer test definitions than the base (deleted, or moved out)."
+            echo "2. **A deleted test** - the changed test files hold fewer uncommented test declarations than the base (deleted or commented out, with no replacement)."
             echo "3. **A gate-defining file** changed alongside source in a way that can't be proven *not* to loosen the gate."
             echo ""
             echo "The step log names the exact file + directive. **Pick one:**"

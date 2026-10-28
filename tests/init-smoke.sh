@@ -31,7 +31,7 @@ for stack in "${STACKS[@]}"; do
     expected=(mise.toml .habit-hooks/config.toml .gitleaks.toml renovate.json
       .github/workflows/gate.yml .github/workflows/security.yml .github/workflows/ratchet.yml)
     case "$stack" in
-      ts) expected+=(tsconfig.json .jscpd.json .github/workflows/bootstrap.yml) ;;
+      ts) expected+=(tsconfig.json .jscpd.json .prettierrc.json .github/workflows/bootstrap.yml) ;;
       java) expected+=(pmd/ruleset.xml config/pmd/no-var.xml .jscpd.json .github/workflows/bootstrap.yml) ;;
       dotnet) expected+=(Directory.Build.props .editorconfig .github/workflows/bootstrap.yml) ;;
       php) expected+=(.github/workflows/bootstrap.yml) ;;
@@ -78,6 +78,23 @@ PY
   )
   rm -rf "$dir"
 done
+
+# TS with its own Prettier config: a second config would compete with it, so init must not
+# place one.
+if [[ " ${STACKS[*]} " == *" ts "* ]]; then
+  stack="ts, own prettier config"
+  dir="$(mktemp -d)"
+  (
+    cd "$dir"
+    git init -q
+    printf '{"name":"smoke","version":"0.0.0","private":true,"prettier":{"semi":false}}
+' > package.json
+    bash "$ROOT/scripts/foundry-init.sh" ts > init.log 2>&1 || { cat init.log; fail "init exited non-zero"; }
+    [ ! -e .prettierrc.json ] || fail ".prettierrc.json placed although package.json configures prettier"
+    echo "ok [ts, own prettier config]"
+  )
+  rm -rf "$dir"
+fi
 
 # Python with its own ruff config: a ruff.toml would override pyproject's [tool.ruff], so
 # init must not place the preset.

@@ -15,9 +15,31 @@ every mise template (ts/java/python/dotnet/kotlin/php): the gate wraps each verb
 sequential-not-`depends` rule holds. `foundry-verb-wrap` is provisioned by each template's
 `setup:foundry-scripts` task, cached at a pinned ref rather than vendored; `foundry-init`
 vendors neither script and gitignores `.foundry/`.
-**Not yet:** end-to-end run on a live `mise` project (only the scripts are validated here -
-no mise runtime in this env); smell-count emission from the habit-hooks Stop hook (the
-smell-trend convergence signal - a follow-on); `gh run` CI mining lives in the skill.
+**Smell-count emission, now built:** `scripts/foundry-smells <habit-hooks-binary> [args]`
+runs the habit-hooks pipeline explicitly (`habit-sensors | habit-mapper`, exit =
+`mapper.rc or sensors.rc`, coaching + stderr pass through) and tees the sensor JSON once -
+no second scan - to write per-smell counts (de-duplicated on the merge key, post-snooze) to
+`$FOUNDRY_SMELLS`. `foundry-verb-wrap` clears that sidecar before the command and folds it
+into the line only if the command rewrote it, so counts attach to `lint` (where `smells`
+runs) and never to an unrelated verb. Wired into the ts/java/php/dotnet `smells` tasks with
+a `command -v foundry-smells` fallback to habit-hooks directly, so the gate is identical
+whether or not the script is on PATH yet. Tested: the reducer (dedup, `incomplete-run`
+kept), sibling resolution, the sensors/mapper exit precedence and fail-closed-on-missing-
+binary, and the verb-wrap fold (present/absent/stale/non-object); plus a by-hand run
+against an installed habit-hooks 1.5.0 venv.
+
+**Not yet:** the `/loop-report` trend over the `smells` field (convergence vs a cleared
+smell returning) is the skill-side half, in cmaintz-skills, not here. `foundry-smells`
+joins each template's `setup:foundry-scripts` sha256 list at the next `FOUNDRY_SCRIPTS_REF`
+bump (it can't be pinned to a tag that predates it); until then consumers fall back to
+habit-hooks directly and emit no counts. python's `smells` task is byte-identical and on the same
+habit-hooks, so it is the same three-line change - held back only to avoid colliding
+with the live `feat/python-habit-hooks` / `fix/python-smell-wiring` branches editing that
+same block, not for any technical reason; kotlin has no habit-hooks smells task (detekt). The Stop
+hook calls habit-hooks directly, not `foundry-verb-wrap`, so **in-loop rounds don't feed
+the trend** - emission is gate/pre-push/CI-fed, wherever `smells` runs under the wrapper.
+Also still: end-to-end run on a live `mise` project (no mise runtime in this env); `gh run`
+CI mining lives in the skill.
 
 ## Problem
 
@@ -41,8 +63,8 @@ times it, captures the exit code, and appends **one JSONL line** to a gitignored
 
 - **One wrapper, not per-task edits.** Wrapping only the six verb entry points (three
   extra characters of prefix per template) captures every invocation - direct,
-  composed-via-`gate`, hook-driven - without touching leaf tasks. `smells` is
-  populated by parsing habit-hooks' normalized JSON when it ran; omitted otherwise.
+  composed-via-`gate`, hook-driven - without touching leaf tasks. `smells` is folded in
+  from the sidecar `foundry-smells` writes during the `smells` task; omitted otherwise.
 - **Placement** is inferred from env (`CI`, a hook-set `FOUNDRY_PLACEMENT`, else
   `manual`). `scope` reads whether `FOUNDRY_SINCE` was set (ties to the changed-scope
   spec).

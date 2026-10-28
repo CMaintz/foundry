@@ -75,8 +75,8 @@
       "dependencyDashboardApproval": false
     },
     {
-      "description": "Foundry is our own repo, so the 7-day hold (meant for strangers' compromised releases) only delays our own fixes. Every Foundry workflow ref bumps together in one PR, any day and without dashboard approval even for a major, and merges itself once the consumer's gate passes. Still digest-pinned, so each bump is a gated change. null for the same semgrep/validator reasons as the vulnerability rule.",
-      "matchManagers": ["github-actions"],
+      "description": "Foundry is our own repo, so the 7-day hold (meant for strangers' compromised releases) only delays our own fixes. The reusable-workflow refs and FOUNDRY_SCRIPTS_REF (the annotated mise.toml pin, read by the regex manager) bump together in one PR, any day and without dashboard approval even for a major, so the workflows never run against scripts from another release; it merges itself once the consumer's gate passes. Still digest-pinned, so each bump is a gated change. null for the same semgrep/validator reasons as the vulnerability rule.",
+      "matchManagers": ["github-actions", "custom.regex"],
       "matchPackageNames": ["CMaintz/foundry"],
       "minimumReleaseAge": null,
       "groupName": "foundry",
@@ -84,6 +84,14 @@
       "schedule": ["at any time"],
       "dependencyDashboardApproval": false,
       "automerge": true
+    },
+    {
+      "description": "A Foundry major breaks the CONTRACT or the workflow interface, so it still lands as one PR for both refs but waits for a human instead of merging itself. minimumReleaseAge repeats the rule above only because semgrep's renovate-missing-minimum-release-age wants it on every package rule.",
+      "matchManagers": ["github-actions", "custom.regex"],
+      "matchPackageNames": ["CMaintz/foundry"],
+      "matchUpdateTypes": ["major"],
+      "minimumReleaseAge": null,
+      "automerge": false
     }
   ],
   "lockFileMaintenance": { "enabled": true, "schedule": ["* 0-6 1 * *"] },
