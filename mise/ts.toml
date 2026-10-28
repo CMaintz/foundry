@@ -4,6 +4,7 @@
 [tools]
 node = "22.14.0" # pin to whatever the repo actually uses
 # deno = "2.9.7"  # uncomment if the repo has Deno code (see FOUNDRY_DENO_PATHS below)
+gitleaks = "8.24.3" # audit's secret scan
 
 [env]
 # habit-hooks (structural-smell detector) is a pinned, mise-managed dependency, so the
@@ -39,6 +40,12 @@ _.path = [
 # Gitignore `.foundry/`. Read it with the `foundry:loop-report` skill. The gate calls
 # `foundry-verb-wrap` (cached by setup:foundry-scripts, on PATH above).
 FOUNDRY_TELEMETRY = "{{config_root}}/.foundry/telemetry.jsonl"
+
+# Per-run structural-smell counts: foundry-smells writes this during `smells` (under
+# `lint`) and foundry-verb-wrap folds it into the lint telemetry line's `smells` field,
+# giving loop-report a convergence-vs-thrash signal. Absolute path (not the script's
+# cwd-relative default) so a `mise run` from a subdirectory and the wrapper agree on it.
+FOUNDRY_SMELLS = "{{config_root}}/.foundry/smells.json"
 
 # Deno code to type-check with `deno check` in `typecheck` (space-separated dirs/files,
 # relative to this file), e.g. Supabase Edge Functions incl. their _shared/ modules.
@@ -91,6 +98,9 @@ run = '''
 set -eu
 # <file> <sha256 of that file at FOUNDRY_SCRIPTS_REF>, one per line. A bare name is
 # scripts/<name>; a path (the rule catalog) is fetched from there, cached by basename.
+# foundry-smells joins this list at the next FOUNDRY_SCRIPTS_REF bump (once a tag ships
+# it); until then the `smells` task falls back to habit-hooks directly. Do NOT add a
+# comment inside the quoted block below - `read -r s want` would try to fetch it.
 scripts='
 foundry-verb-wrap 62d37f02653ee1878e66e5366ee51bedb46aefa935716668adc07d078db02e85
 foundry-flaky 4ac1cc27da1071865be3db14c27cfe179ef1bc2aafaa069d8b62801cf920f07f
@@ -191,7 +201,15 @@ mb=$(git merge-base "${FOUNDRY_BASE_REF:-origin/main}" HEAD 2>/dev/null || true)
 if [ -z "$mb" ]; then echo "smells: cannot resolve base '${FOUNDRY_BASE_REF:-origin/main}'; skipping"; exit 0; fi
 [ -x "$hh" ] || { echo "smells: pinned habit-hooks not found at $dst (run 'mise install')" >&2; exit 1; }
 echo "smells: $("$hh" --version) --branch base=$mb"
-"$hh" --branch "$mb"
+# foundry-smells runs the same habit-hooks pipeline but tees the sensor JSON to emit
+# per-smell counts for loop-report; the gate decision is identical. It falls back to
+# habit-hooks directly until it is in the scripts cache (added to setup:foundry-scripts
+# at the next ref bump), so this never breaks while the pin catches up.
+if command -v foundry-smells > /dev/null 2>&1; then
+  foundry-smells "$hh" --branch "$mb"
+else
+  "$hh" --branch "$mb"
+fi
 '''
 
 [tasks.lint]
@@ -205,6 +223,8 @@ description = "Formatting, style and smells; non-mutating"
 # whole-tree in CI. Both checks are file-local, so scoping is safe; the whole-tree CI
 # run still catches stale suppressions repo-wide. prettier gets every changed file
 # (--ignore-unknown skips types it can't format), eslint only the JS/TS ones.
+# --relative because a monorepo package's mise.toml runs from the package dir, where
+# repo-root paths name nothing. `xargs -0` rather than `-d`, which BSD/macOS lacks.
 # Array form: the eslint/prettier block + the structural-smell check (`mise run smells`),
 # each a separate command run in order.
 run = ['''
@@ -214,13 +234,13 @@ if [ -z "${FOUNDRY_SINCE+x}" ]; then whole; exit 0; fi
 base="${FOUNDRY_SINCE:-origin/main}"
 mb=$(git merge-base "$base" HEAD 2>/dev/null || true)
 if [ -z "$mb" ]; then echo "changed-scope lint: cannot resolve '$base'; whole-tree"; whole; exit 0; fi
-changed=$(git diff --name-only --diff-filter=ACMR "$mb" 2>/dev/null || true)
+changed=$(git diff --name-only --relative --diff-filter=ACMR "$mb" 2>/dev/null || true)
 untracked=$(git ls-files --others --exclude-standard 2>/dev/null || true)
 files=$(printf '%s\n%s\n' "$changed" "$untracked" | sort -u | sed '/^$/d')
 if [ -z "$files" ]; then echo "changed-scope lint: nothing changed since $mb"; exit 0; fi
 js=$(printf '%s\n' "$files" | grep -E '\.(ts|tsx|js|cjs|mjs)$' || true)
-if [ -n "$js" ]; then printf '%s\n' "$js" | xargs -d '\n' eslint; fi
-printf '%s\n' "$files" | xargs -d '\n' prettier --check --ignore-unknown
+if [ -n "$js" ]; then printf '%s\n' "$js" | tr '\n' '\0' | xargs -0 eslint; fi
+printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 prettier --check --ignore-unknown
 ''', "mise run smells"]
 
 [tasks.typecheck]
@@ -273,7 +293,7 @@ exec vitest run --changed "$mb"
 '''
 
 [tasks.audit]
-description = "Dependency vulnerabilities. Local subset; CI security.yml adds gitleaks + SAST"
+description = "Dependency vulnerabilities and secrets (gitleaks). SAST runs in CI only (security.yml)"
 # Ratcheted npm audit: fails on any critical NOT in .audit-allowlist.json, and on stale
 # allowlist entries - so accepted CVE debt can only shrink, exactly like eslint
 # suppressions or the habit-hooks snooze baseline. npm audit has no native per-advisory
@@ -284,7 +304,31 @@ description = "Dependency vulnerabilities. Local subset; CI security.yml adds gi
 # setup:foundry-scripts; address it through $HOME in plain shell, NOT a mise `{{...}}`
 # template, because on Windows a templated path carries backslashes bash would strip.
 # The pipe hands the script npm's JSON so `npm` resolves in the shell.
-run = 'npm audit --json | node "$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF/npm-audit-ratchet.mjs" --level=critical --allowlist=.audit-allowlist.json'
+# The secret scan covers the working tree as git sees it (tracked and untracked files,
+# minus .gitignore'd ones), so a key is caught before it is committed. It copies that
+# tree out through a throwaway index rather than running `gitleaks dir .` directly,
+# which would also read ignored dependency trees (.venv, vendor/, build output) whose
+# bundled example keys fail the gate on day one. The repo-root .gitleaks.toml is passed
+# explicitly because a package-level mise.toml runs from the package dir, where gitleaks
+# would not find it. SAST stays in CI (security.yml).
+run = [
+    'npm audit --json | node "$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF/npm-audit-ratchet.mjs" --level=critical --allowlist=.audit-allowlist.json',
+    '''
+set -eu
+root=$(git rev-parse --show-toplevel)
+prefix=$(git rev-parse --show-prefix)
+set --
+if [ -f "$root/.gitleaks.toml" ]; then set -- --config "$root/.gitleaks.toml"; fi
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+idx=$(git rev-parse --git-path index)
+if [ -f "$idx" ]; then cp "$idx" "$tmp/index"; fi
+GIT_INDEX_FILE="$tmp/index" git -c core.safecrlf=false add -A -- .
+GIT_INDEX_FILE="$tmp/index" git checkout-index -a --prefix="$tmp/tree/"
+cd "$tmp/tree/$prefix"
+gitleaks dir --no-banner --redact "$@" .
+''',
+]
 
 # Architecture fitness (opt-in, tier-c auxiliary until you adopt it). Enforces YOUR
 # layer map + no cycles via dependency-cruiser (needs `dependency-cruiser` installed).
@@ -317,7 +361,9 @@ run = '''
 set -eu
 mkdir -p .foundry
 rep=".foundry/vitest-report.json"
+rm -f "$rep"
 vitest run --reporter=json --outputFile="$rep" || true
+[ -f "$rep" ] || { echo "test:flaky: no vitest report at $rep - the run died before its reporter wrote (config error?); not gating on absent results." >&2; exit 1; }
 foundry-flaky gate "$rep" flaky-baseline.json
 '''
 

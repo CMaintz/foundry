@@ -4,6 +4,11 @@
     "**/src/main/resources/**",
     "**/build/**",
     "**/target/**",
-    "**/*.golden.txt"
+    "**/*.golden.txt",
+    "**/test/**",
+    "**/tests/**",
+    "**/__tests__/**",
+    "**/*.test.*",
+    "**/*.spec.*"
   ]
 }

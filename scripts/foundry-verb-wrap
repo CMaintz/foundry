@@ -4,10 +4,16 @@
 #   foundry-verb-wrap <verb> -- <command> [args...]
 #
 # Runs <command>, then appends ONE JSON line to the telemetry log describing the
-# run (verb, exit, duration, scope, placement). The command's exit code is always
-# propagated unchanged - telemetry is best-effort and MUST NOT change a verb's
-# outcome. This is the single instrumentation point every placement routes through
-# (see designs/loop-telemetry.md); wire it into a mise template's verbs.
+# run (verb, exit, duration, scope, placement, and smell counts if the verb produced
+# them). The command's exit code is always propagated unchanged - telemetry is
+# best-effort and MUST NOT change a verb's outcome. This is the single instrumentation
+# point every placement routes through (see designs/loop-telemetry.md); wire it into a
+# mise template's verbs.
+#
+# Smell counts: foundry-smells (run by the `smells` task under `lint`) drops a
+# per-run counts file at FOUNDRY_SMELLS. This wrapper removes it BEFORE the command so
+# a stale file never attaches to an unrelated verb, then folds it into the line only if
+# the command itself (re)wrote it - so counts attach to `lint`, where smells run.
 #
 # When foundry-explain sits beside this script and a Python with tomllib (3.11+) runs,
 # the command's stdout and stderr are teed (each still streams live, to its own stream)
@@ -20,6 +26,7 @@
 #
 # Env:
 #   FOUNDRY_TELEMETRY   log path (default: .foundry/telemetry.jsonl, gitignored)
+#   FOUNDRY_SMELLS      per-run smell-counts sidecar (default: .foundry/smells.json)
 #   FOUNDRY_PLACEMENT   ci|ship|hook|manual (default: "ci" if $CI set, else "manual")
 #   FOUNDRY_SINCE       if set (even empty), scope is recorded as "changed", else "whole"
 #   FOUNDRY_EXPLAIN     0 runs the command untouched (no tee, no footer)
@@ -35,6 +42,7 @@ explain="$(dirname "$0")/foundry-explain"
 # left running (a build server, a daemon) can hold the pipes open forever; past this
 # the tees are stopped so the gate never hangs on it.
 drain_secs=3
+smells_file="${FOUNDRY_SMELLS:-.foundry/smells.json}"
 
 placement="${FOUNDRY_PLACEMENT:-}"
 if [ -z "$placement" ]; then
@@ -115,6 +123,9 @@ if [ -n "$tmp" ]; then
   trap 'exit 143' TERM
 fi
 
+# Clear any stale sidecar so only a file this verb's own command writes gets folded in.
+rm -f "$smells_file" 2>/dev/null || true
+
 start=$(now_ms)
 if [ -n "$tmp" ]; then
   run_teed "$@"
@@ -134,12 +145,23 @@ if [ "$rc" -ne 0 ] && [ -n "$tmp" ] && ids=$(matched_rules); then
   rules_field=",\"rules\":[$(json_ids "$ids")]"
 fi
 
+# Fold in smell counts only if the command wrote the sidecar and it is a single JSON
+# object. Best-effort, like the append: a malformed or absent file just omits the field.
+smells_field=""
+if [ -f "$smells_file" ]; then
+  smells_json=$(head -n 1 "$smells_file" 2>/dev/null || true)
+  case "$smells_json" in
+    '{'*) smells_field=",\"smells\":$smells_json" ;;
+  esac
+  rm -f "$smells_file" 2>/dev/null || true
+fi
+
 # Best-effort append. Any failure here is swallowed so the verb's exit code stands.
 (
   dir=$(dirname "$telemetry")
   [ -d "$dir" ] || mkdir -p "$dir" 2>/dev/null || exit 0
-  printf '{"ts":"%s","ms":%s,"verb":"%s","scope":"%s","placement":"%s","exit":%d,"duration_ms":%d%s}\n' \
-    "$ts" "$start" "$verb" "$scope" "$placement" "$rc" "$dur" "$rules_field" >> "$telemetry" 2>/dev/null || true
+  printf '{"ts":"%s","ms":%s,"verb":"%s","scope":"%s","placement":"%s","exit":%d,"duration_ms":%d%s%s}\n' \
+    "$ts" "$start" "$verb" "$scope" "$placement" "$rc" "$dur" "$rules_field" "$smells_field" >> "$telemetry" 2>/dev/null || true
 ) 2>/dev/null || true
 
 exit "$rc"
