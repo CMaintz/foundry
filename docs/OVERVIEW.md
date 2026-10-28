@@ -57,7 +57,7 @@ mise run fix        # auto-fix what is mechanically fixable (the only mutating v
 mise run lint       # style + structural smells (non-mutating)
 mise run typecheck  # static types
 mise run test       # tests + coverage floor
-mise run audit      # vulnerabilities, secrets, SAST
+mise run audit      # vulnerabilities, secrets (SAST runs in CI)
 mise run gate       # lint -> typecheck -> test -> audit, in order. THE ORACLE.
 ```
 
