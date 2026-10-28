@@ -363,7 +363,18 @@ def signoff(events, labels, head_time):
     return valid, [lb for lb in labels if lb not in valid]
 
 
-_KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count", "tests", "tests-count", "workflow-approve", "signoff"}
+_KINDS = {
+    "eslint",
+    "snooze",
+    "lines",
+    "coverage",
+    "inline",
+    "inline-count",
+    "tests",
+    "tests-count",
+    "workflow-approve",
+    "signoff",
+}
 
 if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
