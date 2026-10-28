@@ -30,7 +30,7 @@ Kinds:
           commented out with no replacement. A split, move or rename nets out. No <path>.
 
 Usage: ruleset_guard.py <eslint|snooze|lines|coverage> <base-ref> <head-ref> <path>
-       ruleset_guard.py <inline|tests> <base-ref> <head-ref>
+       ruleset_guard.py <inline|tests|workflow-approve> <base-ref> <head-ref>
 """
 
 import json
@@ -224,10 +224,24 @@ INLINE_DIRECTIVES = [
 ]
 
 
-def inline_counts(ref):
-    """Counter[(file, directive)] of in-source suppression/skip/demotion hits at a ref."""
+# Workflow lines that let a job approve PRs. Actions approving PRs is intentional (Renovate,
+# baseline prune), so only GROWTH is flagged, per (file, directive) like the inline kind:
+# a Renovate SHA bump rewrites a line in place and keeps the count. `^[^#]*` skips YAML
+# comments (usage examples in workflow headers). A job token's approve power comes from
+# `pull-requests: write` (or write-all); the rest are the ways a step uses it.
+WORKFLOW_PATHS = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+WORKFLOW_DIRECTIVES = [
+    ("workflow-pr-write", "^[^#]*(pull-requests: *write|write-" + "all)", WORKFLOW_PATHS),
+    ("workflow-approve-cli", "^[^#]*gh +pr +review.*(--approve|-a( |$))", WORKFLOW_PATHS),
+    ("workflow-approve-event", "^[^#]*event[\"']? *[:=] *[\"']?" + "APPROVE", WORKFLOW_PATHS),
+    ("workflow-approve-action", "^[^#]*(auto-approve|approve-pull-request)", WORKFLOW_PATHS),
+]
+
+
+def inline_counts(ref, directives=INLINE_DIRECTIVES):
+    """Counter[(file, directive)] of hits for each (name, regex, pathspec) at a ref."""
     c = Counter()
-    for name, pat, paths in INLINE_DIRECTIVES:
+    for name, pat, paths in directives:
         r = subprocess.run(
             ["git", "grep", "-I", "-E", "-e", pat, ref, "--", *paths],
             capture_output=True,
@@ -244,8 +258,8 @@ def inline_counts(ref):
     return c
 
 
-def inline_loosened(base, head):
-    o, n = inline_counts(base), inline_counts(head)
+def inline_loosened(base, head, directives=INLINE_DIRECTIVES):
+    o, n = inline_counts(base, directives), inline_counts(head, directives)
     return [k for k in n if n[k] > o.get(k, 0)]
 
 
@@ -326,7 +340,7 @@ def tests_loosened(base, head):
     return [net, *(f"{f} ({o[f]} -> {n[f]})" for f in changed)]
 
 
-_KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count", "tests", "tests-count"}
+_KINDS = {"eslint", "snooze", "lines", "coverage", "inline", "inline-count", "tests", "tests-count", "workflow-approve"}
 
 if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -341,9 +355,12 @@ if __name__ == "__main__":
         counts = inline_counts if kind == "inline-count" else test_counts
         print(sum(counts(sys.argv[2]).values()))
         sys.exit(0)
-    if kind in ("inline", "tests"):
+    if kind in ("inline", "tests", "workflow-approve"):
         base, head = sys.argv[2:4]
-        bad = inline_loosened(base, head) if kind == "inline" else tests_loosened(base, head)
+        if kind == "tests":
+            bad = tests_loosened(base, head)
+        else:
+            bad = inline_loosened(base, head, WORKFLOW_DIRECTIVES if kind == "workflow-approve" else INLINE_DIRECTIVES)
     else:
         base, head, path = sys.argv[2:5]
         bad = loosened(kind, _git_show(base, path), _git_show(head, path))
