@@ -390,6 +390,57 @@ class TestTestDeletion:
         assert run_cli(cwd, "tests", base, head).returncode == 0
 
 
+def labeled(name, at):
+    return {"event": "labeled", "name": name, "created_at": at}
+
+
+PUSHED = "2026-10-26T12:00:00Z"
+
+
+class TestSignoff:
+    def test_label_applied_after_the_push_signs_off(self):
+        events = [labeled("suppression", "2026-10-26T12:05:00Z")]
+        assert guard.signoff(events, ["suppression"], PUSHED) == (["suppression"], [])
+
+    def test_push_after_the_label_voids_it(self):
+        events = [labeled("suppression", "2026-10-26T11:55:00Z")]
+        assert guard.signoff(events, ["suppression"], PUSHED) == ([], ["suppression"])
+
+    def test_only_the_most_recent_labeled_event_counts(self):
+        # Applied, removed, re-applied after review of the new push: valid.
+        events = [
+            labeled("suppression", "2026-10-26T11:00:00Z"),
+            {"event": "unlabeled", "name": "suppression", "created_at": "2026-10-26T11:30:00Z"},
+            labeled("suppression", "2026-10-26T12:10:00Z"),
+        ]
+        assert guard.signoff(events, ["suppression"], PUSHED) == (["suppression"], [])
+
+    def test_another_labels_event_does_not_refresh_it(self):
+        events = [labeled("ruleset-change", "2026-10-26T11:00:00Z"), labeled("agent:ready", "2026-10-26T12:30:00Z")]
+        assert guard.signoff(events, ["ruleset-change"], PUSHED) == ([], ["ruleset-change"])
+
+    def test_label_with_no_labeled_event_is_not_a_signoff(self):
+        assert guard.signoff([], ["suppression"], PUSHED) == ([], ["suppression"])
+
+    def test_offset_timestamps_compare_as_instants(self):
+        events = [labeled("suppression", "2026-10-26T13:01:00+01:00")]  # 12:01Z
+        assert guard.signoff(events, ["suppression"], PUSHED) == (["suppression"], [])
+
+
+class TestSignoffCli:
+    def test_exit_0_and_prints_valid_labels(self, tmp_path):
+        ev = tmp_path / "events.jsonl"
+        ev.write_text(json.dumps(labeled("suppression", "2026-10-26T12:05:00Z")) + "\n")
+        r = run_cli(tmp_path, "signoff", str(ev), "suppression,ruleset-change", PUSHED)
+        assert r.returncode == 0 and r.stdout.split() == ["suppression"]
+
+    def test_exit_1_and_names_the_stale_label(self, tmp_path):
+        ev = tmp_path / "events.jsonl"
+        ev.write_text(json.dumps(labeled("suppression", "2026-10-26T11:05:00Z")) + "\n")
+        r = run_cli(tmp_path, "signoff", str(ev), "suppression", PUSHED)
+        assert r.returncode == 1 and "suppression" in r.stderr and r.stdout == ""
+
+
 def commit_tree(cwd, files=None, remove=()):
     """One commit that writes `files` ({path: text}) and git-rm's `remove`; returns its sha."""
     for path, text in (files or {}).items():

@@ -8,7 +8,9 @@
 #       permissions: { contents: read, pull-requests: read }   # the secret scan lists PR commits
 #       with: { ruleset_paths: '^(mise\.toml|backend/.habit-hooks/|…)' }
 #
-# Require the `security-ok` check in branch protection.
+# Trigger the caller on `pull_request: { types: [opened, synchronize, reopened, labeled, unlabeled] }`:
+# ruleset-guard only accepts a sign-off label applied after the latest push, so applying
+# one has to re-run it. Require the `security-ok` check in branch protection.
 name: security
 
 on:

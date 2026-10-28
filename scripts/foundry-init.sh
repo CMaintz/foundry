@@ -299,7 +299,8 @@ repo_level_once() { # shared presets + repo-wide setup that runs once, not per p
 emit_security_and_ratchet() { # repo-level facades, identical single or mono
   write ".github/workflows/security.yml" <<YAML
 name: security
-on: { pull_request: {}, push: { branches: [main] } }
+# labeled/unlabeled: ruleset-guard judges sign-off labels, so applying one must re-run it.
+on: { pull_request: { types: [opened, synchronize, reopened, labeled, unlabeled] }, push: { branches: [main] } }
 concurrency:
   group: security-\${{ github.ref }}
   cancel-in-progress: true
