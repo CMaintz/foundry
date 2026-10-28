@@ -14,9 +14,9 @@ gitleaks = "8.24.3" # audit's secret scan
 # `habit_hooks_version` default (1.5.0).
 HABIT_HOOKS_VERSION = "1.5.0"
 HABIT_HOOKS_PLUGIN = "habit-hooks-php"
-# The Foundry scripts (foundry-verb-wrap, foundry-flaky, codemap-check) are provisioned by
-# setup:foundry-scripts into a cache dir at this ref, not vendored (see that task). Renovate
-# tracks the pin via the comment above it.
+# The Foundry scripts (foundry-verb-wrap, foundry-flaky, codemap-check, foundry-explain and
+# its rule catalog) are provisioned by setup:foundry-scripts into a cache dir at this ref,
+# not vendored (see that task). Renovate tracks the pin via the comment above it.
 # A bump must also update the sha256 lines in setup:foundry-scripts.
 # renovate: datasource=github-tags depName=CMaintz/foundry
 FOUNDRY_SCRIPTS_REF = "v2.13.0"
@@ -189,7 +189,8 @@ gitleaks dir --no-banner --redact "$@" .
 description = "Fetch the pinned Foundry scripts into a cache dir, sha256-verified"
 run = '''
 set -eu
-# <script> <sha256 of scripts/<script> at FOUNDRY_SCRIPTS_REF>, one per line.
+# <file> <sha256 of that file at FOUNDRY_SCRIPTS_REF>, one per line. A bare name is
+# scripts/<name>; a path (the rule catalog) is fetched from there, cached by basename.
 # foundry-smells joins this list at the next FOUNDRY_SCRIPTS_REF bump (once a tag ships
 # it); until then the `smells` task falls back to habit-hooks directly. Do NOT add a
 # comment inside the quoted block below - `read -r s want` would try to fetch it.
@@ -197,19 +198,24 @@ scripts='
 foundry-verb-wrap 62d37f02653ee1878e66e5366ee51bedb46aefa935716668adc07d078db02e85
 foundry-flaky 4ac1cc27da1071865be3db14c27cfe179ef1bc2aafaa069d8b62801cf920f07f
 codemap-check 31a57b4ec25237598abb29f34a28dbcbd1331cee0ca939a9dd8e9caa3985b5da
+foundry-explain 6b483daf5867badb4db5d222fccbe717b310deda6ebd064e8f478ec3f2dcef60
+presets/rules/catalog.toml c311172c29dd735821e2a0efe566aecc35320f45d375bfac1a2622a43ba4fb9b
+presets/rules/matchers.toml 8f0a748fc181e1a37c754d79e7a196e4d9006592e633826c8031b89acba7f455
 '
 dst="$HOME/.local/opt/foundry-scripts-$FOUNDRY_SCRIPTS_REF"
-base="https://raw.githubusercontent.com/CMaintz/foundry/$FOUNDRY_SCRIPTS_REF/scripts"
+base="https://raw.githubusercontent.com/CMaintz/foundry/$FOUNDRY_SCRIPTS_REF"
 # sha256sum ships with Linux and Git Bash; macOS has only shasum.
 digest() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
 mkdir -p "$dst"
 while read -r s want; do
   [ -n "$s" ] || continue
-  [ -f "$dst/$s" ] && [ "$(digest "$dst/$s")" = "$want" ] && continue
+  case "$s" in */*) src="$s" ;; *) src="scripts/$s" ;; esac
+  f="${s##*/}"
+  [ -f "$dst/$f" ] && [ "$(digest "$dst/$f")" = "$want" ] && continue
   # A per-run temp file, moved into place only once verified: concurrent runs (parallel
   # worktrees share $HOME) never write into each other's download or expose a partial one.
-  tmp=$(mktemp "$dst/.$s.XXXXXX")
-  if ! curl -fsSL "$base/$s" -o "$tmp"; then
+  tmp=$(mktemp "$dst/.$f.XXXXXX")
+  if ! curl -fsSL "$base/$src" -o "$tmp"; then
     rm -f "$tmp"
     echo "setup:foundry-scripts: cannot fetch $s at $FOUNDRY_SCRIPTS_REF (network needed once per ref)" >&2
     exit 1
@@ -223,7 +229,7 @@ while read -r s want; do
     exit 1
   fi
   chmod +x "$tmp" 2>/dev/null || true
-  mv -f "$tmp" "$dst/$s"
+  mv -f "$tmp" "$dst/$f"
 done <<EOF
 $scripts
 EOF
