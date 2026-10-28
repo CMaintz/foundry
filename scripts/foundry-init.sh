@@ -3,8 +3,8 @@
 #
 #   Usage:  bash foundry-init.sh <stack> [working_dir]          # single package
 #           bash foundry-init.sh --mono <stack:dir> [<stack:dir>...]   # monorepo
-#     stack:        ts | java | php | kotlin | dotnet | python
-#                   (--mono supports the facade stacks only: ts | java | php | dotnet)
+#     stack:        ts | js | java | php | kotlin | dotnet | python
+#                   (--mono supports the facade stacks only: ts | js | java | php | dotnet)
 #     working_dir:  where mise.toml/.habit-hooks live (default ".")
 #   Env:
 #     FOUNDRY_REF   foundry ref to pin the reusable workflows to (default "main";
@@ -38,10 +38,12 @@ write() { # write <local-path> <<heredoc - never clobber
 
 # resolve_stack <stack> - sets R_PLUGIN (habit-hooks plugin; "" if none), R_CI (per-stack
 # facade marker; "" for inline stacks) and R_HH (habit-hooks preset basename). HH tracks
-# the plugin/language name, so `ts` maps to `typescript`; the others match the stack.
+# the language name, so `ts` maps to `typescript` and `js` to `javascript`; the others
+# match the stack. Plain JS has no plugin of its own: it runs on the typescript one.
 resolve_stack() {
   case "$1" in
     ts)     R_PLUGIN="habit-hooks-typescript"; R_CI="ts.yml";     R_HH="typescript" ;;
+    js)     R_PLUGIN="habit-hooks-typescript"; R_CI="ts.yml";     R_HH="javascript" ;;
     java)   R_PLUGIN="habit-hooks-java";       R_CI="java.yml";   R_HH="java" ;;
     php)    R_PLUGIN="habit-hooks-php";         R_CI="php.yml";    R_HH="php" ;;
     dotnet) R_PLUGIN="foundry-habit-hooks-dotnet"; R_CI="dotnet.yml"; R_HH="dotnet" ;;
@@ -64,22 +66,24 @@ fetch_package_core() { # <stack> <wd> - mise verbs, smells config
   # mise template's setup:foundry-scripts task - see mise/<stack>.toml.
 }
 
-# ensure_ts_devdeps <wd> - add the TS gate's tools to the consumer's devDependencies if
-# absent: prettier for fix/lint, and the habit-hooks typescript (knip, ts-morph) and generic
-# (jscpd) sensors, so smells seed against real findings instead of a missing-tool error. Caret-pinned;
-# Renovate bumps them. Never overwrites an existing pin; no-ops with a NOTE when there's no
-# package.json yet (bootstrap also `npm ci`s + PATHs node_modules/.bin before seeding).
-ensure_ts_devdeps() {
-  local wd="$1" nv name have
+# ensure_devdeps <wd> <name@range...> - add the gate's npm tools to the consumer's
+# devDependencies if absent, so smells seed against real findings instead of a missing-tool
+# error. Caret-pinned; Renovate bumps them. Never overwrites an existing pin; no-ops with a
+# NOTE when there's no package.json yet (bootstrap also `npm ci`s + PATHs node_modules/.bin
+# before seeding).
+ensure_devdeps() {
+  local wd="$1" nv name have names
+  shift
+  names="${*%@*}"
   if [ ! -f "$wd/package.json" ]; then
-    echo "  NOTE: no $wd/package.json - add prettier, knip, ts-morph, jscpd to devDependencies so the TS gate runs"
+    echo "  NOTE: no $wd/package.json - add $names to devDependencies so the gate runs"
     return 0
   fi
   if ! command -v npm > /dev/null 2>&1; then
-    echo "  NOTE: npm not on PATH - add prettier, knip, ts-morph, jscpd to devDependencies so the TS gate runs"
+    echo "  NOTE: npm not on PATH - add $names to devDependencies so the gate runs"
     return 0
   fi
-  for nv in "prettier@^3.9.9" "knip@^6.39.0" "ts-morph@^28.0.0" "jscpd@^5.4.0"; do
+  for nv in "$@"; do
     name="${nv%@*}"
     have="$( (cd "$wd" && npm pkg get "devDependencies.$name") 2>/dev/null || true)"
     case "$have" in
@@ -124,8 +128,69 @@ fetch_ts_extras() { # <wd> - strict tsconfig + jscpd ignores + smell devDeps + P
   # setup:foundry-scripts task caches them at a pinned ref (see mise/ts.toml).
   # jscpd duplication (generic sensor) reads .jscpd.json; pre-place it like the Java path.
   fetch "presets/habit-hooks/jscpd.json" "$wd/.jscpd.json"
-  ensure_ts_devdeps "$wd"
+  # prettier for fix/lint, and the habit-hooks typescript (knip, ts-morph) and generic
+  # (jscpd) sensors.
+  ensure_devdeps "$wd" "prettier@^3.9.9" "knip@^6.39.0" "ts-morph@^28.0.0" "jscpd@^5.4.0"
   ensure_prettier_config "$wd"
+}
+
+has_config() { # <wd> <package.json key, or ""> <file...> - any of the files, or the key, exists
+  local wd="$1" key="$2" f
+  shift 2
+  for f in "$@"; do [ -e "$wd/$f" ] && return 0; done
+  if [ -z "$key" ] || [ ! -f "$wd/package.json" ]; then return 1; fi
+  command -v node > /dev/null 2>&1 || return 1
+  # Top-level key only: a grep would also match the tool's own devDependencies entry.
+  (cd "$wd" && node -e 'process.exit(require("./package.json")[process.argv[1]] === undefined ? 1 : 0)' "$key")
+}
+
+fetch_js_configs() { # <wd> - the repo's eslint + knip configs, unless it has its own
+  local wd="$1"
+  # `eslint .` exits non-zero with no config at all, so a repo without one gets Foundry's
+  # base config as its own (max-len and unused disables; habit-hooks ratchets the rest).
+  if has_config "$wd" "" eslint.config.js eslint.config.mjs eslint.config.cjs \
+    eslint.config.ts eslint.config.mts eslint.config.cts; then
+    echo "  skip (eslint already configured): $wd/eslint.config.mjs"
+  else fetch "presets/lint/eslint.config.mjs" "$wd/eslint.config.mjs"; fi
+  # knip reads the first config it finds, so a second one beside the repo's own would
+  # silently decide which entries count.
+  if has_config "$wd" knip knip.json knip.jsonc .knip.json .knip.jsonc knip.ts knip.js \
+    knip.config.ts knip.config.js; then
+    echo "  skip (knip already configured): $wd/knip.json"
+  else fetch "presets/habit-hooks/javascript/knip.json" "$wd/knip.json"; fi
+}
+
+# format_placed <wd> <file...> - the placed presets are written in Foundry's style, and the
+# js gate runs `prettier --check .`, so a single-quoted or 80-column repo would go red on
+# files init just wrote. Only files this run placed, never the repo's own.
+format_placed() {
+  local wd="$1"
+  shift
+  [ "$#" -gt 0 ] || return 0
+  if ! command -v npx > /dev/null 2>&1; then
+    echo "  NOTE: npx not on PATH - run 'mise run fix' once to format: $*"
+    return 0
+  fi
+  (cd "$wd" && npx --yes prettier@3 --log-level warn --write "$@") \
+    || echo "  WARN: could not format $* (run 'mise run fix')"
+}
+
+fetch_js_extras() { # <wd> - Prettier config, eslint/knip configs, habit-hooks JS companions, devDeps
+  local wd="$1" f placed=() written=()
+  # First, so the style is inferred from the repo's code and not from the presets below.
+  ensure_prettier_config "$wd"
+  for f in eslint.config.mjs .habit-hooks/eslint.config.mjs knip.json .jscpd.json; do
+    [ -e "$wd/$f" ] || placed+=("$f")
+  done
+  fetch_js_configs "$wd"
+  # The preset points the eslint sensor at this wrapper, which adds the structural rules
+  # on top of the project config (see presets/habit-hooks/README.md, Plain JavaScript).
+  fetch "presets/habit-hooks/javascript/eslint.config.mjs" "$wd/.habit-hooks/eslint.config.mjs"
+  fetch "presets/habit-hooks/jscpd.json" "$wd/.jscpd.json"
+  # The JS preset turns the comment sensor off, so no ts-morph; eslint is in the gate itself.
+  ensure_devdeps "$wd" "prettier@^3.9.9" "eslint@^10.12.0" "knip@^6.39.0" "jscpd@^5.4.0"
+  for f in "${placed[@]}"; do if [ -e "$wd/$f" ]; then written+=("$f"); fi; done
+  format_placed "$wd" "${written[@]}"
 }
 
 fetch_java_extras() { # <wd> - PMD ruleset, jscpd ignore list, per-smell coaching guides
@@ -182,6 +247,7 @@ scaffold_package() { # <stack> <wd> - everything one package needs (not repo-lev
   echo "- package: $stack @ $wd"
   fetch_package_core "$stack" "$wd"
   if [ "$stack" = ts ]; then fetch_ts_extras "$wd"; fi
+  if [ "$stack" = js ]; then fetch_js_extras "$wd"; fi
   if [ "$stack" = java ]; then fetch_java_extras "$wd"; fi
   if [ "$stack" = dotnet ]; then fetch_dotnet_extras "$wd"; fi
   if [ "$stack" = python ]; then fetch_python_extras "$wd"; fi
@@ -472,9 +538,9 @@ validate_mono_pairs() { # <pair...> - each arg must be <facade-stack>:<subdir>
     case "$pair" in *:*) : ;; *) echo "mono arg must be stack:dir, got '$pair'" >&2; exit 2 ;; esac
     stack="${pair%%:*}"; dir="${pair#*:}"
     case "$stack" in
-      ts|java|php|dotnet) : ;;
-      kotlin) echo "--mono does not support 'kotlin' (no reusable gate yet); use ts|java|php|dotnet" >&2; exit 2 ;;
-      python) echo "--mono does not support 'python' yet (facade exists, mono wiring not generated); use ts|java|php|dotnet" >&2; exit 2 ;;
+      ts|js|java|php|dotnet) : ;;
+      kotlin) echo "--mono does not support 'kotlin' (no reusable gate yet); use ts|js|java|php|dotnet" >&2; exit 2 ;;
+      python) echo "--mono does not support 'python' yet (facade exists, mono wiring not generated); use ts|js|java|php|dotnet" >&2; exit 2 ;;
       *) echo "unknown stack '$stack' in '$pair'" >&2; exit 2 ;;
     esac
     if [ -z "$dir" ] || [ "$dir" = "." ]; then
@@ -525,7 +591,7 @@ set later, delete the generated .github/workflows/gate.yml + bootstrap.yml (they
 never clobbered) and re-run --mono with the full set of pairs."
   print_next_steps "gate-ok" "$MONO_NOTE"
 else
-  STACK="${1:?stack required: ts | java | php | kotlin | dotnet | python}"
+  STACK="${1:?stack required: ts | js | java | php | kotlin | dotnet | python}"
   WD="${2:-.}"
   echo "== Foundry scaffold: $STACK @ $REF =="
   scaffold_package "$STACK" "$WD"   # sets R_CI / R_PLUGIN for the branches below
