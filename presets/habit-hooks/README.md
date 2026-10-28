@@ -76,8 +76,9 @@ JS needs is config, in two companion files:
 The `comment` sensor is disabled, which also means a JS repo does not need ts-morph.
 devDependencies: `eslint`, `knip`, `jscpd`. Copy `jscpd.json` to `<repo>/.jscpd.json` too:
 it keeps test dirs out of duplication, which the `files` list cannot do for jscpd.
-`tests/habit-hooks-js-smoke.sh` runs the real sensors over a throwaway JS repo with this
-preset and checks the smells are reported and test files are not.
+`tests/habit-hooks-js-smoke.sh` runs the real sensors over a throwaway repo with this preset
+(or `PRESET=typescript`, a TS repo with a typescript-eslint config) and checks the smells
+are reported, the repo's own eslint rule still is, and test files are not.
 
 HTML/CSS have no habit-hooks plugin; use foundry's reusable `web.yml` workflow for
 a max-file-length gate on those.
