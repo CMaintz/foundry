@@ -242,7 +242,8 @@ gitleaks dir --no-banner --redact "$@" .
 # from FOUNDRY_SINCE's speed signal), defaulting to origin/main for local runs; CI sets
 # it to the PR base SHA, since origin/main isn't a reliable ref in a PR checkout. An
 # unresolvable base skips (CI enforces from a full-history checkout, so it's authoritative).
-# Folded into `lint` above - no separate CI job needed.
+# Folded into `lint` above - no separate CI job needed. --relative keeps the paths
+# package-relative in a monorepo package, or the src/main/java filter matches nothing.
 [tasks.novar]
 description = "no-`var` on changed Java (ratchet base = FOUNDRY_BASE_REF, default origin/main). Tag exceptions `// foundry-allow-var: reason`."
 depends = ["setup:pmd"]
@@ -250,7 +251,7 @@ run = '''
 set -eu
 mb=$(git merge-base "${FOUNDRY_BASE_REF:-origin/main}" HEAD 2>/dev/null || true)
 if [ -z "$mb" ]; then echo "novar: cannot resolve base '${FOUNDRY_BASE_REF:-origin/main}'; skipping"; exit 0; fi
-files=$(git diff --name-only --diff-filter=ACMR "$mb" 2>/dev/null | grep -E '^src/main/java/.*\.java$' || true)
+files=$(git diff --name-only --relative --diff-filter=ACMR "$mb" 2>/dev/null | grep -E '^src/main/java/.*\.java$' || true)
 if [ -z "$files" ]; then echo "novar: no changed main Java files"; exit 0; fi
 set --
 for f in $files; do set -- "$@" "-d=$f"; done
