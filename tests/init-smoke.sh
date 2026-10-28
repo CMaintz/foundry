@@ -43,6 +43,10 @@ for stack in "${STACKS[@]}"; do
         grep -q "\"$d\"" package.json || fail "package.json missing TS gate devDep: $d"
       done
     fi
+    # The ts gate runs `prettier --check .`, which covers the generated workflows.
+    if [ "$stack" = ts ] && command -v npx > /dev/null 2>&1; then
+      npx --yes prettier@3 --check .github/workflows/*.yml || fail "generated workflows fail prettier --check"
+    fi
     grep -qxF '.foundry/' .gitignore || fail ".gitignore lacks .foundry/"
     grep -qxF '.claude/worktrees/' .gitignore || fail ".gitignore lacks .claude/worktrees/"
     if [ "$stack" = python ]; then
@@ -56,7 +60,7 @@ for stack in "${STACKS[@]}"; do
     case "$stack" in
       kotlin) grep -q 'mise run gate' .github/workflows/gate.yml || fail "kotlin gate.yml is not the inline gate" ;;
       *) grep -q 'workflows/gate.yml@v0.0.0-smoke' .github/workflows/gate.yml || fail "$stack gate.yml does not pin the facade"
-         grep -q "stack: \"$stack\"" .github/workflows/gate.yml || fail "$stack gate.yml does not pass stack: $stack" ;;
+         grep -qx "      stack: $stack" .github/workflows/gate.yml || fail "$stack gate.yml does not pass stack: $stack" ;;
     esac
 
     python3 - <<'PY' || fail "a generated config does not parse"

@@ -296,18 +296,23 @@ repo_level_once() { # shared presets + repo-wide setup that runs once, not per p
   configure_repo_settings
 }
 
+# The emitted workflows are what Prettier would write whatever style a repo infers (one
+# space before a comment, no quoted scalars, flow maps under 80 columns): a ts or js
+# repo's lint runs `prettier --check .` over them on day one.
 emit_security_and_ratchet() { # repo-level facades, identical single or mono
   write ".github/workflows/security.yml" <<YAML
 name: security
 # labeled/unlabeled: ruleset-guard judges sign-off labels, so applying one must re-run it.
-on: { pull_request: { types: [opened, synchronize, reopened, labeled, unlabeled] }, push: { branches: [main] } }
+on:
+  pull_request: { types: [opened, synchronize, reopened, labeled, unlabeled] }
+  push: { branches: [main] }
 concurrency:
   group: security-\${{ github.ref }}
   cancel-in-progress: true
 jobs:
   security:
-    uses: $REPO/.github/workflows/security.yml@$REF   # facade: secret scan + ruleset-guard + SAST
-    permissions: { contents: read, pull-requests: read }   # the secret scan lists the PR's commits
+    uses: $REPO/.github/workflows/security.yml@$REF # facade: secret scan + ruleset-guard + SAST
+    permissions: { contents: read, pull-requests: read } # the secret scan lists the PR's commits
 YAML
   write ".github/workflows/ratchet.yml" <<YAML
 name: ratchet
@@ -330,10 +335,10 @@ concurrency:
   cancel-in-progress: true
 jobs:
   gate:
-    uses: $REPO/.github/workflows/gate.yml@$REF   # the public facade - pin this, not the per-stack files
+    uses: $REPO/.github/workflows/gate.yml@$REF # the public facade - pin this, not the per-stack files
     with:
-      stack: "$stack"
-      working_directory: "$wd"
+      stack: $stack
+      working_directory: $wd
 YAML
   else
     write ".github/workflows/gate.yml" <<YAML
@@ -347,7 +352,7 @@ jobs:
   gate:
     name: Deterministic gate
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: "$wd" } }
+    defaults: { run: { working-directory: $wd } }
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
@@ -363,13 +368,13 @@ name: bootstrap
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '0 6 * * *'   # daily auto-prune - baseline shrinks on its own, one PR/day max
+    - cron: 0 6 * * * # daily auto-prune - baseline shrinks on its own, one PR/day max
 jobs:
   bootstrap:
     uses: $REPO/.github/workflows/bootstrap.yml@$REF
     with:
-      working_directory: "$2"
-      habit_hooks_plugin: "$1"
+      working_directory: $2
+      habit_hooks_plugin: $1
     permissions: { contents: write, pull-requests: write }
 YAML
 }
@@ -391,7 +396,7 @@ gen_mono_gate_ok() { # <pair...> - the single required check, over every package
   local pair needs="changes"
   for pair in "$@"; do needs+=", $(mono_jobid "${pair#*:}")"; done
   cat <<'YAML'
-  gate-ok:   # the ONE required check for the whole repo (a bare `gate-ok`, no prefix)
+  gate-ok: # the ONE required check for the whole repo (a bare `gate-ok`, no prefix)
 YAML
   printf '    needs: [%s]\n' "$needs"
   cat <<'YAML'
@@ -427,7 +432,7 @@ jobs:
   changes:
     uses: $REPO/.github/workflows/changes.yml@$REF
     with:
-      packages: "$pkgs"
+      packages: $pkgs
       ignore_globs: |
         *.md
         docs/**
@@ -444,7 +449,7 @@ name: bootstrap
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '0 6 * * *'   # daily auto-prune - each package opens at most one PR/day
+    - cron: 0 6 * * * # daily auto-prune - each package opens at most one PR/day
 jobs:
 YAML
   for pair in "$@"; do
@@ -454,8 +459,8 @@ YAML
   $jobid:
     uses: $REPO/.github/workflows/bootstrap.yml@$REF
     with:
-      working_directory: "$dir"
-      habit_hooks_plugin: "$R_PLUGIN"
+      working_directory: $dir
+      habit_hooks_plugin: $R_PLUGIN
     permissions: { contents: write, pull-requests: write }
 YAML
   done
