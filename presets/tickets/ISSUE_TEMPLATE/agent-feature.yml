@@ -1,7 +1,9 @@
 name: Agent feature ticket
 description: A feature request the /feature driver can claim and drive to a PR. Copy to .github/ISSUE_TEMPLATE/ in a consumer repo.
 title: "feat: "
-labels: ["agent:ready"]
+# Only the type label. `agent:ready` is a maintainer's call after review: on a public repo
+# anyone can file this form, and an unattended puller would implement whatever it queued.
+labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
@@ -9,6 +11,9 @@ body:
         The driver's output is only as good as this ticket. Every field below is
         required - a ticket missing any of them is not claimable. See Foundry's
         `presets/ticket-schema.md` for the why.
+
+        Filing this form does not queue the ticket for an agent: a maintainer adds
+        `agent:ready` once they have reviewed and approved it.
   - type: textarea
     id: intent
     attributes:
