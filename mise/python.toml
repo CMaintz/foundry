@@ -61,9 +61,9 @@ IMPORT_LINTER_VERSION = "2.15"
 FOUNDRY_COV_MIN = "90"
 # The Foundry scripts (foundry-verb-wrap, foundry-flaky, codemap-check, foundry-explain and
 # its rule catalog) are provisioned by setup:foundry-scripts into a cache dir at this ref,
-# not vendored (see that task). Renovate tracks the pin via the comment above it.
-# A bump must also update the sha256 lines in setup:foundry-scripts.
-# renovate: datasource=github-tags depName=CMaintz/foundry
+# not vendored (see that task).
+# Not Renovate-tracked: a bump must carry that tag's sha256 lines in setup:foundry-scripts,
+# which Renovate cannot compute.
 FOUNDRY_SCRIPTS_REF = "v2.14.0"
 # The project .venv first (so mypy/pytest/pip-audit resolve to the pinned ones), then the
 # habit-hooks venv (so `smells` finds the pinned habit-hooks), then the Foundry scripts

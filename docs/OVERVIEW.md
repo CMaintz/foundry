@@ -265,10 +265,10 @@ into each repo:
   a truncated write) is refused and the task fails. Downloads go to a per-run temp
   file and are moved into place only once verified, so parallel worktrees sharing
   `$HOME` never see a partial file. A verified cache needs no network; a ref bump
-  needs it once. `FOUNDRY_SCRIPTS_REF` is a Renovate-tracked pin
-  (`# renovate: datasource=github-tags depName=CMaintz/foundry`), but Renovate
-  cannot compute the digests, so its bump fails closed until the digest lines from
-  the template at the new tag are copied in. `cut-release.sh` writes both the pin and
+  needs it once. `FOUNDRY_SCRIPTS_REF` is deliberately not Renovate-tracked:
+  Renovate cannot compute the digests, so its bump could only fail closed. Moving
+  the pin means copying the digest lines from the template at the new tag along
+  with it. `cut-release.sh` writes both the pin and
   the digests into the release commit, so a template at a tag pins itself. Which scripts a
   stack fetches differs: every stack fetches verb-wrap, flaky and codemap-check, and
   ts also fetches npm-audit-ratchet.mjs.
