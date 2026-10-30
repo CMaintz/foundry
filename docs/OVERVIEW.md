@@ -569,6 +569,15 @@ tags, pushes, creates the GitHub release, and advances the `vN` alias. It refuse
 run on a clean `main` in sync with origin. It replaced release-please, which had
 desynced its manifest into phantom major bumps; do not re-add it.
 
+A consumer upgrades with `foundry-init.sh --sync [tag]` (default: the latest
+`vX.Y.Z` tag), because a scaffold never revisits `mise.toml` and Renovate cannot move
+the scripts pin. It detects the stack from `HABIT_HOOKS_PLUGIN` (kotlin from the template
+header), copies `FOUNDRY_SCRIPTS_REF` and the digest lines from the tag's template rather
+than hashing the download, so a moved tag still fails `setup:foundry-scripts`, bumps
+version-tag workflow refs, and prints the remaining template drift as a diff for a human
+to apply. A network failure leaves the repo untouched. It runs from the repo root; a
+monorepo passes each package dir in turn (`--sync latest backend`).
+
 ## 19. Language coverage and current limitations
 
 **Coverage.** All six `mise` templates exist (ts, java, python, dotnet, php,
