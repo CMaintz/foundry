@@ -55,7 +55,7 @@ mise run lint       # style + structural smells
 mise run typecheck  # static types
 mise run test       # tests + coverage floor
 mise run audit      # vulnerabilities, secrets (SAST runs in CI)
-mise run gate       # all of the above, in order. The oracle.
+mise run gate       # lint, typecheck, test, audit, in order. The oracle.
 ```
 
 Callers invoke **verbs, never tools**. That's what lets one skill library serve a Kotlin repo and a React repo. Full rules in [CONTRACT.md](./CONTRACT.md).
@@ -77,7 +77,7 @@ bash foundry-init.sh java                             # single stack: ts | java 
 bash foundry-init.sh --mono java:backend ts:frontend  # monorepo: one stack:dir pair per package (ts|java|php|dotnet)
 ```
 
-Or wire it by hand - a `mise.toml` with the six verbs (see [templates/](./mise/)) plus a caller workflow that pins the **facades** and passes your stack:
+Or wire it by hand - a `mise.toml` with the six verbs (see [mise/](./mise/)) plus a caller workflow that pins the **facades** and passes your stack:
 
 ```yaml
 # .github/workflows/gate.yml
@@ -95,7 +95,7 @@ Pin **these**, whatever the stack. They dispatch internally to the per-stack wor
 
 | Facade | What it runs | Key inputs |
 |---|---|---|
-| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (six verbs, one-per-step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/java/php/dotnet/python), `working_directory`, `spotbugs` |
+| [`gate.yml`](./.github/workflows/gate.yml) | the language gate (the four gate verbs, one per step with fix summaries) + structural smells; Java adds an opt-in `spotbugs` job | `stack` (ts/java/php/dotnet/python), `working_directory`, `spotbugs` |
 | [`security.yml`](./.github/workflows/security.yml) | language-agnostic: secret scan + `ruleset-guard` + diff-aware SAST | `ruleset_paths`, `source_paths`, … |
 
 Auxiliary reusables you call directly (not behind a facade):
@@ -104,7 +104,7 @@ Auxiliary reusables you call directly (not behind a facade):
 |---|---|
 | `web.yml` | max-file-length gate for HTML/CSS |
 | `bootstrap.yml` | regenerates the habit-hooks snooze baseline on Linux and opens a PR |
-| `ratchet-report.yml` | PR comment showing how the accepted-debt baselines moved |
+| `ratchet-report.yml` | PR comment showing how the accepted-debt baselines, inline suppressions and test count moved |
 | `autofix.yml` | add an `autofix` label to a PR → runs `mise run fix`, commits + pushes the result |
 | `changes.yml` | monorepo path classifier - builds only the packages a PR touched (fail-safe: an unclassified path rebuilds everything) |
 
@@ -112,7 +112,7 @@ Auxiliary reusables you call directly (not behind a facade):
 
 > Internals are `_`-prefixed (`_java.yml`, `_ts.yml`, `_php.yml`, `_dotnet.yml`, `_python.yml`, `_guards.yml`, `_semgrep.yml`) - the facades' implementation. Don't pin them directly; they can change between minor versions.
 
-Split them across `gate.yml` / `quality.yml` / `security.yml` / `bootstrap.yml` (see [OVERVIEW.md](./docs/OVERVIEW.md) §13).
+`foundry-init` writes one caller per concern: `gate.yml`, `security.yml`, `ratchet.yml` and `bootstrap.yml` (see [OVERVIEW.md](./docs/OVERVIEW.md) §17).
 
 ### Auto-merging the baseline prune PR
 
@@ -160,7 +160,7 @@ Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-i
 
 | Preset | What |
 |---|---|
-| [`habit-hooks/<stack>.toml`](./presets/habit-hooks/) | structural-smell config per stack - tests excluded, the language-independent `generic` duplication check everywhere ([details](./presets/habit-hooks/README.md)) |
+| [`habit-hooks/<stack>.toml`](./presets/habit-hooks/) | structural-smell config per stack, plus one for plain JavaScript - tests excluded, the language-independent `generic` sensor everywhere (file length, and jscpd duplication where the preset enables it) ([details](./presets/habit-hooks/README.md)) |
 | [`habit-hooks/java/guides/`](./presets/habit-hooks/java/guides/) | per-smell coaching for the Java sensor - concrete "fix toward this", rendered inline in-loop *and* in CI |
 | [`pmd/ruleset.xml`](./presets/lint/pmd/) · `pmd/no-var.xml` | tuned Java ruleset (`ExcessiveParameterList` ≥ 8) + the no-`var` rule |
 | [`typecheck/tsconfig.json`](./presets/typecheck/tsconfig.json) | strict, check-only tsconfig for the `ts` stack, covering src, scripts and tests. The `ts` template's `typecheck` refuses to run without a tsconfig, and checks Deno code (Supabase Edge Functions) with `deno check` via `FOUNDRY_DENO_PATHS` |
@@ -168,6 +168,8 @@ Shared config and agent-facing docs the scaffold copies (or, for the docs, `@`-i
 | [`code-standards.md`](./presets/agent/code-standards.md) · [`collaboration.md`](./presets/agent/collaboration.md) · [`agent-loop.md`](./presets/agent/agent-loop.md) | agent-facing standing docs - clean code (functions do one thing / SRP), working discipline (branch hygiene + sub-agents), and the self-correcting loop (observe → fix the cause → verify → repeat until green *and* honest) |
 | [`ticket-schema.md`](./presets/tickets/ticket-schema.md) · [`ISSUE_TEMPLATE/agent-feature.yml`](./presets/tickets/ISSUE_TEMPLATE/agent-feature.yml) | the GitHub-Issue ticket the `/foundry:feature` driver works - intent, an acceptance-criteria checklist, a Definition of Done, scope, pointers. Copy the template into a consumer's `.github/ISSUE_TEMPLATE/` |
 | [`lint/ruff.toml`](./presets/lint/ruff.toml) · [`dotnet/Directory.Build.props`](./presets/dotnet/Directory.Build.props) | the python stack's default ruff hard gate, and the .NET build props the scaffold places |
+| [`lint/eslint.config.mjs`](./presets/lint/eslint.config.mjs) · [`github/PULL_REQUEST_TEMPLATE.md`](./presets/github/PULL_REQUEST_TEMPLATE.md) | a minimal ESLint base (`max-len`, unused disables as errors) to spread into your config, and the PR template with the ruleset-guard checklist the scaffold places |
+| [`rules/`](./presets/rules/) | the rule catalog `foundry-explain` reads: why each rule exists, its sanctioned fix, and whether it may be suppressed |
 | [`arch/`](./presets/arch/) | architecture-fitness rules per stack (dependency-cruiser, import-linter, ArchUnit) - [SETUP.md](./presets/arch/SETUP.md) |
 | [`prompt-eval/`](./presets/prompt-eval/) | an offline regression harness for prompts and agent output, run under `test`; the fixture count may only grow |
 | [`baselines/flaky-baseline.example.json`](./presets/baselines/flaky-baseline.example.json) | starting point for the `test:flaky` quarantine list |
@@ -212,12 +214,12 @@ template's `FOUNDRY_SCRIPTS_REF` and script sha256 lines at the new tag (so a re
 scaffolded at the tag fetches and verifies that tag's scripts), tags + pushes,
 creates the GitHub release, and advances the `vX` alias - deterministically, in one
 auditable step. It **refuses** a non-major bump when it sees a breaking commit, so
-semver can't silently slip. (This replaced release-please, whose separate manifest
-state could desync from the tags.)
+semver can't silently slip. The tags are the only version state, so there is no
+separate manifest to desync.
 
 ## Status
 
-TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot - Spring Boot + Angular + a browser extension). PHP, .NET and Python also have gate workflows behind the facade. Kotlin has a verb template and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
+TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot - Spring Boot + Angular + a browser extension). PHP, .NET and Python also have gate workflows behind the facade. Kotlin has a verb template and presets but no reusable CI workflow; `foundry-init` writes an inline gate job for it. DESIGN.md §10 covers the rollout and §11 what's still open.
 
 ## Licence
 

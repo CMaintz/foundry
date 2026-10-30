@@ -51,6 +51,6 @@ The driver moves a ticket through three labels; the issue thread is its work log
 
 GitHub **silently drops** a template's `labels:` entry if the label does not exist
 in the repo, so the state machine no-ops with no error until the labels exist. Run
-[`scripts/setup-labels.sh`](../scripts/setup-labels.sh) once per repo (idempotent);
-it creates these plus `enhancement`, `align`, `ruleset-change`, and `autofix`.
+[`scripts/setup-labels.sh`](../../scripts/setup-labels.sh) once per repo (idempotent);
+it creates these plus `enhancement`, `align`, `ruleset-change`, `suppression`, and `autofix`.
 `foundry-init` runs it for you.

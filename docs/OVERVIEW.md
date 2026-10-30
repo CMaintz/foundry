@@ -116,8 +116,10 @@ their aggregate checks. CI is **100% deterministic on purpose** - no model, no A
 key, no secrets beyond the default token (see Section 11 for why).
 
 - **`gate.yml` facade** - dispatches by `stack` (ts/java/php/dotnet/python) to the
-  internal `_<stack>.yml`, runs `mise run gate` (the exact verb a developer runs
-  locally), plus a `habits` structural-smell backstop job. Exposes a stable
+  internal `_<stack>.yml`, which runs the four gate verbs (lint, typecheck, test,
+  audit) one step each, in `mise run gate` order and each through
+  `foundry-verb-wrap`, plus a `habits` structural-smell backstop job (Java adds an
+  opt-in `spotbugs` job). Exposes a stable
   **`gate-ok`** aggregate check. An unknown stack fails loudly rather than passing
   silently.
 - **`security.yml` facade** - secret scan (gitleaks over full history),
@@ -169,7 +171,7 @@ should be loud rather than silently green.
 
 Config lives in two places, and it matters which:
 
-- **Global** (`~/.claude/settings.json`): the Stop-hook wiring only.
+- **Plugin** (cmaintz-skills' `hooks/hooks.json`): the Stop-hook wiring only.
 - **Per-repo** (`.habit-hooks/config.toml` + `.habit-hooks/snooze.json`): which
   plugins are on, and the accepted baseline of existing smells. Committed with the
   code. `config.toml` is shareable; `snooze.json` is not (it names real files and
@@ -213,7 +215,8 @@ What it checks (all diffed from the **merge-base**, 3-dot, to avoid stale-base
 phantom flags):
 
 - **Baseline files** per-entry shrink-only: `eslint-suppressions.json`,
-  `snooze.json`, ArchUnit freeze stores, coverage manifests.
+  `snooze.json`, the dependency-cruiser known-violations file, ArchUnit freeze
+  stores, and `flaky-baseline.json`.
 - **Inline suppressions, tree-wide** (`inline`): every in-source suppression
   directive counted per `(file, directive)` at base vs head, because an inline
   `eslint-disable` / `@ts-ignore` / `# noqa` / `@SuppressWarnings` /
@@ -221,12 +224,17 @@ phantom flags):
   the file-guard sees nothing. The regexes are assembled from fragments so the
   script never contains a directive literally (else it would flag its own source).
 - **Config demotions** (carried inside the inline scan, because a config-only PR
-  dodges the baseline-file guard): an editorconfig `severity = none`, a tsconfig
+  dodges the baseline-file guard): an editorconfig `severity = none`/`silent`/`suggestion`, a tsconfig
   `"strict": false`, a csproj `<NoWarn>`.
 - **Deleted tests** (`tests`): uncommented test declarations summed over the
   changed test files, inverse - fewer at head than base means a test was deleted or
   commented out with no replacement; a split, move or rename nets out. The coverage floor is the
   backstop for weaker-but-present tests.
+- **Workflows gaining approve power** (`workflow-approve`): a workflow that gains
+  `pull-requests: write`, a `gh pr review --approve` or an auto-approve action needs
+  `ruleset-change`, checked on every PR.
+- **Sign-off timing**: a label counts only when it was applied after the head commit
+  was pushed, so a later push voids it until a human re-applies it.
 
 ### What counts as a gate-defining file - and who watches it
 
@@ -256,7 +264,8 @@ flow without a re-sync. Two things are fetched at a pinned ref rather than copie
 into each repo:
 
 - **The gate scripts** (`foundry-verb-wrap`, `foundry-flaky`,
-  `npm-audit-ratchet.mjs`), plus the advisory `codemap-check`. Each template has a
+  `npm-audit-ratchet.mjs`, `foundry-explain` with its rule catalog and matchers),
+  plus the advisory `codemap-check`. Each template has a
   `setup:foundry-scripts` task that fetches them into
   `$HOME/.local/opt/foundry-scripts-<FOUNDRY_SCRIPTS_REF>` and puts that directory
   on `_.path` **cache-first**. The template carries a sha256 per script, and every
@@ -270,8 +279,8 @@ into each repo:
   the pin means copying the digest lines from the template at the new tag along
   with it. `cut-release.sh` writes both the pin and
   the digests into the release commit, so a template at a tag pins itself. Which scripts a
-  stack fetches differs: every stack fetches verb-wrap, flaky and codemap-check, and
-  ts also fetches npm-audit-ratchet.mjs.
+  stack fetches differs: every stack fetches verb-wrap, flaky, codemap-check,
+  foundry-explain and the rule catalog, and ts also fetches npm-audit-ratchet.mjs.
 - **`ruleset_guard.py`**. The security and ratchet workflows sparse-checkout it from
   `job.workflow_repository @ job.workflow_sha` into `.foundry/`, so the guard logic
   and the workflow that runs it always move together at the exact pinned ref.
@@ -279,26 +288,30 @@ into each repo:
 Still vendored in a consumer (copied by `foundry-init.sh`, which never clobbers on
 re-run): `mise.toml`, `.habit-hooks/config.toml`, `.gitleaks.toml`, `renovate.json`
 (a two-line file that extends Foundry's shared preset), the language presets
-(tsconfig / ruff.toml / PMD rulesets / Directory.Build.props / .editorconfig), the
-caller workflows, and the coaching guides. The agent-only PR and loop scripts live
+(tsconfig / `.jscpd.json` / an inferred Prettier config / ruff.toml / PMD rulesets /
+Directory.Build.props / .editorconfig), the PR template, `scripts/setup-labels.sh`,
+the caller workflows, and the coaching guides. The agent-only PR and loop scripts live
 in the plugin, not here, and are deliberately *not* vendored.
 
 ## 9. Telemetry - making the loop legible
 
-Every verb in every one of the six templates is wrapped by `foundry-verb-wrap`,
-which times the command, captures its exit code, and appends one JSONL line
-(`ts, verb, scope, placement, exit, duration_ms`) to a gitignored
+Every gate verb (lint, typecheck, test, audit) in all six templates, and in each
+reusable gate workflow, is wrapped by `foundry-verb-wrap`, which times the command,
+captures its exit code, and appends one JSONL line
+(`ts, ms, verb, scope, placement, exit, duration_ms`, plus `rules` on a failure
+foundry-explain checked and `smells` when a lint run produced counts) to a gitignored
 `.foundry/telemetry.jsonl`. It **always propagates the verb's real exit code** -
 telemetry failure can never change the outcome. `placement` is inferred from the
-environment (`ci` when `$CI`, else `manual`, or a hook-set value); `scope` is
+environment (`FOUNDRY_PLACEMENT` when set, else `ci` when `$CI`, else `manual`); `scope` is
 `changed` when `FOUNDRY_SINCE` is set, else `whole`.
 
 The `/loop-report` skill (cmaintz-skills) reads that file offline and answers: is
 the loop converging or **thrashing** (a verb that passed and then failed again),
 which verb is the time sink, and how many `gate` rounds a change took. It can fold
-in CI outcomes via `gh run list`. It never decides pass/fail. Its smell-trend
-signal is a planned follow-on; today the thrash signal is derived from verb
-pass/fail regressions only. Design:
+in CI outcomes via `gh run list`. It never decides pass/fail. Per-smell counts
+reach the lint line's `smells` field only when `foundry-smells` is on PATH, which
+the scripts cache does not yet provide; without them the thrash signal comes from
+verb pass/fail regressions only. Design:
 [docs/designs/loop-telemetry.md](./designs/loop-telemetry.md).
 
 ## 10. The skills - and the spec -> feature -> ship loop
@@ -406,7 +419,7 @@ work -> habit-hooks flags a smell -> agent fixes it -> /learn decides:
 `foundry-flaky` (a Python 3 script, despite the extensionless name) keeps a flaky
 test from either blocking the gate or being silently ignored. It parses JUnit XML
 (Gradle / JUnit / PHPUnit / pytest), vitest JSON, and **TRX** (dotnet
-`--logger trx`), so four of the stacks are pure wiring and only dotnet needed a new
+`--logger trx`), so five of the stacks are pure wiring and only dotnet needed a new
 parser. Three subcommands: `gate` (fails only when a *non-quarantined* test failed;
 a quarantined failure is logged but does not gate), `classify` (reruns failures to
 split flake from real), and `prune` (re-arms a quarantined test once it has been
@@ -422,7 +435,10 @@ tier-c `test:flaky` task, not on the gate. Design:
    habit-hooks config and presets, the caller workflows (pinned to `FOUNDRY_REF`),
    and the repo-level files: `.gitleaks.toml`, a renovate config that extends the
    shared preset, a PR template, labels, and `.gitignore` entries for `.foundry/`
-   and `.claude/worktrees/`. It never clobbers, so re-running it is safe.
+   and `.claude/worktrees/`. It also writes a `ratchet.yml` caller, lets GitHub
+   Actions create and approve PRs, turns on auto-merge (both need repo admin), and
+   on Windows sets mise's global inline shell to bash. It never clobbers, so
+   re-running it is safe.
 2. **Install the toolchain.** The first `mise install` runs the `postinstall` hook,
    which runs the setup tasks in order (`setup:habit-hooks` builds the pinned venv,
    `setup:foundry-scripts` populates the script cache, plus `setup:pmd` or
@@ -431,14 +447,13 @@ tier-c `test:flaky` task, not on the gate. Design:
    `/plugin marketplace add CMaintz/cmaintz-skills` then
    `/plugin install foundry@cmaintz`. Skills land namespaced (`/foundry:ship`,
    `/foundry:feature`, ...).
-4. **Register the hooks by hand.** The plugin has no `hooks.json`, so `/plugin
-   install` gives you the skills but *not* the hooks. Copy `hooks/` into
-   `~/.claude/hooks/` and add the registration JSON from the plugin README to
-   `~/.claude/settings.json` (on Windows, use the full `bash.exe` path). This is the
-   single biggest piece of onboarding friction.
-5. **Wire branch protection.** Require the `gate-ok` and `security-ok` aggregate
-   checks, turn on "require branches to be up to date" (strict mode), and do *not*
-   require `bootstrap` (it is `workflow_dispatch` only). See Section 17 for the
+   The plugin's Claude Code hooks register themselves from its `hooks/hooks.json`,
+   so there is no hook wiring to copy into `~/.claude/settings.json`.
+4. **Wire branch protection.** Require the aggregate checks by their exact names
+   (`gate / gate-ok` and `security / security-ok`; a `--mono` repo requires a bare
+   `gate-ok`, a kotlin repo `Deterministic gate`), turn on "require branches to be
+   up to date" (strict mode), and do *not* require `bootstrap` (it runs on
+   `workflow_dispatch` and a daily schedule, never on a PR). See Section 17 for the
    gotchas.
 
 The gate works without the plugin; the plugin needs a Foundry-onboarded repo (every
@@ -447,16 +462,14 @@ skill stops early if `mise run gate` is not defined).
 ## 15. Where everything lives (quick map)
 
 ```
-~/.claude/settings.json          # global: the habit-hooks Stop hook + PR-guard wiring
-~/.claude/hooks/                 # the hook scripts (copied from the plugin by hand)
 $HOME/.local/opt/
-  foundry-scripts-<ref>/         # cached scripts (verb-wrap, flaky, npm-audit, codemap)
+  foundry-scripts-<ref>/         # cached scripts (verb-wrap, flaky, npm-audit, codemap, explain + rule catalog)
   <plugin>-<ver>/                # the pinned habit-hooks venv
 
 <repo>/mise.toml                 # the six verbs + the pins + setup tasks for this repo
 <repo>/.habit-hooks/             # config.toml + snooze.json (the smell baseline)
 <repo>/eslint-suppressions.json  # the lint baseline (ratchet)
-<repo>/.foundry/                 # gitignored: telemetry.jsonl, pr-url, flaky streaks
+<repo>/.foundry/                 # gitignored: telemetry.jsonl, smells.json, pr-url, flaky streaks
 <repo>/.github/workflows/        # callers pinning foundry's gate.yml + security.yml facades
 <repo>/AGENTS.md                 # standing context (CLAUDE.md @-includes it)
 
@@ -469,8 +482,9 @@ cmaintz-skills/                  # skills + hooks + agent-only PR/loop scripts, 
 Applying Foundry to a real polyglot monorepo (a Spring Boot backend + Angular
 frontend + a browser extension) surfaced patterns worth codifying:
 
-- **Verbs are namespaced per package.** One root `mise.toml` exposes
-  `backend:gate`, `frontend:gate`, etc., plus an aggregate `gate`. CI runs each
+- **Each package runs its own gate.** The pilot namespaced verbs per package in one
+  root `mise.toml` (`backend:gate`, `frontend:gate`); `foundry-init --mono` instead
+  gives each package its own `mise.toml` and one `gate.yml` facade call. CI runs each
   package's gate as its own job.
 - **habit-hooks is per package, not per repo.** Its TypeScript detectors
   (eslint/knip/ts-morph/jscpd) resolve from the package's own `node_modules`, so the
@@ -478,7 +492,7 @@ frontend + a browser extension) surfaced patterns worth codifying:
   *from* `frontend/`. Backend Java/PMD lives in `backend/.habit-hooks/`.
 - **Generate the smell baseline in CI, not locally.** On Windows the full-repo file
   list blows the ~8191-char command-line limit, so a manual `workflow_dispatch` job
-  generates each `snooze.json` on Linux and commits it. The per-package smell jobs
+  generates each `snooze.json` on Linux and opens a PR with it. The per-package smell jobs
   soft-pass until their baseline exists.
 - **In-loop scope is `--branch`, not `--all`.** The Stop hook checks only the
   changeset - correct for "flag what you touched", and it dodges the Windows limit.
@@ -501,7 +515,8 @@ radius* into separate workflow files, each composing foundry's reusable pieces:
 |---|---|---|
 | `gate.yml` | `gate.yml` facade - `with: { stack, working_directory }`, once per package; includes structural smells | PR + push |
 | `security.yml` | `security.yml` facade - secrets + ruleset-guard + SAST in one call | PR + push |
-| `bootstrap.yml` | `bootstrap.yml` - baseline refresh | `workflow_dispatch` |
+| `ratchet.yml` | `ratchet-report.yml` - PR comment on how the baselines moved | PR |
+| `bootstrap.yml` | `bootstrap.yml` - baseline refresh | `workflow_dispatch` + daily schedule |
 | `deploy.yml` | image publish / release - **push-to-main only** | push |
 
 Why split, not one file: `needs:` cannot cross workflow files, so unrelated jobs do
@@ -546,7 +561,7 @@ wedge branch protection.
   matches on the rendered check name, not the job id. Rename a job and the old
   required check never reports - PRs hang "Expected" forever. Update protection and
   the job name in the same change.
-- **A `workflow_dispatch`-only job never appears as a PR check** - so do not add
+- **A job that runs only on `workflow_dispatch` or a schedule never appears as a PR check** - so do not add
   `bootstrap` to required checks; it would block every PR waiting on a run that is
   not coming.
 - **A PR opened with `GITHUB_TOKEN` waits for approval.** GitHub treats

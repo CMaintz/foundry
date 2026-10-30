@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """foundry-flaky - the deterministic Triager (DESIGN §4.2), built.
 
-Two jobs, no model:
+Three subcommands, no model:
 
   gate <report> [baseline]
-      Read a test report (JUnit XML or vitest JSON) and a flaky-baseline.json, then
-      decide the gate outcome: exit 1 ONLY if a test that is NOT quarantined failed.
+      Read a test report (JUnit XML or a directory of it, vitest JSON, or dotnet TRX)
+      and a flaky-baseline.json, then decide the gate outcome: exit 1 ONLY if a test that is NOT quarantined failed.
       A quarantined test that fails is printed (never hidden) but does not gate.
       This is post-processing over the runner's own report - we do not fight the
       runner with plugins or @Disabled; the runner runs everything, we judge the log.

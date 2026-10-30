@@ -10,7 +10,7 @@ propagates the verb's exit (telemetry failure can't change the outcome; validate
 success/fail/unwritable-path). The offline summariser (per-verb
 time/fails/**regressions (thrash)**, time-sink, latest-red, placement/scope breakdown;
 handles missing/empty/torn logs) ships with the cmaintz-skills plugin as
-`scripts/foundry-loop-report`, behind the `/loop-report` skill. The wrapper is wired into
+`scripts/foundry-loop-report`, behind the `foundry:loop-report` skill. The wrapper is wired into
 every mise template (ts/java/python/dotnet/kotlin/php): the gate wraps each verb,
 `FOUNDRY_TELEMETRY` is set, and the verbs stay in the sequential array so the CONTRACT's
 sequential-not-`depends` rule holds. `foundry-verb-wrap` is provisioned by each template's
@@ -33,10 +33,8 @@ against an installed habit-hooks 1.5.0 venv.
 smell returning) is the skill-side half, in cmaintz-skills, not here. `foundry-smells`
 joins each template's `setup:foundry-scripts` sha256 list at the next `FOUNDRY_SCRIPTS_REF`
 bump (it can't be pinned to a tag that predates it); until then consumers fall back to
-habit-hooks directly and emit no counts. python's `smells` task is byte-identical and on the same
-habit-hooks, so it is the same three-line change - held back only to avoid colliding
-with the live `feat/python-habit-hooks` / `fix/python-smell-wiring` branches editing that
-same block, not for any technical reason; kotlin has no habit-hooks smells task (detekt). The Stop
+habit-hooks directly and emit no counts. python's `smells` task calls habit-hooks directly; wiring it is the same
+three-line change. kotlin has no habit-hooks smells task (detekt). The Stop
 hook calls habit-hooks directly, not `foundry-verb-wrap`, so **in-loop rounds don't feed
 the trend** - emission is gate/pre-push/CI-fed, wherever `smells` runs under the wrapper.
 Also still: end-to-end run on a live `mise` project (no mise runtime in this env); `gh run`
@@ -99,7 +97,7 @@ None (gitignored, non-source).
 
 | Placement | Emits? | Summarizer |
 |---|---|---|
-| In-loop | yes (via wrapper) | - |
+| In-loop | no (the Stop hook calls habit-hooks directly) | - |
 | Pre-push | yes | `/loop-report` after `/ship` |
 | CI | yes (local file discarded) + `gh run` mining | `/loop-report --ci` |
 

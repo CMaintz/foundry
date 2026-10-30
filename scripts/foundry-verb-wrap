@@ -21,7 +21,7 @@
 # `why: foundry-explain <id>` line per matched rule goes to stderr, and the ids are
 # recorded as "rules" in the telemetry line (`foundry-explain --last` reads them).
 # Unmatched failures print nothing extra. Without foundry-explain or that Python the
-# command runs untouched, as before. Teeing means the command sees a pipe, not a
+# command runs untouched. Teeing means the command sees a pipe, not a
 # terminal, so a tool that colours only on a TTY prints plain text.
 #
 # Env:

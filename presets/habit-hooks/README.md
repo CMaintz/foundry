@@ -14,9 +14,11 @@ So "a universal baseline" = a universal **config**, not a universal snooze list.
 
 ## The universal part
 
-The `generic` plugin (jscpd duplication detection) is language-independent and
-belongs in every repo. Every preset below includes it. That is the closest thing
-to a truly universal check.
+The `generic` plugin (jscpd duplication and line-count file length) is
+language-independent and belongs in every repo. Every preset below includes it.
+The java, dotnet and python presets disable its jscpd sensor by default, since those
+jobs have no Node; each preset says how to turn it on. File length is the closest
+thing to a truly universal check.
 
 ## Presets
 
@@ -31,15 +33,16 @@ to a truly universal check.
 | `python.toml` | python, generic | Python (ruff -> complexity/params/oversized-function/etc.) |
 
 For languages with no habit-hooks sensor of their own (Kotlin), the preset runs only
-the language-independent `generic` (jscpd) duplication check; the language's own linter
+the language-independent `generic` checks (jscpd duplication, file length); the language's own linter
 carries the structural smells inside the `lint` verb.
 
 Copy one to `<repo>/.habit-hooks/config.toml`, install the detectors
 (`habit-hooks init` lists them), then snooze the baseline.
 
-Thresholds (oversized-file at 200 lines, etc.) use habit-hooks' own defaults -
-the same numbers everywhere, which is exactly the point: file-length limits apply
-to Java and PHP just as they do to TypeScript.
+Thresholds use habit-hooks' own defaults except file length (and Java's parameter count, below): every preset sets
+oversized-file at 300 lines (the sensor default is 200). The same numbers apply
+everywhere, which is exactly the point: file-length limits apply to Java and PHP
+just as they do to TypeScript.
 
 ## Plain JavaScript
 
@@ -99,9 +102,9 @@ Two ways to change what fires, in order of preference:
    ships two worked examples: silencing PMD's progress bar, and disabling `unused-import`
    (PMD runs without a classpath here, so it false-flags wildcard imports - and a
    formatter already enforces unused-imports correctly in the gate).
-2. **Drop a project ruleset** - for Java, a `pmd/ruleset.xml` in the repo is
-   preferred by the sensor over its bundled ruleset, and findings still map to
-   smells **by PMD rule name**. Copy `../pmd/ruleset.xml`: it's the bundled ruleset
+2. **Drop a project ruleset** - for Java, the preset points PMD at a repo
+   `pmd/ruleset.xml` with `-R`, and findings still map to smells **by PMD rule
+   name**. `foundry-init` copies `../lint/pmd/ruleset.xml` there: it's the bundled ruleset
    with `ExcessiveParameterList minimum` raised 4 → 8, so `too-many-parameters`
    stops firing on ordinary DI constructors/records and only flags a real god-class.
 

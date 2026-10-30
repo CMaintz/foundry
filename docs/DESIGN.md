@@ -29,7 +29,7 @@ A single definition of "what good looks like in my code" must run in three place
 
 | Placement | Fires | Feedback to | Marginal cost | Latency budget |
 |---|---|---|---|---|
-| **In-loop** (agent hooks) | while the agent edits | the agent, mid-task | free - already in session | < 5s |
+| **In-loop** (agent hooks) | while the agent edits | the agent, mid-task | free - already in session | < 30s warm |
 | **Pre-push** (`/ship`) | before code leaves the machine | the human | free | < 60s |
 | **CI** (GitHub Actions) | on pull request | the permanent record | free tier | < 5 min |
 
@@ -54,8 +54,8 @@ mise run fix        # auto-fix what is mechanically fixable; never opinionated
 mise run lint       # style + smells; non-mutating
 mise run typecheck  # static types
 mise run test       # tests, with coverage threshold
-mise run audit      # secrets, SCA, SAST
-mise run gate       # all of the above, the authoritative composite
+mise run audit      # dependency vulnerabilities, secrets (SAST runs in CI)
+mise run gate       # lint, typecheck, test, audit in order; the authoritative composite
 ```
 
 **Tool choice: `mise`, not Make.** Two reasons.
@@ -90,11 +90,10 @@ Reproducible, pinned, offline-capable, no model in the loop. This layer decides 
 | Types | tsc, mypy, PHPStan/Psalm |
 | Tests | vitest / pytest / PHPUnit / JUnit + coverage floor |
 | Secrets | gitleaks |
-| Dependencies | osv-scanner |
+| Dependencies | npm audit (ratcheted) / osv-scanner / composer audit / pip-audit / NuGetAudit |
 | SAST | semgrep |
-| Containers | trivy |
 | Commits | commitlint (conventional commits) |
-| Supply chain | SBOM, SHA-pinned actions, provenance attestation |
+| Supply chain | SHA-pinned actions, pinned tool versions, Renovate |
 
 ### 4.2 Probabilistic - a proposer, never an authority
 
@@ -240,11 +239,11 @@ its taxonomy rather than inventing one.
 
 | Tier | Scope | Contents |
 |---|---|---|
-| **0 - universal** | every repo, language-agnostic | gitleaks, osv-scanner, commitlint, jscpd (duplication), SBOM + provenance |
-| **1 - per stack** | opt-in, one or more per repo | the verbs: `lint`, `typecheck`, `test`, `fix` |
+| **0 - universal** | every repo, language-agnostic | the `security.yml` facade: gitleaks, ruleset-guard, semgrep; file length (and jscpd duplication where the preset enables it) via the habit-hooks `generic` sensor |
+| **1 - per stack** | opt-in, one or more per repo | the verbs: `fix`, `lint`, `typecheck`, `test`, `audit` |
 | **2 - per repo** | local overrides | thresholds, snooze baseline, exclusions |
 
-A single-package React app takes Tier 0 + `ts`. AutoApplicant takes Tier 0 + `ts` + `jvm`. Nothing
+A single-package React app takes Tier 0 + `ts`. AutoApplicant takes Tier 0 + `ts` + `java`. Nothing
 in Tier 0 knows either language exists.
 
 ### 7.3 Language coverage
@@ -253,14 +252,14 @@ Detector support as it stands upstream, against the stacks in scope:
 
 | Stack | habit-hooks plugin | Detectors | Status |
 |---|---|---|---|
-| TypeScript / JS | ✅ `typescript` | eslint, knip, ts-morph | **pilot** |
+| TypeScript / JS | ✅ `typescript` | eslint, knip, ts-morph (plain JS via `presets/habit-hooks/javascript.toml`) | **pilot** |
 | Python | ✅ `python` | ruff, deptry | ready |
 | PHP | ✅ `php` | phpmd (bundled phar) | ready |
 | Java | ✅ `java` | pmd | ready |
 | Ruby | ✅ `ruby` | rubocop | n/a |
-| *any* | ✅ `generic` | jscpd | duplication only |
+| *any* | ✅ `generic` | jscpd, line-count | duplication, file length |
 | Kotlin | ❌ | detekt exists | **custom sensor** |
-| C# | ❌ | Roslyn analyzers exist | custom sensor |
+| C# | ✅ `foundry-habit-hooks-dotnet` (Foundry's own) | SonarAnalyzer.CSharp via `dotnet build` | gate workflow |
 | Swift | ❌ | swiftlint exists | custom sensor |
 | C++ | ❌ | clang-tidy exists | custom sensor |
 | Rust / Go | ❌ | clippy / golangci-lint | custom sensor |
@@ -316,16 +315,14 @@ Two repos. They have different consumers, different install mechanisms, and diff
 cadences, which is what justifies the split.
 
 ```
-C:\Users\akash\Projects\_foundry\        ← leading underscore: sorts above the IDE dirs,
-  │                                          reads as "not an application"
+C:\Users\akash\Projects\foundry\
   ├── foundry/                           → github.com/CMaintz/foundry
-  │   ├── .github/workflows/             reusable workflow_call: guards.yml, ts.yml, jvm.yml, php.yml
-  │   ├── mise/                          shared task templates per stack
-  │   ├── presets/                       eslint / tsconfig / ruff / phpstan base configs
-  │   ├── habit-hooks/                   config.toml presets per stack
-  │   ├── templates/                     project scaffolds
+  │   ├── .github/workflows/             facades gate.yml + security.yml, _-prefixed internals, auxiliary reusables
+  │   ├── mise/                          verb templates per stack
+  │   ├── presets/                       lint, typecheck, habit-hooks, arch, security, agent and ticket presets
+  │   ├── scripts/                       foundry-init.sh scaffold and the gate scripts
   │   ├── CONTRACT.md                    ◀── the verb interface (§3)
-  │   └── DESIGN.md                      this document
+  │   └── docs/DESIGN.md                 this document
   │
   └── cmaintz-skills/                    → github.com/CMaintz/cmaintz-skills
       ├── .claude-plugin/marketplace.json

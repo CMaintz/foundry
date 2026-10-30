@@ -1,7 +1,7 @@
 # Copy to <repo>/.habit-hooks/config.toml
 # There's no habit-hooks Kotlin sensor yet, so structural smells come from detekt
 # in `mise run lint` (the gate). This preset runs only the language-independent
-# `generic` (jscpd) duplication check. Add a habit-hooks-kotlin plugin here if one
+# `generic` checks (jscpd duplication, file length). Add a habit-hooks-kotlin plugin here if one
 # ships.
 plugins = ["generic"]
 

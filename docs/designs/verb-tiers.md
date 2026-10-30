@@ -36,9 +36,9 @@ Answering "should any of these hook into an existing verb?" - case by case:
   **ratchet-scoped, not execute-scoped** - it diffs from `FOUNDRY_BASE_REF` (the ratchet
   base, default `origin/main`; CI sets the PR base SHA), *not* `FOUNDRY_SINCE` (the speed
   signal). So folding it into `lint` never fails on legacy `var` in any placement.
-  Implemented in `mise/java.toml` (`lint = [spotlessCheck, novar]`) and the reusable
-  `java.yml` (the separate `no-var` job and `no_var` input removed; the gate's lint step
-  passes `FOUNDRY_BASE_REF`). A consumer inherits it by calling foundry's `java.yml` and
+  Implemented in `mise/java.toml` (`lint = [spotlessCheck, novar, smells]`) and the internal
+  `_java.yml` (the separate `no-var` job and `no_var` input removed; the gate's lint step
+  passes `FOUNDRY_BASE_REF`). A consumer inherits it by calling foundry's `gate.yml` facade and
   folding `novar` into its own `mise.toml` `lint`; **AutoApplicant picks this up via its
   inline→foundry CI migration, a separate work-stream - not edited here.**
 - **`spotbugs` → in AutoApplicant it is *already* blocking + ratcheted; its cleanup is
@@ -48,8 +48,8 @@ Answering "should any of these hook into an existing verb?" - case by case:
   claim "report-only until ratcheted" is the right *default for a fresh repo*, but AA has
   already done the ratchet+tune. What remains for AA is purely a verb-tier tidy: fold
   `backend:spotbugs` into `backend:audit` (its semantic home - bug-pattern SAST) so it
-  rides the gate composite instead of a standalone job. foundry's `java.yml` template
-  keeps SpotBugs opt-in/report-only as the safe default for repos that haven't ratcheted.
+  rides the gate composite instead of a standalone job. foundry keeps SpotBugs opt-in
+  (`spotbugs: true` on the `gate.yml` facade); once enabled, the job blocks.
 - **`setup:pmd` → stays auxiliary (tier c).** It's provisioning (a `postinstall` hook),
   not a check. Never a verb member. **Keep as-is.**
 
@@ -57,7 +57,7 @@ Answering "should any of these hook into an existing verb?" - case by case:
 
 1. CONTRACT.md (both repos, identical) carries the Auxiliary-tasks section.
 2. foundry `mise/java.toml` `lint` runs `novar` (ratchet-scoped via `FOUNDRY_BASE_REF`);
-   the reusable `java.yml` no longer has a separate `no-var` job or `no_var` input, and
+   the internal `_java.yml` no longer has a separate `no-var` job or `no_var` input, and
    its gate lint step passes `FOUNDRY_BASE_REF`. ✓ done.
 3. `setup:pmd` stays auxiliary; `gate` does not run it. `spotbugs` stays opt-in in the
    foundry template; in AA it's blocking and slated to fold into `audit`.
@@ -65,6 +65,6 @@ Answering "should any of these hook into an existing verb?" - case by case:
 ## Backport split
 
 - **foundry / cmaintz-skills:** the CONTRACT.md addendum (identical); the `novar`→`lint`
-  fold in `mise/java.toml` + `java.yml`; `FOUNDRY_BASE_REF` convention.
+  fold in `mise/java.toml` + `_java.yml`; `FOUNDRY_BASE_REF` convention.
 - **consumer (AutoApplicant):** folding `novar` into its own `mise.toml` `lint` and the
   `spotbugs`→`audit` tidy - carried by the inline→foundry CI migration work-stream.

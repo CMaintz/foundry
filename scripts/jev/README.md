@@ -10,7 +10,8 @@ upstream of the expensive LLM, never upstream of the deterministic oracle.
 Jev is ~68% accurate, so it **never** sits in the authoritative gate
 (`lint` / `typecheck` / `test` / `audit`). It only routes and triages: a wrong
 call costs a missed shortcut, never a false pass. `boundary.test.mjs` fails the
-build if any CI workflow or mise gate verb ever references this directory.
+build if a gate workflow or mise verb runs a Jev script or a Jev-calling Leash
+command. Running Jev's own tests (`node --test` over `*.test.mjs`) is allowed.
 
 ## Pieces
 
