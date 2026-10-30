@@ -211,8 +211,8 @@ mise run fix        # auto-fix what is mechanically fixable
 mise run lint       # style + structural smells
 mise run typecheck  # static types
 mise run test       # tests + coverage floor
-mise run audit      # vulnerabilities, secrets, static security analysis
-mise run gate       # all of the above, in order. The oracle.
+mise run audit      # vulnerabilities, secrets (SAST runs in CI)
+mise run gate       # lint, typecheck, test, audit, in order. The oracle.
 ```
 
 Everything else (CI, git hooks, skills) calls verbs, never tools. A skill says `mise run lint`, never `eslint` or `phpstan`. That one indirection is why a single skill library serves a React repo and a Java repo. `mise` also pins every tool version, so a laptop and the CI runner can't disagree.

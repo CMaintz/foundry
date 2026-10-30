@@ -7,7 +7,7 @@
 across unset / valid-ref / empty / unresolvable-ref); `presets/agent/agent-loop.md` documents
 the activation (fast scoped inner-loop runs, whole-tree final gate); `mise/java.toml` -
 honest "Gradle already scopes it" note, `novar` folded into `lint` and made
-ratchet-scoped via `FOUNDRY_BASE_REF`; reusable `java.yml` - separate `no-var` job +
+ratchet-scoped via `FOUNDRY_BASE_REF`; internal `_java.yml` - separate `no-var` job +
 `no_var` input removed, gate lint step passes `FOUNDRY_BASE_REF` (TOML/YAML/shell
 validated). Pre-push hook and CI confirmed correctly whole-tree - unchanged.
 **Remaining:** other-stack recipes (php/kotlin/dotnet/python). AutoApplicant inherits
@@ -88,8 +88,9 @@ declares its kind, and scoping follows from the kind** - not an ad-hoc per-tool 
 
 ### Is this what CI does today?
 
-For the **file-local** checks, yes - Spotless, no-`var`, Semgrep and habit-hooks are
-all diff-scoped in CI already. For the **whole-program** checks (types, tests, and the
+For the **file-local** checks, yes - Spotless, no-`var`, Semgrep and the habit-hooks
+check folded into `lint` are diff-scoped in CI (PHP's separate habits job scans the
+whole tree). For the **whole-program** checks (types, tests, and the
 new arch rules) CI runs whole-tree **on purpose**, and should stay that way: that
 whole-tree CI run is exactly the backstop that lets the fast local placements cut
 corners safely. So "look at changed files and nothing else" is already true where it's

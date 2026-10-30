@@ -6,7 +6,7 @@ no human in the inner loop, then hand a reviewable PR back.
 
 This document is the spec. For the system it builds on, read
 [OVERVIEW.md](../OVERVIEW.md); for the verb interface it depends on,
-[CONTRACT.md](../CONTRACT.md).
+[CONTRACT.md](../../CONTRACT.md).
 
 ---
 
@@ -47,7 +47,7 @@ it belongs in foundry (per FEATURES backport discipline), not in the driver.
 
 ## 3. Artifacts and placement (respect the two-repo split)
 
-Per [CONTRACT.md](../CONTRACT.md), skills live in `cmaintz-skills`, CI-half and
+Per [CONTRACT.md](../../CONTRACT.md), skills live in `cmaintz-skills`, CI-half and
 preset artifacts in `foundry`. So:
 
 | Artifact | Repo | Path |
@@ -55,7 +55,7 @@ preset artifacts in `foundry`. So:
 | The `/feature` driver skill | `cmaintz-skills` | `skills/feature/SKILL.md` (+ helpers) |
 | GitHub issue template | `foundry` | `presets/tickets/ISSUE_TEMPLATE/agent-feature.yml` |
 | Ticket schema (reference) | `foundry` | `presets/tickets/ticket-schema.md` |
-| Inventory entry | `foundry` | `FEATURES.md` (same session) |
+| Inventory entry | `foundry` | `docs/FEATURES.md` (same session) |
 
 Adding a skill is **additive** under CONTRACT versioning - no major bump.
 
@@ -71,6 +71,8 @@ Required fields:
   and the behavioural `verify` step walk **item-by-item**. Without a checklist a
   ticket is not `agent:ready` - "verify against acceptance criteria" is otherwise
   vibes.
+- **Definition of Done** - a checklist of ticket-specific done-conditions that are
+  not behaviour, each verifiable, checked like the acceptance criteria.
 - **Scope boundaries** - explicit "do not touch X"; the guard against silent
   scope creep.
 - **Pointers** - relevant files / modules / prior art.

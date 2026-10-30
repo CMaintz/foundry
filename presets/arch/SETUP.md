@@ -20,8 +20,8 @@ The mechanism is the same on every stack:
    never learn a new command. The arch check hides behind the verb interface exactly as
    CONTRACT.md intends.
 
-It is opt-in per repo. Until you fill the layer map, `mise run arch` exits 0, and nothing
-runs it. Adoption = fill the map, freeze the baseline, then fold `arch` into the verb.
+It is opt-in per repo. On TS and Python, until the arch config file exists, `mise run
+arch` exits 0 and nothing runs it. Adoption = fill the map, freeze the baseline, then fold `arch` into the verb.
 
 > **The one rule that matters:** never widen the architecture to make a build pass.
 > Deleting a rule, widening what a layer may import, or growing the baseline is a
@@ -32,9 +32,9 @@ runs it. Adoption = fill the map, freeze the baseline, then fold `arch` into the
 ### How CI enforces this
 
 Foundry's `security.yml` → `ruleset-guard` is what makes the shrink-only / `ruleset-change`
-rules above real. Its default `ruleset_paths` now covers the universal arch files —
+rules above real. Its default `ruleset_paths` covers the universal arch files:
 `.dependency-cruiser.cjs`, `.dependency-cruiser-known-violations.json`, `.importlinter`,
-and `archunit_store/` — so a PR editing one of them beside production source is checked:
+and `archunit_store/`. So a PR editing one of them beside production source is checked:
 pruning a dependency-cruiser or ArchUnit baseline passes label-free (shrink-only, verified
 by `scripts/ruleset_guard.py`), while adding a baseline entry, or editing a rule config
 (`.dependency-cruiser.cjs`, `.importlinter`), needs the `ruleset-change` label. The one
@@ -173,9 +173,6 @@ below exists* (non-adopting repos never install or audit it)
   build when an `ignore_imports` entry no longer matches a real import, so a fixed
   violation can't sit silently suppressed.
 
-Python's `.importlinter` preset is new — if your repo predates it, pull latest before
-adopting.
-
 ---
 
 ## For agents
@@ -183,8 +180,9 @@ adopting.
 Exact, non-interactive steps. The arch check is deterministic — a green `gate` with arch
 folded in is authoritative; your own reasoning about layering is not.
 
-**Detect adoption state:** `mise run arch` exits 0 with a "no config yet" line when
-unadopted. Present config means it gates.
+**Detect adoption state:** on TS and Python, `mise run arch` exits 0 with a "no config
+yet" line when unadopted, and present config means it gates. Java has no `arch` task:
+adoption means `ArchitectureTest.java` and `archunit_store/` exist.
 
 | Stack | Enforcing command | Baseline artifact | ruleset-guard kind |
 |---|---|---|---|

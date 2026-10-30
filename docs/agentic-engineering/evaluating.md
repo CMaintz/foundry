@@ -95,7 +95,7 @@ The system measures itself with deterministic, local data, so that improving the
 
 | Signal                | Where it comes from                                                                      | What it tells you                                                                                                                      |
 | --------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Loop telemetry        | every verb appends one line (verb, scope, placement, exit code, duration) to a local log | how many gate rounds a change took, which verb eats the time, and **thrash**: a check that passed, then failed again after a later fix |
+| Loop telemetry        | every gate verb appends one line (verb, scope, placement, exit code, duration) to a local log | how many gate rounds a change took, which verb eats the time, and **thrash**: a check that passed, then failed again after a later fix |
 | Debt baselines        | committed suppression and snooze files                                                   | whether debt is actually shrinking; a CI comment shows how each baseline moved in the PR                                               |
 | Flaky-test quarantine | a baseline of known flaky tests, plus a rerun classifier                                 | flake vs real failure; a quarantined test leaves the list after enough consecutive greens                                              |
 | Prompt-output evals   | scored fixtures of good and weak AI outputs                                              | whether a prompt change made output quality worse, asserted on the ranking of good above weak                                          |
@@ -104,7 +104,7 @@ The system measures itself with deterministic, local data, so that improving the
 
 Two principles govern this data. First, telemetry never changes an outcome: if logging fails, the verb's own exit code still wins. Second, evals ratchet like any other baseline: adding a fixture is free, removing one counts as loosening the gate and needs a human label.
 
-The feedback reaches the system through `learn` (lessons become hooks or rules), `loop-report` (a short verdict: converging or thrashing, what's slow, the next action), and `hotspot-rec` (one design improvement grounded in git history). Telemetry is written by `foundry-verb-wrap` on every verb, and the flaky classifier is `foundry-flaky`, which reruns failures and re-arms a quarantined test after 10 consecutive greens.
+The feedback reaches the system through `learn` (lessons become hooks or rules), `loop-report` (a short verdict: converging or thrashing, what's slow, the next action), and `hotspot-rec` (one design improvement grounded in git history). Telemetry is written by `foundry-verb-wrap` on every gate verb, and the flaky classifier is `foundry-flaky`, which reruns failures; its `prune` command re-arms a quarantined test after 10 consecutive greens.
 
 ## Sources
 
