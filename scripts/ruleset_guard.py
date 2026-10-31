@@ -266,13 +266,14 @@ def inline_loosened(base, head, directives=INLINE_DIRECTIVES):
 
 
 # Test-declaration markers, matched per line in test files (TEST_PATHS above). Built from
-# fragments for the same self-match reason as INLINE_DIRECTIVES. `(^|[^A-Za-z])` keeps
-# `it`/`test` from matching inside `unit(`/`fixit(`; the trailing `([^A-Za-z]|$)` keeps
+# fragments for the same self-match reason as INLINE_DIRECTIVES. `(^|[^A-Za-z.])` keeps
+# `it`/`test` from matching inside `unit(`/`fixit(` or as a method call (`re.test(s)`,
+# `obj?.test(s)`), which is never a declaration; the trailing `([^A-Za-z]|$)` keeps
 # `@TestConfiguration` and `[TestFixture]` out. `describe(` is left out on purpose:
 # commenting out a describe also comments its `it(` lines, and counting it would make
 # removing a wrapper look like a deleted test.
 TEST_DEFS = [
-    "(^|[^A-Za-z])(it|test)[.(]",
+    "(^|[^A-Za-z.])(it|test)[.(]",
     "def " + "test",
     "function " + "test",
     "@" + "Test([^A-Za-z]|$)",
