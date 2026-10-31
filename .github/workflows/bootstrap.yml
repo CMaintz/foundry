@@ -55,7 +55,7 @@ on:
         default: "1.5.0"
       mise_version:
         type: string
-        default: "2026.9.4"
+        default: "2026.9.5"
       base_branch:
         type: string
         default: "main"
@@ -105,7 +105,7 @@ jobs:
           python-version: '3.12'
       # Toolchain (node, pmd, python, …) comes from the repo's mise.toml, so this
       # step is language-agnostic - whatever the six verbs need is what installs.
-      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5
         with:
           version: ${{ inputs.mise_version }}
       # TS/Node sensors (knip/ts-morph/jscpd) resolve from node_modules; install
