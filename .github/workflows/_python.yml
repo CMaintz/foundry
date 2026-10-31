@@ -24,7 +24,7 @@ on:
           mise.jdx.dev/VERSION for "latest", which can advertise a version whose
           GitHub release assets are not published yet.
         type: string
-        default: "2026.9.4"
+        default: "2026.9.5"
       working_directory:
         description: Directory containing mise.toml and the Python project + .habit-hooks/.
         type: string
@@ -71,7 +71,7 @@ jobs:
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
-      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5
         with:
           version: ${{ inputs.mise_version }}
           cache: true
@@ -171,7 +171,7 @@ jobs:
         with:
           path: ~/.local/opt/${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
           key: ${{ runner.os }}-habit-hooks-${{ inputs.habit_hooks_plugin }}-${{ inputs.habit_hooks_version }}
-      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5
         with:
           version: ${{ inputs.mise_version }}
           cache: true

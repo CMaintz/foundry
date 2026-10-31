@@ -26,9 +26,9 @@ gitleaks = "8.24.3" # audit's secret scan
 # each one through the `# renovate:` comment above it (the shared preset's annotation
 # manager), so keep those comments directly above their pins.
 # renovate: datasource=pypi depName=mypy
-MYPY_VERSION = "2.4.0"
+MYPY_VERSION = "2.4.1"
 # renovate: datasource=pypi depName=pytest
-PYTEST_VERSION = "9.1.1" # >= 9.0.3: 8.4.2 fails pip-audit (PYSEC-2026-1845)
+PYTEST_VERSION = "9.2.0" # >= 9.0.3: 8.4.2 fails pip-audit (PYSEC-2026-1845)
 # renovate: datasource=pypi depName=pytest-cov
 PYTEST_COV_VERSION = "7.1.0"
 # renovate: datasource=pypi depName=pip-audit

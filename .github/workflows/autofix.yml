@@ -28,7 +28,7 @@ on:
         default: "autofix"
       mise_version:
         type: string
-        default: "2026.9.4"
+        default: "2026.9.5"
       working_directory:
         type: string
         default: "."
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
-      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5
         with:
           version: ${{ inputs.mise_version }}
       # fix shells out to project formatters/linters, which need deps installed.
