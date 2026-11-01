@@ -4,7 +4,7 @@
 #   Usage:  bash foundry-init.sh <stack> [working_dir]          # single package
 #           bash foundry-init.sh --mono <stack:dir> [<stack:dir>...]   # monorepo
 #     stack:        ts | java | php | kotlin | dotnet | python
-#                   (--mono supports the facade stacks only: ts | java | php | dotnet)
+#                   (--mono supports ts | java | php | dotnet; not python or kotlin)
 #     working_dir:  where mise.toml/.habit-hooks live (default ".")
 #   Env:
 #     FOUNDRY_REF   foundry ref to pin the reusable workflows to (default "main";
@@ -12,8 +12,9 @@
 #     FOUNDRY_RAW   base URL the templates are fetched from (default: raw GitHub at
 #                   FOUNDRY_REF). The CI smoke test points it at a local checkout (file://).
 #
-# Fetches the mise verb template, the habit-hooks config, the shared presets and the
-# ruleset-guard script, then generates the caller workflows and prints the
+# Fetches the mise verb template, the habit-hooks config and the shared presets,
+# creates the GitHub labels, sets the repo's Actions and auto-merge settings, generates
+# the caller workflows (gate, security, ratchet, bootstrap) and prints the
 # branch-protection checklist. In --mono mode it scaffolds each package and emits one
 # gate.yml that fans out per package behind the changes.yml path classifier, wrapped in
 # a single `gate-ok`. Never overwrites an existing file - safe to re-run.

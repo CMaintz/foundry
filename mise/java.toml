@@ -14,7 +14,7 @@
 [tools]
 java = "21"
 # jscpd = the duplicated-code detector for the `generic` habit-hooks plugin (the
-# java preset enables it alongside PMD). Pinned via mise so local runs, the
+# java preset ships it disabled; enable it there to run it alongside PMD). Pinned via mise so local runs, the
 # habit-hooks-guard Stop hook, and CI (mise-action runs `mise install`) all resolve
 # the SAME version - an unpinned `npm i -g jscpd` drifts and shifts duplication
 # findings between machines. Bump in lockstep with any consumer's pin.

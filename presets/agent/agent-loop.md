@@ -82,7 +82,8 @@ and scoping that would be a false green. **Your final verification is always a c
 whole-tree `mise run gate` with `FOUNDRY_SINCE` unset** - the scoped runs are for speed
 during the loop, not for declaring done. CI never sets it, so whole-tree CI stays the
 backstop. Unset it and you're back to the full local gate; an unresolvable ref falls
-back to whole-tree on its own.
+back to whole-tree on its own. Only the ts template scopes on it; the other stacks
+ignore it (Gradle already scopes the Java build).
 
 ## Outer loop - campaigns (`repo-align`)
 

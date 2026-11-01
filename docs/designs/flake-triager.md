@@ -4,7 +4,7 @@
 **Home:** foundry (wrapper + baseline format + guard) · **Weight:** pre-push/CI
 
 **Implemented & tested (in isolation):** `scripts/foundry-flaky` - `gate` mode
-post-processes a test report (JUnit XML *and* vitest JSON) against `flaky-baseline.json`
+post-processes a test report (JUnit XML, vitest JSON or dotnet TRX) against `flaky-baseline.json`
 and fails only if a NON-quarantined test failed (quarantined flakes are printed, never
 hidden); `classify` mode reruns failed tests N times to separate flakes (flip) from real
 failures (always fail) and surfaces prune candidates (quarantined-but-now-stable). Both
@@ -13,7 +13,7 @@ modes tested across formats + quarantined/real/no-baseline cases. `presets/basel
 label), remove=tightening (free), no new guard code. `mise/ts.toml` gains an opt-in
 `test:flaky` integration task.
 
-**Follow-ons, now built** (`tests/test_foundry_flaky.py`, 16 cases): `parse_report`
+**Follow-ons, built** (`tests/test_foundry_flaky.py`): `parse_report`
 accepts a DIRECTORY of JUnit XML (Gradle writes one `TEST-*.xml` per class), merged;
 `mise/java.toml` gains the Java `test:flaky` task + the `./gradlew test --tests "{test}"`
 classify recipe (globs `build/test-results/test`, fails if empty; parameterized bracket

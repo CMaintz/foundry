@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Does a change to a ratchet baseline LOOSEN it? Exit 1 = loosening (needs the
-ruleset-change label), 0 = safe.
+"""Does a change to a ratchet baseline LOOSEN it? Exit 1 = loosening (needs a
+sign-off label), 0 = safe.
 
 Per-entry, not aggregate: any entry ADDED or INCREASED is a loosening; removals
 are fine. This is what defeats the offset attack - fixing one violation while
@@ -22,15 +22,18 @@ Kinds:
   inline  IN-SOURCE suppression directives, test-skips and config demotions, counted
           tree-wide per (file, directive) at both refs - an added eslint-disable /
           @ts-ignore / @SuppressWarnings / # noqa / #pragma warning disable /
-          coverage-exclusion / it.skip / editorconfig severity=none is a loosening the
+          coverage-exclusion / it.skip / editorconfig severity=none|silent|suggestion is a loosening the
           baseline files above never see. No <path>: the base tree IS the baseline. Same
           per-entry shrink-only property as eslint, so the offset attack is still caught.
   tests   TEST DELETION: uncommented test declarations summed over the PR's changed
           test files, INVERSE - fewer at head than base means a test was deleted or
           commented out with no replacement. A split, move or rename nets out. No <path>.
+  workflow-approve  growth in workflow lines that let a job approve PRs
+          (pull-requests: write, gh pr review --approve, ...). No <path>.
 
 Usage: ruleset_guard.py <eslint|snooze|lines|coverage> <base-ref> <head-ref> <path>
        ruleset_guard.py <inline|tests|workflow-approve> <base-ref> <head-ref>
+       ruleset_guard.py <inline-count|tests-count> <ref>   (tree-wide total, for the ratchet report)
        ruleset_guard.py signoff <events.jsonl> <label,label> <head-time>
 """
 

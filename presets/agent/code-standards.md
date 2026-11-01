@@ -66,8 +66,9 @@ already made clear by a well-named variable or parameter. As with length: the po
 
 ## Size limits - files and lines
 
-- **File ≤ 300 lines** (coded files - TS/JS, Java, HTML/CSS). Over that is
-  `oversized-file`, gated by habit-hooks' line-count sensor. Config, generated, data,
+- **File ≤ 300 lines** for code in every stack. Over that is `oversized-file`,
+  gated by habit-hooks' line-count sensor. HTML/CSS have no sensor; `web.yml`
+  gates them (default 400). Config, generated, data,
   and prose/prompt files are excluded by the `files` globs. Keep a large prompt or
   template in its own resource file (`.txt` / a constants file), not inline in a
   module, so the code file stays under the limit.
@@ -76,9 +77,9 @@ already made clear by a well-named variable or parameter. As with length: the po
   unbreakable string/URL), which is exactly the case you'd exempt. TS/JS: ESLint
   `max-len` (120) with `ignoreStrings` / `ignoreTemplateLiterals` / `ignoreUrls` /
   `ignoreRegExpLiterals`, so prompts and formatted text don't trip it - foundry ships
-  this as [`eslint.config.mjs`](./eslint.config.mjs); extend it in your project.
-  Prettier's `printWidth` (120) is what auto-wraps; `max-len` is the backstop for
-  what it can't.
+  this as [`eslint.config.mjs`](../lint/eslint.config.mjs); extend it in your project.
+  Prettier's `printWidth` (120 or below) is what auto-wraps; `max-len` is the
+  backstop for what it can't.
 - **Function length / complexity count *statements and branches*, not characters** -
   a long prompt string is one statement, so it does **not** inflate `oversized-function`
   (NcssCount) or `high-complexity`. Those are about doing too much (above), never line
