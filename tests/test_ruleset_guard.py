@@ -383,11 +383,35 @@ class TestTestDeletion:
         r = run_cli(cwd, "tests", base, head)
         assert r.returncode == 1 and "a.test.ts" in r.stderr
 
+    def test_replacing_a_regex_test_call_is_safe(self, repo):
+        cwd, commit = repo
+        # `.test(` on a RegExp is a method call; counting it reported a phantom deleted test.
+        body = "it('a', () => {})\nit('b', () => {\n  expect(%s).toBe(true)\n})\n"
+        base = commit(body % "new RegExp(X).test(s)", path="a.test.ts")
+        head = commit(body % "bad(s).length > 0", path="a.test.ts")
+        assert run_cli(cwd, "tests", base, head).returncode == 0
+
     def test_test_config_annotation_is_not_counted(self, repo):
         cwd, commit = repo
         base = commit("@TestConfiguration\nclass FooTest {}\n", path="FooTest.java")
         head = commit("class FooTest {}\n", path="FooTest.java")
         assert run_cli(cwd, "tests", base, head).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "line, n",
+    [
+        ("  expect(re.test(s)).toBe(true)", 0),
+        ("  expect(obj?.test(s)).toBe(true)", 0),
+        ("  suite.it('x', () => {})", 0),
+        ("it('x', () => {})", 1),
+        ("test.each([1])('x %s', () => {})", 1),
+        ("test.skip('x', () => {})", 1),
+        ("  it.only('x', () => {})", 1),
+    ],
+)
+def test_count_test_defs_tells_declarations_from_method_calls(line, n):
+    assert guard.count_test_defs(line) == n
 
 
 def labeled(name, at):
