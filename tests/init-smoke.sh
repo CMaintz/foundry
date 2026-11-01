@@ -31,7 +31,7 @@ for stack in "${STACKS[@]}"; do
     expected=(mise.toml .habit-hooks/config.toml .gitleaks.toml renovate.json
       .github/workflows/gate.yml .github/workflows/security.yml .github/workflows/ratchet.yml)
     case "$stack" in
-      ts) expected+=(tsconfig.json .jscpd.json .prettierrc.json .github/workflows/bootstrap.yml) ;;
+      ts) expected+=(tsconfig.json .jscpd.json .habit-hooks/eslint.config.mjs .prettierrc.json .github/workflows/bootstrap.yml) ;;
       java) expected+=(pmd/ruleset.xml config/pmd/no-var.xml .jscpd.json .github/workflows/bootstrap.yml) ;;
       dotnet) expected+=(Directory.Build.props .editorconfig .github/workflows/bootstrap.yml) ;;
       php) expected+=(.github/workflows/bootstrap.yml) ;;

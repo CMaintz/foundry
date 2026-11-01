@@ -1,10 +1,20 @@
-# Copy to <repo>/.habit-hooks/config.toml
+# Copy to <repo>/.habit-hooks/config.toml, and eslint.config.mjs (beside this file) to
+# <repo>/.habit-hooks/eslint.config.mjs.
 plugins = ["typescript", "generic"]
 
 # Tests are not structural-smell-gated: long, mock-heavy specs are normal and fine.
 # CI should police production maintainability, not test structure. (Language-
 # agnostic principle - see README.)
 files = ["**/*.ts", "**/*.tsx", "!**/*.spec.ts", "!**/*.spec.tsx", "!**/*.test.ts", "!**/*.test.tsx"]
+
+# The eslint sensor lints with the project's own eslint config whenever one exists, and
+# falls back to the plugin's structural rules only when there is none - so a repo with any
+# eslint config of its own (every repo whose lint runs `eslint .`) gets no
+# oversized-function, high-complexity, too-many-parameters or deep-nesting at all. The
+# companion config imports the project's config and adds those rules, and only habit-hooks
+# runs it: the rules are ratcheted by the snooze baseline rather than hard-failing lint.
+[sensors.eslint]
+args = ["--config", ".habit-hooks/eslint.config.mjs"]
 
 # File-length: flag files over 300 lines (oversized-file). 300 rather than the
 # sensor default of 200 - verbose-but-cohesive files (esp. Java) legitimately pass

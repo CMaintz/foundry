@@ -31,11 +31,15 @@ jobs:
           ACTIONLINT: ${{ runner.temp }}/actionlint
         run: bash tests/init-smoke.sh
 
-  # habit-hooks-js-smoke: the javascript habit-hooks preset against the real sensors on a
-  # throwaway plain-JS repo. Out of self-gate.yml for the same reason as init-smoke: it
-  # installs habit-hooks and the node tools fresh each run.
+  # habit-hooks-js-smoke: the javascript and typescript habit-hooks presets against the
+  # real sensors on a throwaway repo in each language. Out of self-gate.yml for the same
+  # reason as init-smoke: it installs habit-hooks and the node tools fresh each run.
   habit-hooks-js-smoke:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [javascript, typescript]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
@@ -53,7 +57,8 @@ jobs:
           python -m venv "$RUNNER_TEMP/hh"
           "$RUNNER_TEMP/hh/bin/pip" install --disable-pip-version-check \
             "habit-hooks==$v" "habit-hooks-typescript==$v"
-      - name: Smells reported for JS, not for tests
+      - name: Smells reported for source, not for tests
         env:
           HABIT_SENSORS: ${{ runner.temp }}/hh/bin/habit-sensors
+          PRESET: ${{ matrix.preset }}
         run: bash tests/habit-hooks-js-smoke.sh

@@ -22,7 +22,7 @@ to a truly universal check.
 
 | File | Plugins | For |
 |---|---|---|
-| `typescript.toml` | typescript, generic | TypeScript (eslint, knip, ts-morph) |
+| `typescript.toml` | typescript, generic | TypeScript (eslint, knip, ts-morph) - see below |
 | `javascript.toml` | typescript, generic | Plain JS (.js/.mjs/.cjs): eslint, knip, jscpd - see below |
 | `java.toml` | java, generic | Java (PMD → oversized-file/function, etc.) |
 | `php.toml` | php, generic | PHP (phpmd) |
@@ -41,21 +41,31 @@ Thresholds (oversized-file at 200 lines, etc.) use habit-hooks' own defaults -
 the same numbers everywhere, which is exactly the point: file-length limits apply
 to Java and PHP just as they do to TypeScript.
 
+## The eslint wrapper (TypeScript and JavaScript)
+
+The plugin's eslint sensor uses the project's eslint config whenever one exists and its
+own structural rules only when there is none, so a repo with any eslint config gets no
+oversized-function, high-complexity, too-many-parameters or deep-nesting at all. Both
+`typescript.toml` and `javascript.toml` point the sensor at `eslint.config.mjs` (copy it
+to `<repo>/.habit-hooks/eslint.config.mjs`; `foundry-init` does for the `ts` stack). It
+spreads in the project's root config, so the project's own rules keep reporting and its
+parser reads TypeScript, then adds those rules. Only habit-hooks runs it, so the rules
+ratchet through the snooze baseline instead of hard-failing `eslint .`. It needs only
+`eslint`, not typescript-eslint. Only a root eslint config is spread in: `--config` turns
+off eslint's per-directory lookup, so a nested package config is not seen.
+
+Adopting it in a repo that already has a `snooze.json` surfaces the existing function-level
+smells as new findings. Re-seed once: `habit-sensors --all --no-snooze | habit-snooze --snooze`
+(or delete `snooze.json` and dispatch the bootstrap workflow, which prunes an existing
+baseline but cannot grow it).
+
 ## Plain JavaScript
 
 `javascript.toml` runs the typescript plugin over `.js`/`.mjs`/`.cjs`. Every sensor reads
 JS (ts-morph, eslint, knip and jscpd all parse it), so no separate plugin is needed; what
-JS needs is config, in two companion files under `javascript/`:
+JS needs is config, in two companion files:
 
-- `javascript/eslint.config.mjs` -> `<repo>/.habit-hooks/eslint.config.mjs`. The plugin's
-  eslint sensor uses the project's eslint config whenever one exists and its own
-  structural rules only when there is none, so a repo with any eslint config gets no
-  oversized-function, high-complexity, too-many-parameters or deep-nesting at all. This
-  file spreads in the project's config and adds those rules for JS files; the preset
-  points the sensor at it. Only habit-hooks runs it, so the rules ratchet through the
-  snooze baseline instead of hard-failing `eslint .`. It needs only `eslint`, not
-  typescript-eslint. Only a root eslint config is spread in: `--config` turns off
-  eslint's per-directory lookup, so a nested package config is not seen.
+- `eslint.config.mjs` -> `<repo>/.habit-hooks/eslint.config.mjs`, the wrapper above.
 - `javascript/knip.json` -> `<repo>/knip.json` (keep yours if you have one). With no knip
   config the plugin supplies one that only looks at `src/**/*.ts`, so a JS repo gets no
   unused-export or unused-file. knip's own test-runner plugins make test files entries,
@@ -66,8 +76,9 @@ JS needs is config, in two companion files under `javascript/`:
 The `comment` sensor is disabled, which also means a JS repo does not need ts-morph.
 devDependencies: `eslint`, `knip`, `jscpd`. Copy `jscpd.json` to `<repo>/.jscpd.json` too:
 it keeps test dirs out of duplication, which the `files` list cannot do for jscpd.
-`tests/habit-hooks-js-smoke.sh` runs the real sensors over a throwaway JS repo with this
-preset and checks the smells are reported and test files are not.
+`tests/habit-hooks-js-smoke.sh` runs the real sensors over a throwaway repo with this preset
+(or `PRESET=typescript`, a TS repo with a typescript-eslint config) and checks the smells
+are reported, the repo's own eslint rule still is, and test files are not.
 
 HTML/CSS have no habit-hooks plugin; use foundry's reusable `web.yml` workflow for
 a max-file-length gate on those.
