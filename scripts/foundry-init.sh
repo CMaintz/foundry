@@ -3,6 +3,7 @@
 #
 #   Usage:  bash foundry-init.sh <stack> [working_dir]          # single package
 #           bash foundry-init.sh --mono <stack:dir> [<stack:dir>...]   # monorepo
+#           bash foundry-init.sh --sync [tag|latest] [working_dir]    # move to a release
 #     stack:        ts | java | php | kotlin | dotnet | python
 #                   (--mono supports the facade stacks only: ts | java | php | dotnet)
 #     working_dir:  where mise.toml/.habit-hooks live (default ".")
@@ -11,12 +12,18 @@
 #                   pass a tag or commit SHA to pin - recommended).
 #     FOUNDRY_RAW   base URL the templates are fetched from (default: raw GitHub at
 #                   FOUNDRY_REF). The CI smoke test points it at a local checkout (file://).
+#     FOUNDRY_STACK --sync only: the stack, when it cannot be read from mise.toml.
+#     FOUNDRY_REMOTE --sync only: where `latest` lists tags (default: foundry on GitHub).
 #
 # Fetches the mise verb template, the habit-hooks config, the shared presets and the
 # ruleset-guard script, then generates the caller workflows and prints the
 # branch-protection checklist. In --mono mode it scaffolds each package and emits one
 # gate.yml that fans out per package behind the changes.yml path classifier, wrapped in
 # a single `gate-ok`. Never overwrites an existing file - safe to re-run.
+#
+# --sync is the upgrade path, since a scaffold never revisits mise.toml: it points
+# FOUNDRY_SCRIPTS_REF and the setup:foundry-scripts digests at the tag's template, moves
+# vX.Y.Z workflow pins to the tag, and prints the rest of the template drift for a human.
 set -euo pipefail
 
 REF="${FOUNDRY_REF:-main}"
@@ -501,8 +508,101 @@ NEXT
   if [ -n "${2:-}" ]; then printf '\n%s\n' "$2"; fi
 }
 
+sync_die() { echo "foundry-init --sync: $*" >&2; exit 1; }
+
+latest_release() { # the highest vX.Y.Z tag upstream; the vN alias and prereleases are not releases
+  local remote="${FOUNDRY_REMOTE:-https://github.com/$REPO.git}" tags
+  tags=$(git ls-remote --tags --refs "$remote" 'v*') || sync_die "cannot list tags from $remote (network?)"
+  printf '%s\n' "$tags" | sed -n 's|^[0-9a-f]*[[:space:]]*refs/tags/v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$|\1|p' \
+    | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 | sed 's/^/v/'
+}
+
+detect_stack() { # <mise.toml> - invert resolve_stack on the scaffolded HABIT_HOOKS_PLUGIN
+  local f="$1" plugin s
+  plugin=$(sed -n 's/^HABIT_HOOKS_PLUGIN = "\([^"]*\)".*/\1/p' "$f" | head -n 1)
+  if [ -n "$plugin" ]; then
+    for s in ts java php dotnet python; do
+      resolve_stack "$s"
+      if [ "$R_PLUGIN" = "$plugin" ]; then echo "$s"; return 0; fi
+    done
+  fi
+  # kotlin has no habit-hooks plugin, so only its template header names it.
+  if head -n 1 "$f" | grep -q '^# Foundry verb interface - Kotlin'; then echo kotlin; return 0; fi
+  sync_die "cannot tell the stack of $f; set FOUNDRY_STACK=ts|java|php|kotlin|dotnet|python"
+}
+
+# The quoted digest list in setup:foundry-scripts, as a whole block: a release can add a
+# script, and copying line by line would never give the consumer that one.
+digest_block() { awk '/^scripts=.\r?$/ { on = 1; next } on && /^.\r?$/ { exit } on' "$1"; }
+
+# rewrite_pin <consumer> <template> <out> - the consumer's file with only the pin and the
+# digest block taken from the template.
+rewrite_pin() {
+  local ref block
+  ref=$(grep -m 1 '^FOUNDRY_SCRIPTS_REF = "' "$2") || sync_die "the template has no FOUNDRY_SCRIPTS_REF"
+  block=$(mktemp)
+  digest_block "$2" > "$block"
+  [ -s "$block" ] || sync_die "the template has no setup:foundry-scripts digest lines (a release before digest pinning?)"
+  awk -v ref="$ref" -v block="$block" '
+    /^FOUNDRY_SCRIPTS_REF = "/ { print ref; next }
+    /^scripts=.\r?$/ { print; while ((getline l < block) > 0) print l; skip = 1; next }
+    skip && /^.\r?$/ { skip = 0 }
+    !skip' "$1" > "$3"
+  rm -f "$block"
+  grep -q '^scripts=' "$1" || echo "  WARN: $1 has no digest list in setup:foundry-scripts; adopt the template's task from the drift below"
+}
+
+# bump_workflows <tag> - move `uses: CMaintz/foundry/...@vX.Y.Z` to the tag. A SHA, a branch
+# or the floating vN alias is a pinning choice someone made, so it is reported, not moved.
+bump_workflows() {
+  local tag="$1" f tmp
+  for f in .github/workflows/*.yml .github/workflows/*.yaml; do
+    [ -f "$f" ] || continue
+    tmp=$(mktemp)
+    awk -v tag="$tag" -v file="$f" -v repo="$REPO" -v out="$tmp" '
+      index($0, "uses: " repo "/") && match($0, /@[^[:space:]#]+/) {
+        ref = substr($0, RSTART + 1, RLENGTH - 1)
+        if (ref ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/) $0 = substr($0, 1, RSTART) tag substr($0, RSTART + RLENGTH)
+        else printf "  left alone: %s:%d @%s (not a vX.Y.Z tag)\n", file, FNR, ref
+      }
+      { print > out }' "$f"
+    if cmp -s "$f" "$tmp"; then rm -f "$tmp"; else mv "$tmp" "$f"; echo "  bumped: $f -> @$tag"; fi
+  done
+}
+
+sync() { # [tag|latest] [working_dir]
+  local tag="${1:-latest}" wd="${2:-.}" stack tmpl out rc
+  [ -f "$wd/mise.toml" ] || sync_die "no $wd/mise.toml (pass the package dir as the second argument)"
+  grep -q '^FOUNDRY_SCRIPTS_REF = "' "$wd/mise.toml" || sync_die "$wd/mise.toml has no FOUNDRY_SCRIPTS_REF; not a Foundry template"
+  if [ "$tag" = latest ]; then
+    tag=$(latest_release)
+    [ -n "$tag" ] || sync_die "no vX.Y.Z release tag found"
+  fi
+  stack="${FOUNDRY_STACK:-$(detect_stack "$wd/mise.toml")}"
+  echo "== Foundry sync: $stack @ $wd -> $tag =="
+  tmpl=$(mktemp); out=$(mktemp)
+  # The digests are the template's, never sha256 of a fresh download: a tag moved after
+  # its release must still fail setup:foundry-scripts, not get re-blessed here.
+  curl -fsSL "https://raw.githubusercontent.com/$REPO/$tag/mise/$stack.toml" -o "$tmpl" \
+    || { rm -f "$tmpl" "$out"; sync_die "cannot fetch mise/$stack.toml at $tag (network, or no such tag?)"; }
+  rewrite_pin "$wd/mise.toml" "$tmpl" "$out"
+  if ! grep -q "^FOUNDRY_SCRIPTS_REF = \"$tag\"" "$out"; then
+    echo "  NOTE: the $tag template pins $(grep -m 1 '^FOUNDRY_SCRIPTS_REF' "$out"); keeping its digests with it"
+  fi
+  if cmp -s "$wd/mise.toml" "$out"; then rm -f "$out"; echo "  already synced: $wd/mise.toml"
+  else mv "$out" "$wd/mise.toml"; echo "  synced: $wd/mise.toml (FOUNDRY_SCRIPTS_REF + digests)"; fi
+  bump_workflows "$tag"
+  echo "- template drift (review by hand; NOT applied):"
+  rc=0; diff -u --label "$wd/mise.toml" --label "mise/$stack.toml@$tag" "$wd/mise.toml" "$tmpl" || rc=$?
+  rm -f "$tmpl"
+  case "$rc" in 0) echo "  none" ;; 1) : ;; *) sync_die "diff failed" ;; esac
+}
+
 # --- dispatch ---------------------------------------------------------------
-if [ "${1:-}" = "--mono" ]; then
+if [ "${1:-}" = "--sync" ]; then
+  shift
+  sync "$@"
+elif [ "${1:-}" = "--mono" ]; then
   shift
   [ "$#" -ge 1 ] || { echo "usage: foundry-init.sh --mono <stack:dir> [<stack:dir>...]" >&2; exit 2; }
   PAIRS=("$@")

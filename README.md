@@ -215,6 +215,24 @@ auditable step. It **refuses** a non-major bump when it sees a breaking commit, 
 semver can't silently slip. (This replaced release-please, whose separate manifest
 state could desync from the tags.)
 
+### Upgrading a scaffolded repo
+
+`foundry-init` never touches an existing `mise.toml`, and Renovate cannot move
+`FOUNDRY_SCRIPTS_REF` (it cannot compute the script digests), so a repo moves to a new
+release with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CMaintz/foundry/main/scripts/foundry-init.sh -o foundry-init.sh
+bash foundry-init.sh --sync            # latest vX.Y.Z; or --sync v2.15.0 [working_dir]
+```
+
+It copies the pin and the digest lines from that tag's template (never hashing a fresh
+download, so a moved tag still fails verification), bumps `uses: CMaintz/foundry/...@vX.Y.Z`
+workflow refs to the tag (SHA, `@main` and `@vN` pins are reported and left alone), then
+prints a diff of the tag's template against your `mise.toml` to review by hand. Re-running
+it changes nothing. Run it from the repo root, since that is where it looks for
+`.github/workflows`; a monorepo runs it once per package (`--sync latest backend`).
+
 ## Status
 
 TypeScript and Java are the proven stacks (Java via the AutoApplicant pilot - Spring Boot + Angular + a browser extension). PHP, .NET and Python also have gate workflows behind the facade. Kotlin has a verb template and presets but no CI workflow yet. DESIGN.md §10 covers the rollout and §11 what's still open.
