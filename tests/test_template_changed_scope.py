@@ -12,6 +12,8 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+import pytest
+
 MISE = Path(__file__).resolve().parent.parent / "mise"
 
 
@@ -65,7 +67,8 @@ def run_stubbed(tmp_path, script, cwd, tools, env):
     return {t: (tmp_path / t).read_text(encoding="utf-8").splitlines() if (tmp_path / t).exists() else [] for t in tools}
 
 
-def test_ts_lint_hands_package_relative_paths_to_eslint_and_prettier(tmp_path):
+@pytest.mark.parametrize("stack", ["ts", "js"])
+def test_node_lint_hands_package_relative_paths_to_eslint_and_prettier(tmp_path, stack):
     repo, base = monorepo(
         tmp_path,
         {"pkg/src/a.ts": "a\n", "other/src/b.ts": "b\n"},
@@ -73,7 +76,7 @@ def test_ts_lint_hands_package_relative_paths_to_eslint_and_prettier(tmp_path):
     )
     write(repo, {"pkg/src/new.ts": "n\n"})
     calls = run_stubbed(
-        tmp_path, task_script("ts", "lint"), repo / "pkg", ["eslint", "prettier"], {"FOUNDRY_SINCE": base}
+        tmp_path, task_script(stack, "lint"), repo / "pkg", ["eslint", "prettier"], {"FOUNDRY_SINCE": base}
     )
     assert calls["eslint"] == ["src/a.ts", "src/my file.ts", "src/new.ts"]
     assert calls["prettier"] == ["--check", "--ignore-unknown", "README.md", "src/a.ts", "src/my file.ts", "src/new.ts"]

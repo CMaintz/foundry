@@ -43,7 +43,8 @@ to Java and PHP just as they do to TypeScript.
 
 ## Plain JavaScript
 
-`javascript.toml` runs the typescript plugin over `.js`/`.mjs`/`.cjs`. Every sensor reads
+`javascript.toml` runs the typescript plugin over `.js`/`.mjs`/`.cjs`. `foundry-init.sh js`
+places it and the files below; this section is for wiring it by hand. Every sensor reads
 JS (ts-morph, eslint, knip and jscpd all parse it), so no separate plugin is needed; what
 JS needs is config, in two companion files under `javascript/`:
 
