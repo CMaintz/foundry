@@ -48,7 +48,7 @@ Treat the harness like a product: measure a baseline, change one thing, measure 
 5. **Write sensor output for the agent.** Every failure message says what failed, why it matters, the deep fix, and the tempting shallow fix to avoid.
 6. **Guard the guards.** Make weakening a rule, suppressing a warning, deleting a test or growing a baseline visible and human-approved. Agents optimise whatever is measured, including the measuring.
 7. **Change one variable at a time.** A new hook, a rewritten `AGENTS.md`, a different skill: each is a PR, run against the eval suite, kept only if it improves the score without regressing anything.
-8. **Ablate and prune.** Periodically remove a layer or an instruction and re-run. A rule whose removal changes nothing is costing context for no return; delete it.
+8. **Switch off and prune.** Periodically turn off a layer or an instruction and re-run. A rule whose removal changes nothing is costing context for no return; delete it.
 9. **Promote what recurs.** A mistake seen twice becomes a check (`learn`). A capability task the agent now passes reliably graduates into the regression suite.
 10. **Template and share.** Package the proven guides and sensors so every repo inherits them (Foundry's facades), versioned so teams can upgrade on their own schedule.
 
@@ -154,17 +154,17 @@ The agent side has three layers, and the main design decision is which layer a r
 
 Hooks are small scripts the agent runtime fires at fixed moments. Placement follows cost: cheap checks run after every edit, slow ones once per turn.
 
-| Hook                        | Fires                                                                       | What it does                                                                               | Blocks?          |
-| --------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------- |
-| `auto-format`               | after every file edit                                                       | formats just that file (sub-second), so CI never fails on whitespace                       | no               |
-| `habit-hooks-guard`         | when the agent tries to finish                                              | runs the repo's pinned structural-smell sensor on the changeset and coaches the agent      | yes, until fixed |
-| `typecheck-stop`            | once per turn                                                               | runs the type checker if source changed                                                    | yes              |
-| `guard-generated-files`     | before an edit or shell command                                             | stops the agent hand-editing debt baselines                                                | yes              |
-| `guard-pr-create`           | before a shell command                                                      | blocks a bare `gh pr create`, so every PR goes through `ship`                              | yes              |
-| `pre-push` (git)            | before `git push`                                                           | runs the full gate, so humans get the same check as agents                                 | yes              |
-| Jev tool-call triage, Leash | end of turn (Leash also snapshots at session start and each prompt), opt-in | a cheap model flags destructive actions or broken un-lintable rules                        | never, warn only |
-| `format-java-stop`          | once per turn                                                               | runs Spotless on Java files the turn touched (a JVM formatter is too slow to run per edit) | no               |
-| `pre-commit` (git)          | before git commit                                                           | formats staged files with the repo's Prettier and re-stages them                           | no               |
+| Hook                        | Fires                                                                       | What it does                                                                               | Blocks?                                                             |
+| --------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `auto-format`               | after every file edit                                                       | formats just that file (sub-second), so CI never fails on whitespace                       | no                                                                  |
+| `habit-hooks-guard`         | when the agent tries to finish                                              | runs the repo's pinned structural-smell sensor on the changeset and coaches the agent      | yes, until fixed                                                    |
+| `typecheck-stop`            | once per turn                                                               | runs the type checker if source changed                                                    | yes                                                                 |
+| `guard-generated-files`     | before an edit or shell command                                             | stops the agent hand-editing debt baselines                                                | yes                                                                 |
+| `guard-pr-create`           | before a shell command                                                      | blocks a bare `gh pr create`, so every PR goes through `ship`                              | yes                                                                 |
+| `pre-push` (git)            | before `git push`                                                           | runs the full gate, so humans get the same check as agents                                 | yes                                                                 |
+| Jev tool-call triage, Leash | end of turn (Leash also snapshots at session start and each prompt), opt-in | a cheap model flags destructive actions or broken un-lintable rules                        | Leash makes the agent repair before it stops; never fails the build |
+| `format-java-stop`          | once per turn                                                               | runs Spotless on Java files the turn touched (a JVM formatter is too slow to run per edit) | no                                                                  |
+| `pre-commit` (git)          | before git commit                                                           | formats staged files with the repo's Prettier and re-stages them                           | no                                                                  |
 
 #### Skills: procedures with judgement
 
