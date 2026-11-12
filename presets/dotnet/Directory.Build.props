@@ -26,6 +26,6 @@
     <!-- Pinned; Renovate's nuget manager tracks this PackageReference. PrivateAssets=all
          keeps the analyzer a build-time dev dependency - it never flows to consumers of
          the built package. -->
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" PrivateAssets="all" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.36.0.15337" PrivateAssets="all" />
   </ItemGroup>
 </Project>
