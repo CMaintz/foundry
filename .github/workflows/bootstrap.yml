@@ -55,7 +55,7 @@ on:
         default: "1.5.0"
       mise_version:
         type: string
-        default: "2026.9.4"
+        default: "2026.9.5"
       base_branch:
         type: string
         default: "main"
@@ -90,7 +90,7 @@ jobs:
       - name: GitHub App token
         id: app
         if: inputs.app_client_id != ''
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           client-id: ${{ inputs.app_client_id }}
           private-key: ${{ secrets.app_private_key }}
@@ -105,7 +105,7 @@ jobs:
           python-version: '3.12'
       # Toolchain (node, pmd, python, …) comes from the repo's mise.toml, so this
       # step is language-agnostic - whatever the six verbs need is what installs.
-      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5
         with:
           version: ${{ inputs.mise_version }}
       # TS/Node sensors (knip/ts-morph/jscpd) resolve from node_modules; install
